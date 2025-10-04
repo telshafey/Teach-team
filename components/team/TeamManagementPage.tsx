@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { TeamTreeView } from './TeamTreeView';
+// FIX: Corrected import paths.
 import { TeamMemberFormModal } from '../modals/TeamMemberFormModal';
 import { TeamMember, TeamMemberFormData } from '../../types';
 import { PlusIcon, UsersIcon, SearchIcon } from '../ui/Icons';

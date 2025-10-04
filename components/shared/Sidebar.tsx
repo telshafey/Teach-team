@@ -102,12 +102,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpe
           )}
         </nav>
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-             <div className="flex items-center space-x-3 rtl:space-x-reverse p-2">
+             <div
+                onClick={() => onNavigate('profile')}
+                className="flex items-center space-x-3 rtl:space-x-reverse p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+             >
                  <img src={currentUser?.avatarUrl} alt={currentUser?.name} className="w-10 h-10 rounded-full" />
-                 <div>
+                 <div className="flex-1">
                      <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">{currentUser?.name}</p>
+                     <p className="text-xs text-slate-500 dark:text-slate-400">عرض الملف الشخصي</p>
                  </div>
-                 <button onClick={handleLogout} className="mr-auto rtl:mr-0 rtl:ml-auto p-2 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400" title="تسجيل الخروج">
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); handleLogout(); }} 
+                    className="p-2 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400" 
+                    title="تسجيل الخروج"
+                 >
                      <ArrowRightOnRectangleIcon className="w-6 h-6" />
                  </button>
              </div>

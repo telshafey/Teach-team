@@ -65,6 +65,86 @@
 
 التطبيق لا يتطلب خادمًا (server) أو عملية بناء (build process) معقدة، مما يجعل عملية النشر سريعة ومباشرة.
 
+## 🧪 الاختبارات (Testing)
+
+لضمان جودة التطبيق واستقراره، يُنصح بشدة بإضافة مجموعة من الاختبارات الآلية. هذا يساعد على اكتشاف الأخطاء مبكراً ويمنح الثقة عند إضافة ميزات جديدة أو تعديل الكود الحالي.
+
+### 1. اختبارات الوحدات (Unit Tests)
+
+تُستخدم لاختبار المكونات الفردية بشكل معزول للتأكد من أنها تعمل كما هو متوقع.
+
+**الأدوات المقترحة**: [Jest](https://jestjs.io/) و [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+
+**مثال: اختبار المكون `PerformanceSummaryCard.tsx`**
+
+```tsx
+// components/dashboard/PerformanceSummaryCard.test.tsx
+
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { PerformanceSummaryCard } from './PerformanceSummaryCard';
+
+describe('PerformanceSummaryCard', () => {
+  it('should render stats and calculate percentage change correctly', () => {
+    const props = {
+      currentMonthHours: 150,
+      lastMonthHours: 120, // +25% change
+      currentMonthTasks: 40,
+      lastMonthTasks: 50,   // -20% change
+    };
+
+    render(<PerformanceSummaryCard {...props} />);
+
+    // Check if current values are displayed
+    expect(screen.getByText(/150.0 ساعة/i)).toBeInTheDocument();
+    expect(screen.getByText(/40 مهمة/i)).toBeInTheDocument();
+
+    // Check for positive percentage change
+    const positiveChange = screen.getByText(/25%/i);
+    expect(positiveChange).toBeInTheDocument();
+    expect(positiveChange.closest('div')).toHaveClass('text-green-600');
+
+    // Check for negative percentage change
+    const negativeChange = screen.getByText(/20%/i);
+    expect(negativeChange).toBeInTheDocument();
+    expect(negativeChange.closest('div')).toHaveClass('text-red-600');
+  });
+});
+```
+
+### 2. الاختبارات الشاملة (End-to-End Tests)
+
+تُستخدم لمحاكاة سلوك المستخدم الحقيقي عبر التطبيق بأكمله، من البداية إلى النهاية.
+
+**الأدوات المقترحة**: [Cypress](https://www.cypress.io/) أو [Playwright](https://playwright.dev/).
+
+**مثال: اختبار عملية تسجيل الدخول باستخدام Cypress**
+
+```javascript
+// cypress/e2e/login_spec.cy.ts
+
+describe('Login Flow', () => {
+  it('should allow a manager to log in and see their dashboard', () => {
+    // Visit the login page
+    cy.visit('/');
+
+    // Select a manager from the dropdown
+    // Note: We are selecting by value, which is the user's ID. '2' is Fatima Al-Zahrani (manager).
+    cy.get('#user-select').select('2');
+
+    // Click the login button
+    cy.get('button[type="submit"]').click();
+
+    // Assert that we are on the manager dashboard
+    cy.contains('h2', 'لوحة تحكم المدير').should('be.visible');
+    cy.contains('p', 'مرحباً فاطمة الزهراني، إليك نظرة على فريقك.').should('be.visible');
+
+    // Assert that the decision center card is visible
+    cy.contains('h3', 'مركز اتخاذ القرار').should('be.visible');
+  });
+});
+```
+
 ## 📂 هيكل المشروع
 
 ```

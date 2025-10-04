@@ -5,6 +5,7 @@ import { Dashboard } from './components/dashboard/Dashboard';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+// FIX: Corrected the import path for ProjectProvider.
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 

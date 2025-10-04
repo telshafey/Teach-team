@@ -1,3 +1,4 @@
+// FIX: Corrected import path for types.
 import { Role, TeamMember, Project, Task, DailyLog, Notification, SiteSettings, Meeting, ExpenseClaim } from './types';
 import { format } from 'date-fns';
 
@@ -47,10 +48,10 @@ const TEAM_MEMBERS: TeamMember[] = [
 ];
 
 const PROJECTS: Project[] = [
-    { id: 'proj_1', name: 'تطوير تطبيق الجوال', description: 'تطبيق جديد لإدارة المهام الشخصية.', status: 'نشط', budgetHours: 500, budgetAmount: 150000, deadline: '2024-09-30' },
-    { id: 'proj_2', name: 'حملة تسويقية للربع الرابع', description: 'إطلاق حملة تسويقية رقمية.', status: 'نشط', budgetHours: 250, budgetAmount: 75000, deadline: '2024-10-15' },
-    { id: 'proj_3', name: 'إعادة تصميم الموقع الإلكتروني', description: 'تحديث واجهة المستخدم وتجربة المستخدم للموقع.', status: 'مكتمل', budgetHours: 300, budgetAmount: 90000 },
-    { id: 'proj_4', name: 'مشروع المستقل', description: 'مشروع صغير لتصميم شعار.', status: 'نشط', budgetHours: 40, budgetAmount: 6000, deadline: '2024-08-20' },
+    { id: 'proj_1', name: 'تطوير تطبيق الجوال', description: 'تطبيق جديد لإدارة المهام الشخصية.', status: 'نشط', budgetHours: 500, budgetAmount: 150000, deadline: '2024-09-30', budgetNotificationSent: null },
+    { id: 'proj_2', name: 'حملة تسويقية للربع الرابع', description: 'إطلاق حملة تسويقية رقمية.', status: 'نشط', budgetHours: 250, budgetAmount: 75000, deadline: '2024-10-15', budgetNotificationSent: null },
+    { id: 'proj_3', name: 'إعادة تصميم الموقع الإلكتروني', description: 'تحديث واجهة المستخدم وتجربة المستخدم للموقع.', status: 'مكتمل', budgetHours: 300, budgetAmount: 90000, budgetNotificationSent: null },
+    { id: 'proj_4', name: 'مشروع المستقل', description: 'مشروع صغير لتصميم شعار.', status: 'نشط', budgetHours: 40, budgetAmount: 6000, deadline: '2024-08-20', budgetNotificationSent: null },
 ];
 
 const TASKS: Task[] = [

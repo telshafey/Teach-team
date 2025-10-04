@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppDataContext } from '../../contexts/DataContext';
+// FIX: Corrected import paths.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { Calendar } from '../ui/Calendar';
@@ -11,11 +12,13 @@ import { isSameDay, startOfMonth, subMonths, parseISO, isWithinInterval, subDays
 import { PerformanceSummaryCard } from './PerformanceSummaryCard';
 import { TaskCard } from '../project/TaskCard';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { Skeleton } from '../ui/Skeleton';
+import { TaskCardSkeleton } from '../project/TaskCardSkeleton';
 
 export const PersonalDashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useAppDataContext();
-    const { tasks } = useProjectContext();
+    const { tasks, isLoading: isLoadingTasks } = useProjectContext();
     
     const [selectedDateDetails, setSelectedDateDetails] = useState<{ date: string; isEditable: boolean } | null>(null);
     const [isLogDetailModalOpen, setIsLogDetailModalOpen] = useState(false);
@@ -110,6 +113,26 @@ export const PersonalDashboard: React.FC = () => {
     
     const todoTasks = userTasks.filter(t => t.status === 'todo');
     const inProgressTasks = userTasks.filter(t => t.status === 'inprogress');
+    
+    const renderTaskSkeletons = () => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1"><Skeleton className="h-4 w-28" /></h3>
+                <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem]">
+                    <TaskCardSkeleton />
+                    <TaskCardSkeleton />
+                    <TaskCardSkeleton />
+                </div>
+            </div>
+            <div>
+                <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1"><Skeleton className="h-4 w-32" /></h3>
+                <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem]">
+                    <TaskCardSkeleton />
+                    <TaskCardSkeleton />
+                </div>
+            </div>
+        </div>
+    );
 
     if (!currentUser) return null;
 
@@ -124,23 +147,25 @@ export const PersonalDashboard: React.FC = () => {
                 {/* Main content: Tasks */}
                 <div className="lg:col-span-2 space-y-6">
                     <Card title="مهامي الحالية">
-                        {todoTasks.length === 0 && inProgressTasks.length === 0 ? (
-                             <p className="text-center text-slate-400 dark:text-slate-500 py-4">لا توجد لديك مهام حالية. عمل رائع!</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام لم تبدأ ({todoTasks.length})</h3>
-                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
-                                        {todoTasks.map(task => <TaskCard key={task.id} task={task} onEdit={setViewingTask} onCardClick={setViewingTask} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
+                        {isLoadingTasks ? renderTaskSkeletons() : (
+                            (todoTasks.length === 0 && inProgressTasks.length === 0) ? (
+                                 <p className="text-center text-slate-400 dark:text-slate-500 py-4">لا توجد لديك مهام حالية. عمل رائع!</p>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام لم تبدأ ({todoTasks.length})</h3>
+                                        <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
+                                            {todoTasks.map(task => <TaskCard key={task.id} task={task} onEdit={() => setViewingTask(task)} onCardClick={() => setViewingTask(task)} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام قيد التنفيذ ({inProgressTasks.length})</h3>
+                                        <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
+                                            {inProgressTasks.map(task => <TaskCard key={task.id} task={task} onEdit={() => setViewingTask(task)} onCardClick={() => setViewingTask(task)} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
+                                        </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام قيد التنفيذ ({inProgressTasks.length})</h3>
-                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
-                                        {inProgressTasks.map(task => <TaskCard key={task.id} task={task} onEdit={setViewingTask} onCardClick={setViewingTask} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
-                                    </div>
-                                </div>
-                            </div>
+                            )
                         )}
                     </Card>
                 </div>

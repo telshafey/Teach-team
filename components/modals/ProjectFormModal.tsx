@@ -1,5 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Project, ProjectFormData, SuggestedTask } from '../../types';
+// FIX: Corrected import path.
+import { Project, ProjectFormData, SuggestedTask, ProjectStatus } from '../../types';
 import { generateTaskPlan } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon } from '../ui/Icons';
@@ -19,7 +20,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     name: '',
     description: '',
     // FIX: Widen the type of status to allow for other values from the dropdown. This resolves the type error on line 35.
-    status: 'نشط' as 'نشط' | 'مكتمل' | 'معلق',
+    status: 'نشط' as ProjectStatus,
     budgetHours: '',
     budgetAmount: '',
     deadline: '',
@@ -33,7 +34,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
       setFormData({
         name: project.name,
         description: project.description,
-        status: project.status === 'custom' ? 'نشط' : project.status, // Simplify for form
+        status: project.status,
         budgetHours: project.budgetHours?.toString() || '',
         budgetAmount: project.budgetAmount?.toString() || '',
         deadline: project.deadline || '',
@@ -96,7 +97,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
           <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الحالة</label>
-              <select id="status" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as 'نشط' | 'مكتمل' | 'معلق'})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
+              <select id="status" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as ProjectStatus})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
                 <option value="نشط">نشط</option>
                 <option value="مكتمل">مكتمل</option>
                 <option value="معلق">معلق</option>

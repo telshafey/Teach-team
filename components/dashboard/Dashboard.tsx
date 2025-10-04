@@ -1,25 +1,32 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { PersonalDashboard } from './PersonalDashboard';
 import { ManagerDashboard } from './ManagerDashboard';
 import { GeneralManagerDashboard } from './GeneralManagerDashboard';
-import { ProjectsPage } from '../project/ProjectsPage';
-import { ProjectDetailPage } from '../project/ProjectDetailPage';
-import { TeamManagementPage } from '../team/TeamManagementPage';
-import { TeamMemberDetailPage } from '../team/TeamMemberDetailPage';
-import { ReportsPage } from '../reports/ReportsPage';
-import { AnalyticsPage } from '../analytics/AnalyticsPage';
-import { SettingsPage } from '../settings/SettingsPage';
-import { FinancePage } from '../finance/FinancePage';
-import { MeetingsPage } from '../meetings/MeetingsPage';
-import { MeetingRoom } from '../meetings/MeetingRoom';
+// FIX: Corrected import paths.
 import { Notification, Meeting } from '../../types';
 import { BottomNavBar } from './BottomNavBar';
 import { useAppDataContext } from '../../contexts/DataContext';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
-export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom';
+// Lazy load page components for code splitting
+const ProjectsPage = lazy(() => import('../project/ProjectsPage').then(module => ({ default: module.ProjectsPage })));
+// FIX: Corrected import path.
+const ProjectDetailPage = lazy(() => import('../project/ProjectDetailPage').then(module => ({ default: module.ProjectDetailPage })));
+const TeamManagementPage = lazy(() => import('../team/TeamManagementPage').then(module => ({ default: module.TeamManagementPage })));
+const TeamMemberDetailPage = lazy(() => import('../team/TeamMemberDetailPage').then(module => ({ default: module.TeamMemberDetailPage })));
+const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
+const SettingsPage = lazy(() => import('../settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
+const MeetingsPage = lazy(() => import('../meetings/MeetingsPage').then(module => ({ default: module.MeetingsPage })));
+const MeetingRoom = lazy(() => import('../meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
+const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
+
+
+export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile';
 
 interface ViewState {
   view: View;
@@ -94,6 +101,8 @@ export const Dashboard: React.FC = () => {
               return null;
           }
           return <MeetingRoom meeting={viewState.meeting} onLeave={handleLeaveMeeting} />;
+      case 'profile':
+        return <ProfilePage />;
       default:
         return <PersonalDashboard />;
     }
@@ -105,7 +114,9 @@ export const Dashboard: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} onNotificationSelect={handleNotificationSelect} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          {renderView()}
+           <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><LoadingSpinner className="h-10 w-10 text-sky-500" /></div>}>
+            {renderView()}
+          </Suspense>
         </main>
         <div className="lg:hidden h-16" /> {/* Spacer for bottom nav */}
         <BottomNavBar currentView={viewState.view} onNavigate={handleNavigate} />

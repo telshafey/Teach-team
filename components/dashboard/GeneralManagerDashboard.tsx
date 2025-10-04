@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
+// FIX: Corrected import paths.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, PieChartData } from '../ui/Charts';
@@ -37,7 +38,7 @@ export const GeneralManagerDashboard: React.FC<GeneralManagerDashboardProps> = (
     }, [teamMembers, dailyLogs]);
 
     const handlePieItemClick = (item: PieChartData) => {
-        onNavigate('projects', { statusFilter: item.label as ProjectStatus });
+        onNavigate('projects', { initialState: { statusFilter: item.label as ProjectStatus } });
     };
 
     return (

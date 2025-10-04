@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
+// FIX: Corrected import path.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { parseISO, isWithinInterval, format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { stringify } from 'csv-stringify/browser/esm/sync';
-import { PrinterIcon, UsersIcon, ClockIcon, CheckCircleIcon } from '../ui/Icons';
+import { DocumentArrowDownIcon, UsersIcon, ClockIcon, CheckCircleIcon } from '../ui/Icons';
 import { BarChart, PieChart } from '../ui/Charts';
 
 type ReportType = 'projects' | 'team_performance' | 'individual_logs';
@@ -27,7 +28,7 @@ const KpiCard: React.FC<{ title: string; value: string; icon: React.ReactNode }>
 );
 
 export const ReportsPage: React.FC = () => {
-    const { teamMembers, dailyLogs } = useAppDataContext();
+    const { teamMembers, dailyLogs, siteSettings } = useAppDataContext();
     const { projects, tasks } = useProjectContext();
     
     const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -283,7 +284,10 @@ export const ReportsPage: React.FC = () => {
                             <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="py-1.5 px-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white"/>
                         </div>
                     )}
-                    <button onClick={handlePrint} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"><PrinterIcon className="w-5 h-5"/></button>
+                    <button onClick={handlePrint} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600">
+                        <DocumentArrowDownIcon className="w-5 h-5"/>
+                        <span>تصدير PDF</span>
+                    </button>
                 </div>
             </div>
 
@@ -299,12 +303,22 @@ export const ReportsPage: React.FC = () => {
             
             <style>{`
                 @media print {
-                    #print-area .print-header { display: block !important; }
+                    body > *:not(#print-area) {
+                        display: none;
+                    }
+                    #print-area {
+                        display: block;
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                    }
+                    .print-header { display: block !important; }
                 }
             `}</style>
             <div id="print-area" className="space-y-6">
                 <div className="print-header hidden print:block mb-4">
-                    <h3 className="text-xl font-bold text-slate-800">تقرير {tabs.find(t=>t.id === activeTab)?.label}</h3>
+                    {siteSettings?.logoUrl && <img src={siteSettings.logoUrl} alt="Logo" className="h-12 mb-4"/>}
+                    <h3 className="text-xl font-bold text-slate-800">تقرير {tabs.find(t=>t.id === activeTab)?.label} - {siteSettings?.appName}</h3>
                     <p className="text-sm text-slate-600">{renderDateRangeText()}</p>
                 </div>
                 {renderContent()}

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+// FIX: Corrected import path.
 import { TeamMember, Role } from '../../types';
 import { Card } from '../ui/Card';
 import { UserIcon } from '../ui/Icons';

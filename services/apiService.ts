@@ -1,255 +1,173 @@
 import { initialData } from '../App.initialData';
-import {
-  Project,
-  Task,
-  TeamMember,
-  Role,
-  DailyLog,
-  Notification,
-  SiteSettings,
-  Meeting,
-  ExpenseClaim,
-  ProjectFormData,
-  TaskFormData,
-  TaskStatus,
-  ApprovalStatus,
-  TaskComment,
-  TaskAttachment,
-  BillingProposalFormData,
-  ContractStatus,
-  ExpenseClaimFormData,
-} from '../types';
+import { DailyLog, ExpenseClaim, Meeting, Notification, Project, Role, SiteSettings, Task, TeamMember } from '../types';
 
-const LS_KEY = 'teemtime_data';
-
-const getData = () => {
-  try {
-    const data = localStorage.getItem(LS_KEY);
-    if (data) {
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error("Could not parse localStorage data", error);
-  }
-  return initialData;
-};
-
-const saveData = (data: any) => {
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
-};
-
+// Simulate API latency
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-// Initialize data if not present
-if (!localStorage.getItem(LS_KEY)) {
-  saveData(initialData);
-}
-
-// --- Projects ---
-export const fetchProjects = async (): Promise<Project[]> => {
-  await delay(200);
-  return getData().projects;
+// Using localStorage to persist changes during the session
+const getFromStorage = <T>(key: string, defaultValue: T): T => {
+    try {
+        const item = window.localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+        console.warn(`Error reading from localStorage key “${key}”:`, error);
+        return defaultValue;
+    }
 };
 
-export const addProject = async (projectData: ProjectFormData): Promise<Project> => {
-  await delay(300);
-  const data = getData();
-  const newProject: Project = { ...projectData, id: `proj_${Date.now()}` };
-  data.projects.push(newProject);
-  saveData(data);
-  return newProject;
+const saveToStorage = <T>(key: string, value: T) => {
+    try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.warn(`Error writing to localStorage key “${key}”:`, error);
+    }
+};
+
+const initializeStorage = () => {
+    if (!localStorage.getItem('api_initialized')) {
+        Object.entries(initialData).forEach(([key, value]) => {
+            saveToStorage(key, value);
+        });
+        localStorage.setItem('api_initialized', 'true');
+    }
+};
+
+initializeStorage();
+
+
+export const fetchSiteSettings = async (): Promise<SiteSettings> => {
+    await delay(200);
+    return getFromStorage('siteSettings', initialData.siteSettings);
+};
+
+export const updateSiteSettings = async (settings: SiteSettings): Promise<SiteSettings> => {
+    await delay(300);
+    saveToStorage('siteSettings', settings);
+    return settings;
+};
+
+export const fetchTeamMembers = async (): Promise<TeamMember[]> => {
+    await delay(200);
+    return getFromStorage('teamMembers', initialData.teamMembers);
+};
+
+export const updateTeamMember = async (member: TeamMember): Promise<TeamMember> => {
+    await delay(300);
+    const members = getFromStorage('teamMembers', initialData.teamMembers);
+    const updatedMembers = members.map(m => m.id === member.id ? member : m);
+    saveToStorage('teamMembers', updatedMembers);
+    return member;
+};
+
+export const addTeamMember = async (member: TeamMember): Promise<TeamMember> => {
+    await delay(300);
+    const members = getFromStorage('teamMembers', initialData.teamMembers);
+    const newMember = { ...member, id: Date.now() }; // ensure unique id
+    saveToStorage('teamMembers', [...members, newMember]);
+    return newMember;
+};
+
+
+export const fetchRoles = async (): Promise<Role[]> => {
+    await delay(200);
+    return getFromStorage('roles', initialData.roles);
+};
+
+export const fetchProjects = async (): Promise<Project[]> => {
+    await delay(400);
+    return getFromStorage('projects', initialData.projects);
+};
+
+export const addProject = async (projectData: Omit<Project, 'id' | 'budgetNotificationSent'>): Promise<Project> => {
+    await delay(500);
+    const projects = getFromStorage('projects', initialData.projects);
+    const newProject: Project = {
+        ...projectData,
+        id: `proj_${Date.now()}`,
+        budgetNotificationSent: null,
+    };
+    saveToStorage('projects', [...projects, newProject]);
+    return newProject;
 };
 
 export const updateProject = async (project: Project): Promise<Project> => {
-  await delay(300);
-  const data = getData();
-  data.projects = data.projects.map((p: Project) => p.id === project.id ? project : p);
-  saveData(data);
-  return project;
-};
-
-// --- Tasks ---
-export const fetchTasks = async (): Promise<Task[]> => {
-  await delay(200);
-  return getData().tasks;
-};
-
-export const addTask = async (taskData: TaskFormData): Promise<Task> => {
     await delay(300);
-    const data = getData();
+    const projects = getFromStorage('projects', initialData.projects);
+    const updatedProjects = projects.map(p => p.id === project.id ? project : p);
+    saveToStorage('projects', updatedProjects);
+    return project;
+};
+
+export const fetchTasks = async (): Promise<Task[]> => {
+    await delay(500);
+    return getFromStorage('tasks', initialData.tasks);
+};
+
+export const addTask = async (taskData: Omit<Task, 'id' | 'approvalStatus' | 'comments' | 'attachments'>): Promise<Task> => {
+    await delay(200);
+    const tasks = getFromStorage('tasks', initialData.tasks);
     const newTask: Task = {
         ...taskData,
         id: `task_${Date.now()}`,
         approvalStatus: 'approved',
         comments: [],
-        attachments: []
+        attachments: [],
     };
-    data.tasks.push(newTask);
-    saveData(data);
+    saveToStorage('tasks', [...tasks, newTask]);
     return newTask;
 };
 
 export const updateTask = async (task: Task): Promise<Task> => {
-  await delay(300);
-  const data = getData();
-  data.tasks = data.tasks.map((t: Task) => t.id === task.id ? task : t);
-  saveData(data);
-  return task;
-};
-
-export const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<Task> => {
     await delay(200);
-    const data = getData();
-    const task = data.tasks.find((t: Task) => t.id === taskId);
-    if (task) {
-        task.status = status;
-        if (status === 'done') {
-            task.approvalStatus = 'pending';
-        }
-        saveData(data);
-        return task;
-    }
-    throw new Error("Task not found");
+    const tasks = getFromStorage('tasks', initialData.tasks);
+    const updatedTasks = tasks.map(t => t.id === task.id ? task : t);
+    saveToStorage('tasks', updatedTasks);
+    return task;
 };
 
-export const updateTaskApproval = async (taskId: string, status: ApprovalStatus, notes?: string): Promise<Task> => {
-    await delay(200);
-    const data = getData();
-    const task = data.tasks.find((t: Task) => t.id === taskId);
-    if (task) {
-        task.approvalStatus = status;
-        task.approvalNotes = notes;
-        saveData(data);
-        return task;
-    }
-    throw new Error("Task not found");
-};
-
-export const bulkUpdateTaskApproval = async (taskIds: string[], status: ApprovalStatus): Promise<Task[]> => {
-    await delay(500);
-    const data = getData();
-    const updatedTasks: Task[] = [];
-    data.tasks.forEach((task: Task) => {
-        if (taskIds.includes(task.id)) {
-            task.approvalStatus = status;
-            updatedTasks.push(task);
-        }
-    });
-    saveData(data);
-    return updatedTasks;
-};
-
-export const addTaskComment = async (taskId: string, comment: Omit<TaskComment, 'id'>): Promise<Task> => {
-    await delay(300);
-    const data = getData();
-    const task = data.tasks.find((t: Task) => t.id === taskId);
-    if (task) {
-        if (!task.comments) task.comments = [];
-        task.comments.push({ ...comment, id: `comment_${Date.now()}` });
-        saveData(data);
-        return task;
-    }
-    throw new Error("Task not found");
-};
-
-export const addTaskAttachment = async (taskId: string, attachment: Omit<TaskAttachment, 'id'>): Promise<Task> => {
-    await delay(500); // Simulate upload
-    const data = getData();
-    const task = data.tasks.find((t: Task) => t.id === taskId);
-    if (task) {
-        if (!task.attachments) task.attachments = [];
-        task.attachments.push({ ...attachment, id: `attachment_${Date.now()}` });
-        saveData(data);
-        return task;
-    }
-    throw new Error("Task not found");
-};
-
-
-// --- Team & Roles ---
-export const fetchTeamMembers = async (): Promise<TeamMember[]> => {
-  await delay(150);
-  return getData().teamMembers;
-};
-
-export const fetchRoles = async (): Promise<Role[]> => {
-  await delay(100);
-  return getData().roles;
-};
-
-// --- Daily Logs ---
 export const fetchDailyLogs = async (): Promise<DailyLog[]> => {
-  await delay(100);
-  return getData().dailyLogs;
-};
-
-// --- Notifications ---
-export const fetchNotifications = async (): Promise<Notification[]> => {
-    await delay(100);
-    return getData().notifications;
-};
-
-// --- Site Settings ---
-export const fetchSiteSettings = async (): Promise<SiteSettings> => {
-    await delay(100);
-    return getData().siteSettings;
-};
-export const updateSiteSettings = async (settings: SiteSettings): Promise<SiteSettings> => {
     await delay(300);
-    const data = getData();
-    data.siteSettings = settings;
-    saveData(data);
-    return settings;
+    return getFromStorage('dailyLogs', initialData.dailyLogs);
 };
 
-// --- Meetings ---
+export const fetchNotifications = async (): Promise<Notification[]> => {
+    await delay(300);
+    return getFromStorage('notifications', initialData.notifications);
+};
+
 export const fetchMeetings = async (): Promise<Meeting[]> => {
-    await delay(100);
-    return getData().meetings;
+    await delay(200);
+    return getFromStorage('meetings', initialData.meetings);
 };
 
-// --- Finances ---
 export const fetchExpenseClaims = async (): Promise<ExpenseClaim[]> => {
-    await delay(150);
-    return getData().expenseClaims || [];
+    await delay(200);
+    return getFromStorage('expenseClaims', initialData.expenseClaims);
 };
 
 export const addExpenseClaim = async (claimData: Omit<ExpenseClaim, 'id'>): Promise<ExpenseClaim> => {
     await delay(300);
-    const data = getData();
-    const newClaim: ExpenseClaim = { ...claimData, id: `exp_${Date.now()}`};
-    if (!data.expenseClaims) data.expenseClaims = [];
-    data.expenseClaims.push(newClaim);
-    saveData(data);
+    const claims = getFromStorage('expenseClaims', initialData.expenseClaims);
+    const newClaim: ExpenseClaim = {
+        ...claimData,
+        id: `exp_${Date.now()}`,
+    };
+    saveToStorage('expenseClaims', [...claims, newClaim]);
     return newClaim;
 };
 
-// --- Billing ---
-export const proposeBilling = async (projectId: string, proposal: BillingProposalFormData, freelancerId: number): Promise<Project> => {
+export const updateExpenseClaimStatus = async (claimId: string, status: 'approved' | 'rejected'): Promise<ExpenseClaim> => {
     await delay(300);
-    const data = getData();
-    const project = data.projects.find((p: Project) => p.id === projectId);
-    if (project) {
-        project.freelancerContract = {
-            ...proposal,
-            freelancerId,
-            status: 'pending'
-        };
-        saveData(data);
-        return project;
-    }
-    throw new Error("Project not found");
-};
-
-export const resolveBilling = async (projectId: string, status: ContractStatus, notes: string): Promise<Project> => {
-    await delay(300);
-    const data = getData();
-    const project = data.projects.find((p: Project) => p.id === projectId);
-    if (project && project.freelancerContract) {
-        project.freelancerContract.status = status;
-        project.freelancerContract.notes = notes;
-        saveData(data);
-        return project;
-    }
-    throw new Error("Project or contract not found");
+    const claims = getFromStorage('expenseClaims', initialData.expenseClaims);
+    let updatedClaim: ExpenseClaim | undefined;
+    const updatedClaims = claims.map(c => {
+        if (c.id === claimId) {
+            updatedClaim = { ...c, status };
+            return updatedClaim;
+        }
+        return c;
+    });
+    if (!updatedClaim) throw new Error("Claim not found");
+    saveToStorage('expenseClaims', updatedClaims);
+    return updatedClaim;
 };

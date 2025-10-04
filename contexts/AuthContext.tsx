@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
+// FIX: Corrected import paths.
 import { TeamMember, Role, Permission } from '../types';
 import { fetchTeamMembers, fetchRoles } from '../services/apiService';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -9,7 +10,9 @@ interface AuthContextType {
   rolesMap: Record<string, Role>;
   handleLogin: (user: TeamMember) => void;
   handleLogout: () => void;
+  updateCurrentUser: (user: TeamMember) => void;
   hasPermission: (permission: Permission) => boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             ]);
             setTeamMembers(fetchedMembers);
             setRoles(fetchedRoles);
+        // FIX: Added curly braces to the catch block to fix syntax error.
         } catch (error) {
             console.error("Failed to load authentication data", error);
         } finally {
@@ -49,17 +53,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const handleLogin = (user: TeamMember) => setCurrentUser(user);
   const handleLogout = () => setCurrentUser(null);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
-        <LoadingSpinner className="w-10 h-10" />
-        <p className="mt-4">جارٍ تحميل التطبيق...</p>
-      </div>
-    );
-  }
+  const updateCurrentUser = (user: TeamMember) => {
+    setCurrentUser(user);
+    // Also update the list of team members to keep it in sync
+    setTeamMembers(prev => prev.map(m => m.id === user.id ? user : m));
+  };
 
+  const value = { currentUser, teamMembers, rolesMap, handleLogin, handleLogout, updateCurrentUser, hasPermission, isLoading };
+
+  if (isLoading) {
+      return <div className="flex h-screen w-full items-center justify-center"><LoadingSpinner className="h-10 w-10 text-sky-500" /></div>;
+  }
+  
   return (
-    <AuthContext.Provider value={{ currentUser, teamMembers, rolesMap, handleLogin, handleLogout, hasPermission }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

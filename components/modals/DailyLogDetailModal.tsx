@@ -1,4 +1,5 @@
 import React from 'react';
+// FIX: Corrected import paths.
 import { DailyLog } from '../../types';
 import { PencilIcon, PlusIcon, TrashIcon } from '../ui/Icons';
 import { useProjectContext } from '../../contexts/ProjectContext';

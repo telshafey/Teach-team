@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
+// FIX: Corrected import paths.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { FolderIcon, PlusIcon, ClockIcon, SearchIcon } from '../ui/Icons';
+import { FolderIcon, PlusIcon, ClockIcon, SearchIcon, ExclamationTriangleIcon } from '../ui/Icons';
 import { Project, ProjectStatus, SuggestedTask } from '../../types';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { EmptyState } from '../ui/EmptyState';
+import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 
 // Helper to determine if text should be light or dark based on background color
 const getTextColorForBackground = (hexColor: string): 'text-white' | 'text-slate-800' => {
@@ -28,7 +30,7 @@ interface ProjectCardProps {
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
-    const { dailyLogs } = useAppDataContext();
+    const { dailyLogs, teamMembers, expenseClaims } = useAppDataContext();
     const { tasks } = useProjectContext();
     
     const projectTasks = useMemo(() => tasks.filter(t => t.projectId === project.id), [tasks, project.id]);
@@ -36,6 +38,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
     
     const completedTasks = projectTasks.filter(t => t.status === 'done').length;
     const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
+
+    const totalCost = useMemo(() => {
+        let labor = 0;
+        const projectLogs = dailyLogs.filter(l => l.projectId === project.id);
+        projectLogs.forEach(log => {
+            const member = teamMembers.find(m => m.id === log.teamMemberId);
+            if (member) {
+                if (member.hourlyRate) labor += log.hours * member.hourlyRate;
+                else if (member.salary) labor += log.hours * (member.salary / (22 * 8));
+            }
+        });
+        const expenses = expenseClaims.filter(e => e.projectId === project.id && e.status === 'approved').reduce((sum, e) => sum + e.amount, 0);
+        return labor + expenses;
+    }, [project.id, dailyLogs, teamMembers, expenseClaims]);
+    
+    const isOverBudget = project.budgetAmount && totalCost > project.budgetAmount;
 
     const renderStatusBadge = () => {
         const baseClasses = 'text-xs font-bold px-3 py-1 rounded-full border';
@@ -88,7 +106,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
                     <ClockIcon className="w-4 h-4 text-slate-400" />
                     <span>{loggedHours.toFixed(1)} / {project.budgetHours || 'N/A'} ساعة</span>
                 </div>
-                <span>{completedTasks} / {projectTasks.length} مهام</span>
+                 <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    {isOverBudget && <ExclamationTriangleIcon className="w-4 h-4 text-red-500" title="تم تجاوز الميزانية" />}
+                    <span>{completedTasks} / {projectTasks.length} مهام</span>
+                </div>
             </div>
         </div>
     );
@@ -101,7 +122,7 @@ interface ProjectsPageProps {
 }
 
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onSelectProject, initialState }) => {
-    const { projects, handleAddProject, handleUpdateProject, handleAddTask } = useProjectContext();
+    const { projects, handleAddProject, handleUpdateProject, handleAddTask, isLoading } = useProjectContext();
     const { hasPermission } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -142,6 +163,53 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onSelectProject, ini
             return matchesSearch && matchesStatus;
         });
     }, [projects, searchTerm, statusFilter]);
+
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {Array.from({ length: 8 }).map((_, i) => <ProjectCardSkeleton key={i} />)}
+                </div>
+            );
+        }
+
+        if (projects.length === 0) {
+             return (
+                <Card>
+                    <EmptyState
+                        icon={<FolderIcon className="w-10 h-10" />}
+                        title="لا توجد مشاريع بعد"
+                        message="ابدأ بإضافة مشروعك الأول لتنظيم مهامك."
+                        action={hasPermission('manage_projects') && (
+                            <button onClick={() => handleOpenModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
+                                <PlusIcon className="w-5 h-5"/><span>إضافة مشروع</span>
+                            </button>
+                        )}
+                    />
+                </Card>
+             );
+        }
+
+        if (filteredProjects.length > 0) {
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredProjects.map(project => (
+                        <ProjectCard key={project.id} project={project} onSelect={onSelectProject} />
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <Card>
+                <EmptyState
+                    icon={<SearchIcon className="w-10 h-10" />}
+                    title="لا توجد مشاريع تطابق بحثك"
+                    message="حاول تغيير كلمات البحث أو الفلاتر المستخدمة."
+                />
+            </Card>
+        );
+    };
 
     return (
         <div className="p-6">
@@ -184,34 +252,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onSelectProject, ini
                 </div>
             </div>
             
-            {projects.length === 0 ? (
-                 <Card>
-                    <EmptyState
-                        icon={<FolderIcon className="w-10 h-10" />}
-                        title="لا توجد مشاريع بعد"
-                        message="ابدأ بإضافة مشروعك الأول لتنظيم مهامك."
-                        action={hasPermission('manage_projects') && (
-                            <button onClick={() => handleOpenModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
-                                <PlusIcon className="w-5 h-5"/><span>إضافة مشروع</span>
-                            </button>
-                        )}
-                    />
-                </Card>
-            ) : filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} onSelect={onSelectProject} />
-                    ))}
-                </div>
-            ) : (
-                 <Card>
-                    <EmptyState
-                        icon={<SearchIcon className="w-10 h-10" />}
-                        title="لا توجد مشاريع تطابق بحثك"
-                        message="حاول تغيير كلمات البحث أو الفلاتر المستخدمة."
-                    />
-                </Card>
-            )}
+            {renderContent()}
 
             {isModalOpen && (
                 <ProjectFormModal 

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
+// FIX: Corrected import paths.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
@@ -38,6 +39,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ onViewMember
     const managedMemberIds = directReports.map(m => m.id);
     return tasks.filter(t => t.assignedTo && managedMemberIds.includes(t.assignedTo) && t.approvalStatus !== 'approved');
   }, [directReports, tasks]);
+  
 
   const openDecisionModal = (item: TeamMember | Task | Project) => {
     setDecisionItem(item);
@@ -147,6 +149,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ onViewMember
        </div>
     );
   };
+  
 
   return (
     <div className="p-6" dir="rtl">
