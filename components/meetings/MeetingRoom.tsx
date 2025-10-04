@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Meeting } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 
 declare global {
     interface Window {
@@ -16,6 +17,7 @@ interface MeetingRoomProps {
 
 export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) => {
     const { currentUser } = useAuth();
+    const { addToast } = useToast();
     const jitsiContainerRef = useRef<HTMLDivElement>(null);
     const jitsiApiRef = useRef<any>(null);
 
@@ -63,7 +65,10 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             const api = new window.JitsiMeetExternalAPI(domain, options);
             jitsiApiRef.current = api;
     
-            // Add listener for when the user hangs up
+            api.addEventListener('videoConferenceJoined', () => {
+                addToast(`مرحباً بك ${currentUser?.name}! تم إرسال تذكيرات لبقية المشاركين.`, 'info');
+            });
+            
             api.addEventListener('videoConferenceLeft', () => {
                 onLeave();
             });
@@ -78,7 +83,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             jitsiApiRef.current?.dispose();
         };
 
-    }, [meeting, currentUser, onLeave]);
+    }, [meeting, currentUser, onLeave, addToast]);
 
     return (
         <div ref={jitsiContainerRef} className="fixed inset-0 bg-slate-900 text-white flex items-center justify-center">

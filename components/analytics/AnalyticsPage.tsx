@@ -56,7 +56,7 @@ export const AnalyticsPage: React.FC = () => {
 
 
     return (
-        <div className="p-6 bg-slate-100">
+        <div className="p-6">
             <div className="mb-6">
                 <h2 className="text-2xl font-bold text-slate-800">التحليلات</h2>
                 <p className="text-md text-slate-500">نظرة عميقة على بيانات الأداء والإنتاجية.</p>

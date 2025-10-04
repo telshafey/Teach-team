@@ -1,27 +1,33 @@
-// types.ts
-
-export type RoleId = string;
+// All application-wide types are defined here.
 
 export type Permission = 
+  // Dashboards
   | 'view_dashboard_gm'
   | 'view_dashboard_manager'
   | 'view_dashboard_personal'
-  | 'view_analytics'
+  // Projects
   | 'view_projects_all'
   | 'view_projects_assigned'
   | 'manage_projects'
+  // Team
   | 'view_team_all'
   | 'manage_team'
   | 'generate_performance_notes'
+  // Finance
   | 'view_finances'
   | 'view_own_financials'
   | 'submit_expenses'
   | 'manage_freelancer_contracts'
-  | 'manage_meetings'
+  // Reports & Analytics
+  | 'view_analytics'
   | 'view_reports_all'
   | 'view_reports_own'
+  // Admin
+  | 'manage_meetings'
   | 'manage_roles'
   | 'approve_submissions';
+
+export type RoleId = 'gm' | 'manager' | 'employee' | 'freelancer' | string;
 
 export interface Role {
   id: RoleId;
@@ -30,14 +36,13 @@ export interface Role {
 }
 
 export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
 
 export interface TeamMember {
   id: number;
   name: string;
   roleId: RoleId;
-  reportsTo?: number;
   avatarUrl: string;
+  reportsTo?: number;
   salary?: number;
   hourlyRate?: number;
   weeklyPlan: {
@@ -45,15 +50,7 @@ export interface TeamMember {
     status: PlanStatus;
   };
 }
-
-export interface TeamMemberFormData {
-  name: string;
-  roleId: RoleId;
-  reportsTo?: number;
-  salary?: number;
-  hourlyRate?: number;
-  avatarUrl: string;
-}
+export type TeamMemberFormData = Omit<TeamMember, 'id' | 'weeklyPlan'>;
 
 export type ProjectStatus = 'نشط' | 'مكتمل' | 'معلق' | 'custom';
 export type ContractStatus = 'pending' | 'approved' | 'rejected';
@@ -71,34 +68,32 @@ export interface FreelancerContract {
 export interface Project {
   id: string;
   name: string;
+  description: string;
   status: ProjectStatus;
-  budgetHours?: number;
   customStatusName?: string;
   customStatusColor?: string;
+  budgetHours?: number;
+  budgetAmount?: number;
+  deadline?: string;
   freelancerContract?: FreelancerContract;
 }
+export type ProjectFormData = Omit<Project, 'id'>;
 
-export interface ProjectFormData {
-    name: string;
-    status: ProjectStatus;
-    budgetHours?: number;
-    customStatusName?: string;
-    customStatusColor?: string;
-}
-
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
 export type TaskStatus = 'todo' | 'inprogress' | 'done';
 
 export interface TaskComment {
-    id: string;
-    authorId: number;
-    timestamp: string;
-    text: string;
+  id: string;
+  authorId: number;
+  timestamp: string;
+  text: string;
 }
+
 export interface TaskAttachment {
-    id: string;
-    uploaderId: number;
-    fileName: string;
-    fileUrl: string;
+  id: string;
+  uploaderId: number;
+  fileName: string;
+  fileUrl: string;
 }
 
 export interface Task {
@@ -113,95 +108,45 @@ export interface Task {
   comments?: TaskComment[];
   attachments?: TaskAttachment[];
 }
-
-export interface TaskFormData {
-  title: string;
-  projectId: string;
-  status: TaskStatus;
-  assignedTo?: number;
-  dueDate?: string;
-}
+export type TaskFormData = Omit<Task, 'id' | 'approvalStatus' | 'approvalNotes' | 'comments' | 'attachments'>;
 
 export interface DailyLog {
   id: string;
   teamMemberId: number;
-  date: string; // "yyyy-MM-dd"
+  date: string; // YYYY-MM-DD
   hours: number;
   description: string;
   projectId?: string;
   taskId?: string;
 }
-
-export interface DailyLogFormData {
-    hours: number;
-    description: string;
-    projectId?: string;
-    taskId?: string;
-}
+export type DailyLogFormData = Omit<DailyLog, 'id' | 'teamMemberId' | 'date'>;
 
 export type NotificationType = 'task_assigned' | 'task_approval' | 'new_comment';
 
-export interface BaseNotification {
+export interface Notification {
   id: string;
   recipientId: number;
-  timestamp: string;
+  type: NotificationType;
+  timestamp: string; // ISO string
   read: boolean;
+  projectId: string;
+  taskId: string;
+  taskTitle: string;
+  // Details based on type
+  assignerName?: string;
+  assigneeName?: string;
+  commenterName?: string;
 }
-
-export interface TaskAssignedNotification extends BaseNotification {
-    type: 'task_assigned';
-    assignerName: string;
-    taskId: string;
-    taskTitle: string;
-    projectId: string;
-}
-export interface TaskApprovalNotification extends BaseNotification {
-    type: 'task_approval';
-    assigneeName: string;
-    taskId: string;
-    taskTitle: string;
-    projectId: string;
-}
-export interface NewCommentNotification extends BaseNotification {
-    type: 'new_comment';
-    commenterName: string;
-    taskId: string;
-    taskTitle: string;
-    projectId: string;
-}
-
-export type Notification = TaskAssignedNotification | TaskApprovalNotification | NewCommentNotification;
-
-// FIX: Added NotificationData type to explicitly define the shape of notification data before it's created.
-// This helps TypeScript correctly discriminate the union types and avoids excess property errors.
-export type NotificationData =
-  | Omit<TaskAssignedNotification, 'id' | 'timestamp' | 'read'>
-  | Omit<TaskApprovalNotification, 'id' | 'timestamp' | 'read'>
-  | Omit<NewCommentNotification, 'id' | 'timestamp' | 'read'>;
 
 export interface SiteSettings {
-  appName: string;
-  currency: string;
-  logoUrl: string;
-  themeColor: string;
-  isFinanceModuleEnabled: boolean;
-  isMeetingsModuleEnabled: boolean;
-  isAnalyticsModuleEnabled: boolean;
-  isReportsModuleEnabled: boolean;
-}
-
-export interface ExpenseClaim {
-    id: string;
-    teamMemberId: number;
-    date: string; // yyyy-MM-dd
-    description: string;
-    amount: number;
-    status: 'pending' | 'approved' | 'rejected';
-}
-
-export interface ExpenseClaimFormData {
-    description: string;
-    amount: number;
+    appName: string;
+    logoUrl: string;
+    themeColor: string;
+    currency: string;
+    isFinanceModuleEnabled: boolean;
+    isMeetingsModuleEnabled: boolean;
+    isAnalyticsModuleEnabled: boolean;
+    isReportsModuleEnabled: boolean;
 }
 
 export interface Meeting {
@@ -211,16 +156,22 @@ export interface Meeting {
     participants: number[];
     jitsiRoomName: string;
 }
+export type MeetingFormData = Omit<Meeting, 'id' | 'jitsiRoomName'>;
 
-export interface MeetingFormData {
-    title: string;
-    scheduledTime: string;
-    participants: number[];
+export interface ExpenseClaim {
+    id: string;
+    teamMemberId: number;
+    date: string; // YYYY-MM-DD
+    amount: number;
+    description: string;
+    status: 'pending' | 'approved' | 'rejected';
+    projectId?: string;
 }
+export type ExpenseClaimFormData = Omit<ExpenseClaim, 'id' | 'teamMemberId' | 'status'>;
 
 export interface SuggestedTask {
-    title: string;
-    suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
+  title: string;
+  suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
 }
 
 export interface BillingProposalFormData {

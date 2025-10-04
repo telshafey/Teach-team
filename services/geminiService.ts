@@ -18,7 +18,10 @@ export const generatePerformanceNotes = async (
     Work Logs:
     ${logs.map(l => `- Logged ${l.hours} hours for: ${l.description}`).join('\n')}
     
-    Based on this data, provide a concise and constructive performance summary. Highlight achievements and suggest areas for improvement.
+    Based on this data, provide a concise and constructive performance summary. Please structure your response with the following sections:
+    - "النقاط الإيجابية والإنجازات:" (Positive Points & Achievements)
+    - "نقاط للتحسين والتطوير:" (Areas for Improvement & Development)
+
     The tone should be professional and encouraging.
   `;
   
@@ -83,7 +86,7 @@ export const generateTaskPlan = async (projectDescription: string) => {
     });
 
     // FIX: Trim whitespace from the response before parsing as JSON.
-    // The response text should be a JSON string, so we parse it.
+    // The response text can sometimes contain leading/trailing whitespace which breaks JSON.parse.
     const jsonResponse = JSON.parse(response.text.trim());
     return jsonResponse.tasks || [];
 

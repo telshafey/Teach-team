@@ -130,13 +130,13 @@ export const PersonalDashboard: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام لم تبدأ ({todoTasks.length})</h3>
-                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg h-64 overflow-y-auto">
+                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
                                         {todoTasks.map(task => <TaskCard key={task.id} task={task} onEdit={setViewingTask} onCardClick={setViewingTask} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
                                     </div>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm mb-2 px-1">مهام قيد التنفيذ ({inProgressTasks.length})</h3>
-                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg h-64 overflow-y-auto">
+                                    <div className="space-y-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg min-h-[16rem] overflow-y-auto">
                                         {inProgressTasks.map(task => <TaskCard key={task.id} task={task} onEdit={setViewingTask} onCardClick={setViewingTask} onDragStart={()=>{}} onDragEnd={()=>{}} />)}
                                     </div>
                                 </div>

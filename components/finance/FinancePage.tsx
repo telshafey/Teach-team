@@ -1,138 +1,174 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { PlusIcon, PencilIcon, DocumentTextIcon } from '../ui/Icons';
-import { TeamMember } from '../../types';
-import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
+import { TeamMember, ExpenseClaim } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { SalaryEditModal } from '../modals/SalaryEditModal';
+import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
+import { CurrencyDollarIcon, PlusIcon, PencilIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from '../ui/Icons';
+import { format, parseISO } from 'date-fns';
+import { arSA } from 'date-fns/locale';
+import { BarChart } from '../ui/Charts';
 import { EmptyState } from '../ui/EmptyState';
 
-type FinanceTab = 'expenses' | 'costs' | 'salaries';
-
-export const FinancePage: React.FC = () => {
-    const { teamMembers, expenseClaims, dailyLogs, handleUpdateExpenseClaimStatus, handleUpdateMember, currency } = useAppDataContext();
+const FinanceOverview: React.FC = () => {
+    const { teamMembers, dailyLogs, expenseClaims, currency } = useAppDataContext();
     const { projects } = useProjectContext();
-    const { hasPermission } = useAuth();
-    const [activeTab, setActiveTab] = useState<FinanceTab>('expenses');
-    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-    const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
-    const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-    const handleSaveSalary = async (memberId: number, newSalary: number) => {
-        const member = teamMembers.find(m => m.id === memberId);
-        if (member) {
-            await handleUpdateMember({ ...member, salary: newSalary });
-            setIsSalaryModalOpen(false);
-        }
-    };
-    
-    const openSalaryModal = (member: TeamMember) => {
-        setEditingMember(member);
-        setIsSalaryModalOpen(true);
-    };
+    const totalSalaries = useMemo(() => {
+        return teamMembers
+            .filter(m => m.salary)
+            .reduce((sum, m) => sum + (m.salary || 0), 0);
+    }, [teamMembers]);
 
-    const getMemberName = (id: number) => teamMembers.find(m => m.id === id)?.name || 'غير معروف';
+    const totalApprovedExpenses = useMemo(() => {
+        return expenseClaims
+            .filter(e => e.status === 'approved')
+            .reduce((sum, e) => sum + e.amount, 0);
+    }, [expenseClaims]);
 
-    const projectCostData = useMemo(() => {
+    const projectCosts = useMemo(() => {
         return projects.map(project => {
-            const projectLogs = dailyLogs.filter(log => log.projectId === project.id);
-            let totalHours = 0;
-            let totalCost = 0;
-
+            const projectLogs = dailyLogs.filter(l => l.projectId === project.id);
+            const projectExpenses = expenseClaims.filter(e => e.projectId === project.id && e.status === 'approved').reduce((s, e) => s + e.amount, 0);
+            let laborCost = 0;
             projectLogs.forEach(log => {
                 const member = teamMembers.find(m => m.id === log.teamMemberId);
-                if (!member) return;
-
-                totalHours += log.hours;
-
-                if (member.hourlyRate) { // Freelancer
-                    totalCost += log.hours * member.hourlyRate;
-                } else if (member.salary) { // Employee
-                    // Assuming 176 hours per month (22 days * 8 hours) for salary calculation
-                    const hourlyRate = member.salary / 176; 
-                    totalCost += log.hours * hourlyRate;
+                if (member) {
+                    if (member.hourlyRate) laborCost += log.hours * member.hourlyRate;
+                    else if (member.salary) laborCost += log.hours * (member.salary / (22 * 8));
                 }
             });
-
-            return { id: project.id, name: project.name, totalHours, totalCost };
+            return { label: project.name, value: laborCost + projectExpenses };
         });
-    }, [projects, dailyLogs, teamMembers]);
+    }, [projects, dailyLogs, teamMembers, expenseClaims]);
+
+    const top5CostlyProjects = useMemo(() => {
+        return projectCosts.sort((a, b) => b.value - a.value).slice(0, 5);
+    }, [projectCosts]);
     
-    const renderExpenses = () => (
-        <div className="space-y-3">
-            {expenseClaims.length > 0 ? expenseClaims.map(claim => (
-                <div key={claim.id} className="p-3 bg-slate-50 rounded-md">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="font-semibold text-slate-800">{claim.description}</p>
-                            <p className="text-sm text-slate-500">مقدم من: {getMemberName(claim.teamMemberId)} | الحالة: {claim.status}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="font-bold text-lg text-sky-600">{claim.amount.toFixed(2)} {currency}</p>
-                            <p className="text-xs text-slate-400">{claim.date}</p>
-                        </div>
-                    </div>
-                    {claim.status === 'pending' && hasPermission('approve_submissions') && (
-                        <div className="flex justify-end space-x-2 rtl:space-x-reverse mt-2">
-                            <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'approved')} className="px-3 py-1 text-xs font-semibold text-white bg-green-500 rounded-md hover:bg-green-600">موافقة</button>
-                            <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'rejected')} className="px-3 py-1 text-xs font-semibold text-white bg-red-500 rounded-md hover:bg-red-600">رفض</button>
-                        </div>
-                    )}
-                </div>
-            )) : <EmptyState icon={<DocumentTextIcon className="w-8 h-8"/>} title="لا توجد طلبات صرف" message="عند تقديم طلبات صرف، ستظهر هنا." />}
+    const totalProjectCosts = projectCosts.reduce((sum, p) => sum + p.value, 0);
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card title="إجمالي الرواتب الشهرية"><p className="text-2xl font-bold">{totalSalaries.toLocaleString()} <span className="text-sm">{currency}</span></p></Card>
+                <Card title="إجمالي المصروفات المعتمدة"><p className="text-2xl font-bold">{totalApprovedExpenses.toLocaleString()} <span className="text-sm">{currency}</span></p></Card>
+                <Card title="إجمالي تكاليف المشاريع"><p className="text-2xl font-bold">{totalProjectCosts.toLocaleString(undefined, {maximumFractionDigits: 0})} <span className="text-sm">{currency}</span></p></Card>
+            </div>
+            <Card title="أكثر المشاريع تكلفة">
+                <BarChart title="" data={top5CostlyProjects} />
+            </Card>
         </div>
     );
+};
 
-    const renderProjectCosts = () => (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-right text-slate-500">
-                <thead className="text-xs text-slate-700 uppercase bg-slate-100">
-                    <tr>
-                        <th scope="col" className="px-6 py-3">المشروع</th>
-                        <th scope="col" className="px-6 py-3">إجمالي الساعات</th>
-                        <th scope="col" className="px-6 py-3">التكلفة الإجمالية ({currency})</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {projectCostData.map(item => (
-                        <tr key={item.id} className="bg-white border-b">
-                            <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{item.name}</th>
-                            <td className="px-6 py-4">{item.totalHours.toFixed(1)}</td>
-                            <td className="px-6 py-4 font-semibold text-sky-700">{item.totalCost.toFixed(2)}</td>
+const ExpenseClaimsTab: React.FC = () => {
+    const { expenseClaims, teamMembers } = useAppDataContext();
+    const { projects } = useProjectContext();
+    
+    const getStatusBadge = (status: ExpenseClaim['status']) => {
+        const styles = {
+            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
+            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
+            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
+        };
+        const text = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' };
+        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
+    };
+
+    return (
+        <Card>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right">
+                    <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
+                        <tr>
+                            <th className="px-4 py-2">الموظف</th>
+                            <th className="px-4 py-2">المشروع</th>
+                            <th className="px-4 py-2">المبلغ</th>
+                            <th className="px-4 py-2">التاريخ</th>
+                            <th className="px-4 py-2">الوصف</th>
+                            <th className="px-4 py-2">الحالة</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        {expenseClaims.map(claim => {
+                            const member = teamMembers.find(m => m.id === claim.teamMemberId);
+                            const project = projects.find(p => p.id === claim.projectId);
+                            return (
+                                <tr key={claim.id} className="border-b dark:border-slate-700">
+                                    <td className="px-4 py-2 font-medium">{member?.name}</td>
+                                    <td className="px-4 py-2">{project?.name || '-'}</td>
+                                    <td className="px-4 py-2">{claim.amount}</td>
+                                    <td className="px-4 py-2">{format(parseISO(claim.date), 'd MMM yyyy', { locale: arSA })}</td>
+                                    <td className="px-4 py-2">{claim.description}</td>
+                                    <td className="px-4 py-2">{getStatusBadge(claim.status)}</td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
     );
+};
 
-    const renderSalaries = () => (
-         <div className="divide-y divide-slate-200">
-            {teamMembers.filter(m => !m.hourlyRate).map(member => (
-                <div key={member.id} className="flex justify-between items-center py-3">
-                    <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                        <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full" />
-                        <div>
-                            <p className="font-semibold text-slate-800">{member.name}</p>
-                            <p className="text-sm text-slate-500">{member.salary?.toLocaleString('ar-EG', { style: 'currency', currency: currency, minimumFractionDigits: 0 }) || 'غير محدد'}</p>
-                        </div>
-                    </div>
-                    {hasPermission('view_finances') && (
-                        <button onClick={() => openSalaryModal(member)} className="p-2 text-slate-400 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
-                    )}
-                </div>
-            ))}
-        </div>
-    );
+const SalariesTab: React.FC<{ onEdit: (member: TeamMember) => void }> = ({ onEdit }) => {
+    const { teamMembers, currency } = useAppDataContext();
+    const { hasPermission } = useAuth();
+    
+    return (
+        <Card>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right">
+                    <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
+                        <tr>
+                            <th className="px-4 py-2">الموظف</th>
+                            <th className="px-4 py-2">الراتب / سعر الساعة ({currency})</th>
+                            <th className="px-4 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {teamMembers.map(member => (
+                            <tr key={member.id} className="border-b dark:border-slate-700">
+                                <td className="px-4 py-2 font-medium">{member.name}</td>
+                                <td className="px-4 py-2">{member.salary || member.hourlyRate || 'N/A'}</td>
+                                <td className="px-4 py-2 text-left">
+                                    {hasPermission('manage_team') && member.roleId !== 'freelancer' && (
+                                        <button onClick={() => onEdit(member)} className="p-2 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+    )
+}
+
+export const FinancePage: React.FC = () => {
+    const { currency, handleUpdateMember, handleSubmitExpenseClaim } = useAppDataContext();
+    const { hasPermission } = useAuth();
+    const [activeTab, setActiveTab] = useState('overview');
+    const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+    
+    const handleSaveSalary = async (memberId: number, salary: number) => {
+        const member = editingMember;
+        if (member) {
+            await handleUpdateMember({ ...member, salary });
+        }
+        setEditingMember(null);
+    };
 
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">الإدارة المالية</h2>
-                    <p className="text-md text-slate-500">تتبع المصروفات والرواتب والتكاليف.</p>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">المالية</h2>
+                    <p className="text-md text-slate-500 dark:text-slate-400">نظرة عامة على التكاليف والمصروفات.</p>
                 </div>
                 {hasPermission('submit_expenses') && (
                     <button onClick={() => setIsExpenseModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
@@ -140,37 +176,39 @@ export const FinancePage: React.FC = () => {
                     </button>
                 )}
             </div>
-            
-            <Card>
-                <div className="border-b border-slate-200 mb-4">
-                    <nav className="-mb-px flex space-x-6 rtl:space-x-reverse" aria-label="Tabs">
-                        <button onClick={() => setActiveTab('expenses')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'expenses' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                            طلبات الصرف
-                        </button>
-                        {hasPermission('view_finances') && (
-                             <button onClick={() => setActiveTab('costs')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'costs' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                                تكاليف المشاريع
-                            </button>
-                        )}
-                        {hasPermission('view_finances') && (
-                             <button onClick={() => setActiveTab('salaries')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'salaries' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                                الرواتب
-                            </button>
-                        )}
-                    </nav>
-                </div>
-                <div>
-                    {activeTab === 'expenses' && renderExpenses()}
-                    {activeTab === 'costs' && hasPermission('view_finances') && renderProjectCosts()}
-                    {activeTab === 'salaries' && hasPermission('view_finances') && renderSalaries()}
-                </div>
-            </Card>
 
-            {isExpenseModalOpen && (
-                <ExpenseClaimFormModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
+            <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
+                <nav className="-mb-px flex space-x-6 rtl:space-x-reverse" aria-label="Tabs">
+                    <button onClick={() => setActiveTab('overview')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                        نظرة عامة
+                    </button>
+                    <button onClick={() => setActiveTab('expenses')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'expenses' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                        طلبات الصرف
+                    </button>
+                    <button onClick={() => setActiveTab('salaries')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'salaries' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                        الرواتب
+                    </button>
+                </nav>
+            </div>
+
+            {activeTab === 'overview' && <FinanceOverview />}
+            {activeTab === 'expenses' && <ExpenseClaimsTab />}
+            {activeTab === 'salaries' && <SalariesTab onEdit={setEditingMember} />}
+
+            {editingMember && (
+                <SalaryEditModal
+                    isOpen={!!editingMember}
+                    onClose={() => setEditingMember(null)}
+                    onSave={handleSaveSalary}
+                    member={editingMember}
+                />
             )}
-            {isSalaryModalOpen && editingMember && (
-                <SalaryEditModal isOpen={isSalaryModalOpen} onClose={() => setIsSalaryModalOpen(false)} member={editingMember} onSave={handleSaveSalary} />
+            {isExpenseModalOpen && (
+                <ExpenseClaimFormModal
+                    isOpen={isExpenseModalOpen}
+                    onClose={() => setIsExpenseModalOpen(false)}
+                    onSave={handleSubmitExpenseClaim}
+                />
             )}
         </div>
     );

@@ -1,10 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-// FIX: Imported NotificationData to use in the context type.
-import { TeamMember, DailyLog, Notification, SiteSettings, Role, ExpenseClaim, PlanStatus, TeamMemberFormData, ExpenseClaimFormData, Meeting, MeetingFormData, DailyLogFormData, NotificationData, RoleId } from '../types';
 import * as api from '../services/apiService';
-import { useAuth } from './AuthContext';
+import { SiteSettings, TeamMember, Role, DailyLog, Notification, Meeting, PlanStatus, RoleId, TeamMemberFormData, MeetingFormData, ExpenseClaim, ExpenseClaimFormData } from '../types';
 import { useToast } from './ToastContext';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 interface AppDataContextType {
   siteSettings: SiteSettings | null;
@@ -12,81 +9,57 @@ interface AppDataContextType {
   roles: Role[];
   dailyLogs: DailyLog[];
   notifications: Notification[];
-  expenseClaims: ExpenseClaim[];
   meetings: Meeting[];
+  expenseClaims: ExpenseClaim[];
   currency: string;
   handleUpdateSiteSettings: (settings: SiteSettings) => Promise<void>;
-  handleUpdateMember: (member: TeamMember | TeamMemberFormData) => Promise<void>;
-  handleAddDailyLog: (logData: DailyLogFormData & { teamMemberId: number, date: string }) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  markNotificationAsRead: (notificationId: string) => void;
+  handleUpdatePlanStatus: (memberId: number, status: PlanStatus) => Promise<void>;
+  handleBulkUpdatePlanStatus: (memberIds: number[], status: PlanStatus) => Promise<void>;
+  handleAddDailyLog: (logData: Omit<DailyLog, 'id'>) => Promise<void>;
   handleUpdateDailyLog: (log: DailyLog) => Promise<void>;
   handleDeleteDailyLog: (logId: string) => Promise<void>;
-  markNotificationAsRead: (notificationId: string) => void;
-  // FIX: Changed the type of notificationData to the more specific NotificationData union type.
-  addNotification: (notificationData: NotificationData) => void;
   handleUpdateRole: (role: Role) => Promise<void>;
   handleAddRole: (roleData: { name: string }) => Promise<Role>;
   handleDeleteRole: (roleId: RoleId) => Promise<void>;
-  handleSubmitExpenseClaim: (claimData: ExpenseClaimFormData) => Promise<void>;
-  handleUpdateExpenseClaimStatus: (claimId: string, status: 'approved' | 'rejected') => Promise<void>;
-  handleBulkUpdatePlanStatus: (memberIds: number[], status: PlanStatus) => Promise<void>;
-  handleUpdatePlanStatus: (memberId: number, status: PlanStatus) => Promise<void>;
+  handleUpdateMember: (member: TeamMember) => Promise<void>;
   handleAddMeeting: (meetingData: MeetingFormData) => Promise<void>;
+  handleSubmitExpenseClaim: (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => Promise<void>;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
 
-const updateThemeColor = (color: string) => {
-    const styleId = 'dynamic-theme-color';
-    let styleTag = document.getElementById(styleId);
-    if (!styleTag) {
-        styleTag = document.createElement('style');
-        styleTag.id = styleId;
-        document.head.appendChild(styleTag);
-    }
-    styleTag.innerHTML = `
-        :root {
-            --theme-color-500: ${color};
-            /* You might want to generate shades automatically in a real app */
-            --theme-color-600: ${color}; 
-            --theme-color-700: ${color};
-            --theme-color-100: ${color}20; /* Example with opacity */
-        }
-    `;
-};
-
-
 export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
-  const { addToast } = useToast();
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [expenseClaims, setExpenseClaims] = useState<ExpenseClaim[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [expenseClaims, setExpenseClaims] = useState<ExpenseClaim[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+  const { addToast } = useToast();
+  
   useEffect(() => {
-    const loadAppData = async () => {
+    const loadData = async () => {
         try {
-            const [settings, members, logs, claims, meetingsData, rolesData] = await Promise.all([
+            const [settings, members, fetchedRoles, logs, notifs, fetchedMeetings, claims] = await Promise.all([
                 api.fetchSiteSettings(),
                 api.fetchTeamMembers(),
-                api.fetchDailyLogs(),
-                api.fetchExpenseClaims(),
-                api.fetchMeetings(),
                 api.fetchRoles(),
+                api.fetchDailyLogs(),
+                api.fetchNotifications(),
+                api.fetchMeetings(),
+                api.fetchExpenseClaims(),
             ]);
             setSiteSettings(settings);
-            if (settings.themeColor) {
-                updateThemeColor(settings.themeColor);
-            }
             setTeamMembers(members);
+            setRoles(fetchedRoles);
             setDailyLogs(logs);
+            setNotifications(notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+            setMeetings(fetchedMeetings);
             setExpenseClaims(claims);
-            setMeetings(meetingsData);
-            setRoles(rolesData);
         } catch (error) {
             console.error("Failed to load app data", error);
             addToast('فشل تحميل بيانات التطبيق', 'error');
@@ -94,151 +67,142 @@ export const AppDataProvider: React.FC<{ children: ReactNode }> = ({ children })
             setIsLoading(false);
         }
     };
-    loadAppData();
-  }, [addToast]);
-
-  const handleUpdateSiteSettings = useCallback(async (settings: SiteSettings) => {
-    await api.updateSiteSettings(settings);
-    setSiteSettings(settings);
-    if (settings.themeColor) {
-        updateThemeColor(settings.themeColor);
-    }
-    addToast('تم تحديث إعدادات الموقع', 'success');
+    loadData();
   }, [addToast]);
   
-  const handleUpdateMember = useCallback(async (memberData: TeamMember | TeamMemberFormData) => {
-      const isNew = !('id' in memberData);
-      const updatedMember = isNew
-        ? await api.addTeamMember(memberData as TeamMemberFormData)
-        : await api.updateTeamMember(memberData as TeamMember);
-      
-      if (isNew) {
-        setTeamMembers(prev => [...prev, updatedMember]);
-        addToast('تمت إضافة العضو بنجاح', 'success');
-      } else {
-        setTeamMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
-        addToast('تم تحديث بيانات العضو بنجاح', 'success');
-      }
-  }, [addToast]);
-
-  const handleAddDailyLog = useCallback(async (logData: DailyLogFormData & { teamMemberId: number, date: string }) => {
-    const newLog = await api.addDailyLog(logData);
-    setDailyLogs(prev => [...prev, newLog]);
+  const handleUpdateSiteSettings = useCallback(async (settings: SiteSettings) => {
+    const updatedSettings = await api.updateSiteSettings(settings);
+    setSiteSettings(updatedSettings);
+    document.documentElement.style.setProperty('--theme-color-100', `${settings.themeColor}1A`);
+    document.documentElement.style.setProperty('--theme-color-500', settings.themeColor);
+    document.documentElement.style.setProperty('--theme-color-600', settings.themeColor);
+    document.documentElement.style.setProperty('--theme-color-700', settings.themeColor);
   }, []);
 
-  const handleUpdateDailyLog = useCallback(async (log: DailyLog) => {
-    await api.updateDailyLog(log);
-    setDailyLogs(prev => prev.map(l => l.id === log.id ? log : l));
-  }, []);
-
-  const handleDeleteDailyLog = useCallback(async (logId: string) => {
-    await api.deleteDailyLog(logId);
-    setDailyLogs(prev => prev.filter(l => l.id !== logId));
-  }, []);
-
-  const markNotificationAsRead = useCallback((notificationId: string) => {
-    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
-  }, []);
-
-  const addNotification = useCallback((notificationData: NotificationData) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {
-      ...notificationData,
-      id: `notif-${Date.now()}`,
+      ...notification,
+      id: `notif_${Date.now()}`,
       timestamp: new Date().toISOString(),
-      read: false,
-    } as Notification;
+      read: false
+    };
     setNotifications(prev => [newNotification, ...prev]);
   }, []);
   
-  const handleUpdateRole = useCallback(async (role: Role) => {
-      await api.updateRole(role);
-      setRoles(prev => prev.map(r => r.id === role.id ? role : r));
-      addToast(`تم تحديث دور "${role.name}"`, 'success');
-  }, [addToast]);
-  
-  const handleAddRole = useCallback(async (roleData: { name: string }): Promise<Role> => {
-      const newRole = await api.addRole(roleData);
-      setRoles(prev => [...prev, newRole]);
-      addToast(`تمت إضافة دور "${newRole.name}" بنجاح`, 'success');
-      return newRole;
-  }, [addToast]);
-  
-  const handleDeleteRole = useCallback(async (roleId: RoleId) => {
-      try {
-        await api.deleteRole(roleId);
-        setRoles(prev => prev.filter(r => r.id !== roleId));
-        addToast('تم حذف الدور بنجاح', 'success');
-      } catch (error: any) {
-        addToast(error.message || 'فشل حذف الدور', 'error');
-        throw error;
-      }
-  }, [addToast]);
-
-
-  const handleSubmitExpenseClaim = useCallback(async (claimData: ExpenseClaimFormData) => {
-    if (!currentUser) return;
-    const newClaim = await api.addExpenseClaim(claimData, currentUser.id);
-    setExpenseClaims(prev => [newClaim, ...prev]);
-  }, [currentUser]);
-
-  const handleUpdateExpenseClaimStatus = useCallback(async (claimId: string, status: 'approved' | 'rejected') => {
-    const updatedClaim = await api.updateExpenseClaimStatus(claimId, status);
-    setExpenseClaims(prev => prev.map(c => c.id === claimId ? updatedClaim : c));
+  const markNotificationAsRead = useCallback((notificationId: string) => {
+      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
   }, []);
 
   const handleUpdatePlanStatus = useCallback(async (memberId: number, status: PlanStatus) => {
-      const updatedMember = await api.updatePlanStatus(memberId, status);
-      setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
-      addToast('تم تحديث حالة الخطة', 'info');
-  }, [addToast]);
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, weeklyPlan: { ...m.weeklyPlan, status }} : m));
+  }, []);
 
   const handleBulkUpdatePlanStatus = useCallback(async (memberIds: number[], status: PlanStatus) => {
-      const updatedMembers = await api.bulkUpdatePlanStatus(memberIds, status);
-      setTeamMembers(prev => prev.map(m => updatedMembers.find(u => u.id === m.id) || m));
-      addToast(`تم تحديث حالة ${memberIds.length} خطط بنجاح`, 'success');
+    setTeamMembers(prev => prev.map(m => memberIds.includes(m.id) ? { ...m, weeklyPlan: { ...m.weeklyPlan, status }} : m));
+    addToast(`تم تحديث ${memberIds.length} خطط بنجاح`, 'success');
   }, [addToast]);
+  
+  const handleAddDailyLog = useCallback(async (logData: Omit<DailyLog, 'id'>) => {
+    const newLog: DailyLog = { ...logData, id: `log_${Date.now()}` };
+    setDailyLogs(prev => [...prev, newLog]);
+    addToast('تمت إضافة السجل بنجاح', 'success');
+  }, [addToast]);
+
+  const handleUpdateDailyLog = useCallback(async (log: DailyLog) => {
+    setDailyLogs(prev => prev.map(l => l.id === log.id ? log : l));
+    addToast('تم تحديث السجل بنجاح', 'success');
+  }, [addToast]);
+
+  const handleDeleteDailyLog = useCallback(async (logId: string) => {
+    setDailyLogs(prev => prev.filter(l => l.id !== logId));
+    addToast('تم حذف السجل بنجاح', 'info');
+  }, [addToast]);
+
+  const handleUpdateRole = useCallback(async (role: Role) => {
+      setRoles(prev => prev.map(r => r.id === role.id ? role : r));
+      addToast('تم تحديث الدور بنجاح', 'success');
+  }, [addToast]);
+
+  const handleAddRole = useCallback(async (roleData: { name: string }): Promise<Role> => {
+    const newRole: Role = { ...roleData, id: `role_${Date.now()}`, permissions: [] };
+    setRoles(prev => [...prev, newRole]);
+    addToast('تمت إضافة الدور بنجاح', 'success');
+    return newRole;
+  }, [addToast]);
+
+  const handleDeleteRole = useCallback(async (roleId: RoleId) => {
+      if (teamMembers.some(m => m.roleId === roleId)) {
+        addToast('لا يمكن حذف الدور لوجود أعضاء معينين له', 'error');
+        throw new Error('Role has members assigned');
+      }
+      setRoles(prev => prev.filter(r => r.id !== roleId));
+      addToast('تم حذف الدور بنجاح', 'info');
+  }, [teamMembers, addToast]);
+  
+  const handleUpdateMember = useCallback(async (member: TeamMember) => {
+    setTeamMembers(prev => {
+        const existing = prev.find(m => m.id === member.id);
+        if (existing) {
+            return prev.map(m => m.id === member.id ? member : m);
+        }
+        return [...prev, member];
+    });
+    addToast(teamMembers.some(m => m.id === member.id) ? 'تم تحديث العضو' : 'تمت إضافة العضو', 'success');
+  }, [addToast, teamMembers]);
 
   const handleAddMeeting = useCallback(async (meetingData: MeetingFormData) => {
-      const newMeeting = await api.addMeeting(meetingData);
-      setMeetings(prev => [newMeeting, ...prev]);
-      addToast('تم جدولة الاجتماع بنجاح', 'success');
+    const newMeeting: Meeting = {
+        ...meetingData,
+        id: `meet_${Date.now()}`,
+        jitsiRoomName: `TeemTimeMeeting-${Date.now()}`
+    };
+    setMeetings(prev => [...prev, newMeeting]);
+    addToast('تمت جدولة الاجتماع بنجاح', 'success');
   }, [addToast]);
 
+  const handleSubmitExpenseClaim = useCallback(async (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => {
+    const newClaim = await api.addExpenseClaim({ ...claimData, status: 'pending' });
+    setExpenseClaims(prev => [...prev, newClaim]);
+    addToast('تم تقديم طلب الصرف بنجاح', 'success');
+  }, [addToast]);
+
+  useEffect(() => {
+    if (siteSettings?.themeColor) {
+      handleUpdateSiteSettings(siteSettings);
+    }
+  }, [siteSettings?.themeColor, handleUpdateSiteSettings]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
-      </div>
-    );
+    return null; // Or a loading spinner for the whole app
   }
 
+  const value = {
+    siteSettings,
+    teamMembers,
+    roles,
+    dailyLogs,
+    notifications,
+    meetings,
+    expenseClaims,
+    currency: siteSettings?.currency || 'SAR',
+    handleUpdateSiteSettings,
+    addNotification,
+    markNotificationAsRead,
+    handleUpdatePlanStatus,
+    handleBulkUpdatePlanStatus,
+    handleAddDailyLog,
+    handleUpdateDailyLog,
+    handleDeleteDailyLog,
+    handleUpdateRole,
+    handleAddRole,
+    handleDeleteRole,
+    handleUpdateMember,
+    handleAddMeeting,
+    handleSubmitExpenseClaim,
+  };
+
   return (
-    <AppDataContext.Provider value={{
-      siteSettings,
-      teamMembers,
-      roles,
-      dailyLogs,
-      notifications,
-      expenseClaims,
-      meetings,
-      currency: siteSettings?.currency || 'SAR',
-      handleUpdateSiteSettings,
-      handleUpdateMember,
-      handleAddDailyLog,
-      handleUpdateDailyLog,
-      handleDeleteDailyLog,
-      markNotificationAsRead,
-      addNotification,
-      handleUpdateRole,
-      handleAddRole,
-      handleDeleteRole,
-      handleSubmitExpenseClaim,
-      handleUpdateExpenseClaimStatus,
-      handleUpdatePlanStatus,
-      handleBulkUpdatePlanStatus,
-      handleAddMeeting,
-    }}>
+    <AppDataContext.Provider value={value}>
       {children}
     </AppDataContext.Provider>
   );

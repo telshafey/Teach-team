@@ -38,12 +38,16 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
     const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
 
     const renderStatusBadge = () => {
+        const baseClasses = 'text-xs font-bold px-3 py-1 rounded-full border';
         if (project.status === 'custom' && project.customStatusName && project.customStatusColor) {
             const textColorClass = getTextColorForBackground(project.customStatusColor);
             return (
                 <span
-                    className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${textColorClass}`}
-                    style={{ backgroundColor: project.customStatusColor }}
+                    className={`${baseClasses} ${textColorClass}`}
+                    style={{ 
+                        backgroundColor: `${project.customStatusColor}20`, // Add transparency
+                        borderColor: project.customStatusColor 
+                    }}
                 >
                     {project.customStatusName}
                 </span>
@@ -51,16 +55,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
         }
 
         const statusStyles: { [key: string]: string } = {
-            'نشط': 'bg-sky-100 text-sky-800 dark:bg-sky-900/70 dark:text-sky-200',
-            'مكتمل': 'bg-green-100 text-green-800 dark:bg-green-900/70 dark:text-green-200',
-            'معلق': 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200',
+            'نشط': 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-900/70 dark:text-sky-200 dark:border-sky-700',
+            'مكتمل': 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/70 dark:text-green-200 dark:border-green-700',
+            'معلق': 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/70 dark:text-amber-200 dark:border-amber-700',
         };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusStyles[project.status]}`}>{project.status}</span>;
+        return <span className={`${baseClasses} ${statusStyles[project.status]}`}>{project.status}</span>;
     };
 
 
     return (
-        <div onClick={() => onSelect(project.id)} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-md hover:border-sky-300 dark:hover:border-sky-500 transition-all">
+        <div 
+            onClick={() => onSelect(project.id)} 
+            className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-xl hover:border-sky-300 dark:hover:border-sky-500 transition-all duration-200 ease-in-out hover:-translate-y-1 hover:scale-[1.02]"
+        >
             <div className="flex justify-between items-start">
                 <h3 className="font-bold text-slate-800 dark:text-slate-100">{project.name}</h3>
                 {renderStatusBadge()}
@@ -76,7 +83,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
                 </div>
             </div>
 
-            <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+            <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
                 <div className="flex items-center space-x-1 rtl:space-x-reverse">
                     <ClockIcon className="w-4 h-4 text-slate-400" />
                     <span>{loggedHours.toFixed(1)} / {project.budgetHours || 'N/A'} ساعة</span>
