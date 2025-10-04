@@ -1,4 +1,4 @@
-export type RoleId = 'gm' | 'manager' | 'employee' | 'freelancer' | string;
+export type RoleId = 'gm' | 'admin' | 'pm' | 'marketing_manager' | 'engineer' | 'employee' | 'freelancer' | string;
 
 export type Permission =
   | 'view_dashboard_gm' | 'view_dashboard_manager' | 'view_dashboard_personal'

@@ -6,10 +6,12 @@ import { PersonalDashboard } from './PersonalDashboard';
 import { ManagerDashboard } from './ManagerDashboard';
 import { GeneralManagerDashboard } from './GeneralManagerDashboard';
 // FIX: Corrected import paths.
-import { Notification, Meeting } from '../../types';
+import { Notification, Meeting, DailyLogFormData } from '../../types';
 import { BottomNavBar } from './BottomNavBar';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { LogFormModal } from '../modals/LogFormModal';
 
 // Lazy load page components for code splitting
 const ProjectsPage = lazy(() => import('../project/ProjectsPage').then(module => ({ default: module.ProjectsPage })));
@@ -40,7 +42,9 @@ interface ViewState {
 
 export const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
-  const { teamMembers } = useAppDataContext();
+  const { teamMembers, handleAddDailyLog } = useAppDataContext();
+  const { showLogModalFor, closeLogModal } = useTimeTracking();
+
   const [viewState, setViewState] = useState<ViewState>({ view: 'dashboard' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -63,6 +67,16 @@ export const Dashboard: React.FC = () => {
   const handleLeaveMeeting = useCallback(() => {
     handleNavigate('meetings');
   }, [handleNavigate]);
+
+  const handleSaveTimeLog = async (logData: DailyLogFormData) => {
+    if (!currentUser || !showLogModalFor) return;
+    await handleAddDailyLog({ 
+        ...logData, 
+        teamMemberId: currentUser.id, 
+        date: new Date().toISOString().split('T')[0] 
+    });
+    closeLogModal();
+  };
 
   const renderView = () => {
     switch (viewState.view) {
@@ -121,6 +135,18 @@ export const Dashboard: React.FC = () => {
         <div className="lg:hidden h-16" /> {/* Spacer for bottom nav */}
         <BottomNavBar currentView={viewState.view} onNavigate={handleNavigate} />
       </div>
+      
+      {showLogModalFor && currentUser && (
+        <LogFormModal
+            isOpen={!!showLogModalFor}
+            onClose={closeLogModal}
+            onSave={handleSaveTimeLog}
+            log={null}
+            date={new Date().toISOString().split('T')[0]}
+            memberId={currentUser.id}
+            initialData={showLogModalFor}
+        />
+      )}
     </div>
   );
 };

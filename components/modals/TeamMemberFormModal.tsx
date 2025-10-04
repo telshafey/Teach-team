@@ -2,6 +2,8 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { TeamMember, Role, TeamMemberFormData, RoleId } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
+import { fileToBase64 } from '../../utils/files';
 
 interface TeamMemberFormModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface TeamMemberFormModalProps {
 
 export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen, onClose, onSave, member }) => {
   const { roles, teamMembers } = useAppDataContext();
+  const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<Omit<TeamMemberFormData, 'roleId'> & { roleId: RoleId | '' }>({
     name: '',
@@ -45,6 +48,23 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
   }, [member, isOpen]);
 
   if (!isOpen) return null;
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            addToast('حجم الصورة كبير جدًا. الحد الأقصى 2 ميجابايت.', 'error');
+            return;
+        }
+        try {
+            const base64 = await fileToBase64(file);
+            setFormData(prev => ({ ...prev, avatarUrl: base64 }));
+        } catch (error) {
+            console.error("Error converting file to base64", error);
+            addToast('حدث خطأ أثناء معالجة الصورة.', 'error');
+        }
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -114,8 +134,14 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
               </div>
           )}
            <div>
-            <label htmlFor="avatarUrl" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">رابط الصورة الرمزية</label>
-            <input type="url" id="avatarUrl" value={formData.avatarUrl} onChange={e => setFormData({...formData, avatarUrl: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" required />
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الصورة الرمزية</label>
+            <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                <img src={formData.avatarUrl} alt="Avatar Preview" className="h-16 w-16 rounded-full bg-slate-200 dark:bg-slate-600 object-cover" />
+                <label htmlFor="avatar-upload-modal" className="cursor-pointer px-3 py-1.5 text-sm font-semibold text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-900/50 rounded-md hover:bg-sky-200 dark:hover:bg-sky-800/50">
+                    <span>تغيير الصورة</span>
+                    <input id="avatar-upload-modal" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleAvatarChange} />
+                </label>
+            </div>
           </div>
           <div className="flex justify-end space-x-2 rtl:space-x-reverse pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">إلغاء</button>

@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 // FIX: Corrected the import path for ProjectProvider.
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { TimeTrackingProvider } from './contexts/TimeTrackingContext';
 
 const AppContent: React.FC = () => {
   const { currentUser } = useAuth();
@@ -34,8 +35,10 @@ const App: React.FC = () => {
       <ToastProvider>
         <AuthProvider>
             <AppDataProvider>
+              <TimeTrackingProvider>
                 <AppContent />
                 <ToastContainer />
+              </TimeTrackingProvider>
             </AppDataProvider>
         </AuthProvider>
       </ToastProvider>

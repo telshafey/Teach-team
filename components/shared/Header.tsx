@@ -3,6 +3,7 @@ import { NotificationBell } from './NotificationBell';
 import { Notification } from '../../types';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Bars3Icon } from '../ui/Icons';
+import { ActiveTimerBar } from './ActiveTimerBar';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNotificationS
           <NotificationBell onSelect={onNotificationSelect} />
         </div>
       </div>
+      <ActiveTimerBar />
     </header>
   );
 };

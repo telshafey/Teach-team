@@ -3,15 +3,7 @@ import { useAppDataContext } from '../../contexts/DataContext';
 import { Card } from '../ui/Card';
 import { useToast } from '../../contexts/ToastContext';
 import { SiteSettings } from '../../types';
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
+import { fileToBase64 } from '../../utils/files';
 
 const ToggleSwitch: React.FC<{ label: string; checked: boolean; onChange: (checked: boolean) => void; }> = ({ label, checked, onChange }) => (
     <label className="flex items-center justify-between cursor-pointer p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
