@@ -1,255 +1,148 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import { TeamMemberFormData, GlobalSearchResults } from '../types';
-import { slugify } from '../utils/slugify';
+import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
+import {
+  Role,
+  Project,
+  Task,
+  TeamMember,
+  DailyLog,
+  Notification,
+  Meeting,
+  ExpenseClaim,
+  SiteSettings,
+  GlobalSearchResults,
+  TaskComment
+} from '../types';
 
-// Helper to convert snake_case keys from Supabase to camelCase
-export const snakeToCamel = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => snakeToCamel(v));
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((acc, key) => {
-            const camelKey = key.replace(/([-_][a-z])/ig, ($1) => {
-                return $1.toUpperCase()
-                    .replace('-', '')
-                    .replace('_', '');
-            });
-            acc[camelKey] = snakeToCamel(obj[key]);
-            return acc;
-        }, {} as any);
-    }
-    return obj;
+// --- Utility Functions ---
+
+/**
+ * Converts a snake_case string to camelCase.
+ */
+const toCamel = (s: string): string => {
+  return s.replace(/([-_][a-z])/ig, ($1) => {
+    return $1.toUpperCase()
+      .replace('-', '')
+      .replace('_', '');
+  });
 };
 
-// Helper to convert camelCase keys to snake_case for Supabase
-const camelToSnake = (obj: any): any => {
+/**
+ * Converts object keys from snake_case to camelCase recursively.
+ */
+export const snakeToCamel = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(v => snakeToCamel(v));
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc: { [key: string]: any }, key) => {
+      const camelKey = toCamel(key);
+      acc[camelKey] = snakeToCamel(obj[key]);
+      return acc;
+    }, {});
+  }
+  return obj;
+};
+
+/**
+ * Converts object keys from camelCase to snake_case recursively.
+ */
+export const camelToSnake = (obj: any): any => {
     if (Array.isArray(obj)) {
         return obj.map(v => camelToSnake(v));
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((acc, key) => {
+    } else if (obj !== null && typeof obj === 'object' && Object.getPrototypeOf(obj) === Object.prototype) {
+        return Object.keys(obj).reduce((acc: { [key: string]: any }, key) => {
             const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
             acc[snakeKey] = camelToSnake(obj[key]);
             return acc;
-        }, {} as any);
+        }, {});
     }
     return obj;
 };
 
-// Generic fetch function
-const fetchData = async (client: SupabaseClient, table: string, select: string = '*') => {
-    const { data, error } = await client.from(table).select(select);
-    if (error) throw error;
-    return snakeToCamel(data);
+
+// --- Generic API Functions ---
+
+const handleResponse = <T>(response: { data: any | null; error: PostgrestError | null }, operation: string, tableName: string): T => {
+    if (response.error) {
+        console.error(`Error during ${operation} on ${tableName}:`, response.error);
+        throw response.error;
+    }
+    return snakeToCamel(response.data) as T;
 };
 
-// Specific fetch functions
-export const fetchProjects = (client: SupabaseClient) => fetchData(client, 'projects');
-
-export const fetchTasks = async (client: SupabaseClient) => {
-    // 1. Fetch base tasks
-    const { data: tasksData, error: tasksError } = await client.from('tasks').select('*');
-    if (tasksError) {
-        console.error("Error fetching tasks table:", tasksError);
-        throw tasksError;
-    }
-    if (!tasksData || tasksData.length === 0) {
-        return [];
-    }
-
-    const taskIds = tasksData.map(t => t.id);
-
-    // 2. Fetch comments and attachments in parallel
-    const [
-        { data: commentsData, error: commentsError },
-        { data: attachmentsData, error: attachmentsError }
-    ] = await Promise.all([
-        client.from('task_comments').select('*').in('task_id', taskIds),
-        client.from('task_attachments').select('*').in('task_id', taskIds),
-    ]);
-    
-    if (commentsError) {
-        console.error("Error fetching task comments:", commentsError);
-        throw commentsError;
-    }
-    if (attachmentsError) {
-        console.error("Error fetching task attachments:", attachmentsError);
-        throw attachmentsError;
-    }
-
-    // 3. Join data on the client
-    const commentsByTaskId = (commentsData || []).reduce((acc, comment) => {
-        if (!acc[comment.task_id]) {
-            acc[comment.task_id] = [];
-        }
-        acc[comment.task_id].push(comment);
-        return acc;
-    }, {} as Record<string, any[]>);
-
-    const attachmentsByTaskId = (attachmentsData || []).reduce((acc, attachment) => {
-        if (!acc[attachment.task_id]) {
-            acc[attachment.task_id] = [];
-        }
-        acc[attachment.task_id].push(attachment);
-        return acc;
-    }, {} as Record<string, any[]>);
-
-    const finalTasks = tasksData.map(task => ({
-        ...task,
-        comments: commentsByTaskId[task.id] || [],
-        attachments: attachmentsByTaskId[task.id] || [],
-    }));
-
-    return snakeToCamel(finalTasks);
+export const fetchAll = async <T>(client: SupabaseClient, tableName: string): Promise<T[]> => {
+    const response = await client.from(tableName).select('*');
+    return handleResponse<T[]>(response, 'fetchAll', tableName) || [];
 };
 
-
-export const fetchTeamMembers = (client: SupabaseClient) => fetchData(client, 'team_members');
-export const fetchDailyLogs = (client: SupabaseClient) => fetchData(client, 'daily_logs');
-export const fetchNotifications = (client: SupabaseClient) => fetchData(client, 'notifications');
-
-export const fetchMeetings = async (client: SupabaseClient) => {
-    // 1. Fetch base meetings
-    const { data: meetingsData, error: meetingsError } = await client.from('meetings').select('*');
-    if (meetingsError) {
-        console.error("Error fetching meetings table:", meetingsError);
-        throw meetingsError;
-    }
-    if (!meetingsData || meetingsData.length === 0) {
-        return [];
-    }
-
-    const meetingIds = meetingsData.map(m => m.id);
-
-    // 2. Fetch participants for those meetings
-    let participantsData: any[] | null;
-    const { data: pData, error: participantsError } = await client
-        .from('meeting_participants')
-        .select('meeting_id, team_member_id')
-        .in('meeting_id', meetingIds);
-
-    if (participantsError) {
-        console.error("Error fetching meeting participants:", participantsError);
-        // Don't throw, just return meetings without participants
-        participantsData = [];
-    } else {
-        participantsData = pData;
-    }
-
-    // 3. Join data on the client
-    const participantsByMeetingId = (participantsData || []).reduce((acc, p) => {
-        if (!acc[p.meeting_id]) {
-            acc[p.meeting_id] = [];
-        }
-        acc[p.meeting_id].push(p.team_member_id);
-        return acc;
-    }, {} as Record<string, number[]>);
-
-    const finalMeetings = meetingsData.map(meeting => ({
-        ...meeting,
-        participants: participantsByMeetingId[meeting.id] || [],
-    }));
-
-    return snakeToCamel(finalMeetings);
+export const fetchById = async <T>(client: SupabaseClient, tableName: string, id: string | number): Promise<T | null> => {
+    const response = await client.from(tableName).select('*').eq('id', id).single();
+    return handleResponse<T | null>(response, 'fetchById', tableName);
 };
 
-export const fetchExpenseClaims = (client: SupabaseClient) => fetchData(client, 'expense_claims');
-export const fetchRoles = (client: SupabaseClient) => fetchData(client, 'roles');
+export const insert = async <T>(client: SupabaseClient, tableName: string, data: Partial<T>): Promise<T> => {
+    const snakeData = camelToSnake(data);
+    const response = await client.from(tableName).insert(snakeData).select().single();
+    return handleResponse<T>(response, 'insert', tableName);
+};
 
-export const fetchSiteSettings = async (client: SupabaseClient) => {
+export const insertMany = async <T>(client: SupabaseClient, tableName: string, data: Partial<T>[]): Promise<T[]> => {
+    const snakeData = data.map(camelToSnake);
+    const response = await client.from(tableName).insert(snakeData).select();
+    return handleResponse<T[]>(response, 'insertMany', tableName) || [];
+};
+
+export const update = async <T>(client: SupabaseClient, tableName: string, id: string | number, data: Partial<T>): Promise<T> => {
+    const snakeData = camelToSnake(data);
+    const response = await client.from(tableName).update(snakeData).eq('id', id).select().single();
+    return handleResponse<T>(response, 'update', tableName);
+};
+
+export const deleteById = async (client: SupabaseClient, tableName: string, id: string | number): Promise<void> => {
+    const response = await client.from(tableName).delete().eq('id', id);
+    if (response.error) {
+        console.error(`Error deleting from ${tableName}:`, response.error);
+        throw response.error;
+    }
+};
+
+// --- Specific Fetch Functions ---
+
+export const fetchRoles = (client: SupabaseClient): Promise<Role[]> => fetchAll<Role>(client, 'roles');
+export const fetchProjects = (client: SupabaseClient): Promise<Project[]> => fetchAll<Project>(client, 'projects');
+export const fetchTasks = async (client: SupabaseClient): Promise<Task[]> => {
+    const response = await client.from('tasks').select('*, comments:task_comments(*), attachments:task_attachments(*)');
+    return handleResponse<Task[]>(response, 'fetchTasks', 'tasks') || [];
+};
+export const fetchTeamMembers = (client: SupabaseClient): Promise<TeamMember[]> => fetchAll<TeamMember>(client, 'team_members');
+export const fetchDailyLogs = (client: SupabaseClient): Promise<DailyLog[]> => fetchAll<DailyLog>(client, 'daily_logs');
+export const fetchNotifications = (client: SupabaseClient): Promise<Notification[]> => fetchAll<Notification>(client, 'notifications');
+export const fetchMeetings = (client: SupabaseClient): Promise<Meeting[]> => fetchAll<Meeting>(client, 'meetings');
+export const fetchExpenseClaims = (client: SupabaseClient): Promise<ExpenseClaim[]> => fetchAll<ExpenseClaim>(client, 'expense_claims');
+
+export const fetchSiteSettings = async (client: SupabaseClient): Promise<SiteSettings | null> => {
     const { data, error } = await client.from('site_settings').select('settings').eq('id', 1).single();
     if (error) {
-        console.warn("Could not fetch site settings:", error.message);
+        console.error("Error fetching site settings:", error);
         return null;
     }
-    return data.settings;
-};
+    return data?.settings as SiteSettings || null;
+}
 
-// Generic CUD operations
-export const insert = async (client: SupabaseClient, table: string, row: object) => {
-    const { data, error } = await client.from(table).insert(camelToSnake(row)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-
-export const insertMany = async (client: SupabaseClient, table: string, rows: object[]) => {
-    const { data, error } = await client.from(table).insert(camelToSnake(rows)).select();
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-
-
-export const update = async (client: SupabaseClient, table: string, id: string | number, updates: object) => {
-    const { data, error } = await client.from(table).update(camelToSnake(updates)).eq('id', id).select();
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-
-export const upsert = async (client: SupabaseClient, table: string, row: object) => {
-    const { data, error } = await client.from(table).upsert(camelToSnake(row)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-
-export const deleteById = async (client: SupabaseClient, table: string, id: string | number) => {
-    const { error } = await client.from(table).delete().eq('id', id);
-    if (error) throw error;
-};
-
-// Special operations
-export const createNewUser = async (client: SupabaseClient, userData: TeamMemberFormData) => {
-    // 1. Create the auth user in Supabase Auth
-    const { data: authData, error: authError } = await client.auth.signUp({
-        email: userData.email!,
-        password: userData.password!,
-    });
-
-    if (authError) throw authError;
-    if (!authData.user) throw new Error("User not created in Auth.");
-
-    // 2. Create the user profile in our public table
-    const profileData = {
-        auth_user_id: authData.user.id,
-        name: userData.name,
-        email: userData.email,
-        role_id: userData.roleId,
-        reports_to: userData.reportsTo,
-        avatar_url: userData.avatarUrl,
-        salary: userData.salary,
-        hourly_rate: userData.hourlyRate,
-        // Default weekly plan
-        weekly_plan: { status: 'approved', hours: {} }
-    };
-    
-    const { error: profileError } = await client.from('team_members').insert(profileData);
-
-    if (profileError) {
-        // If profile creation fails, we should ideally delete the auth user to prevent orphans
-        const { data, error } = await client.auth.admin.deleteUser(authData.user.id);
-        if (error) console.error("Failed to clean up orphaned auth user:", error);
-        throw profileError;
-    }
-
-    return snakeToCamel(profileData);
-};
-
-
+// --- Specific Functions ---
 export const performGlobalSearch = async (client: SupabaseClient, searchTerm: string): Promise<GlobalSearchResults> => {
     const [
-        { data: projects, error: projectsError },
-        { data: tasks, error: tasksError },
-        { data: teamMembers, error: membersError }
+        { data: projects },
+        { data: tasks },
+        { data: teamMembers }
     ] = await Promise.all([
-        client.from('projects').select('id, name').textSearch('name', `'${searchTerm}'`),
-        client.from('tasks').select('id, title, project_id').textSearch('title', `'${searchTerm}'`),
-        client.from('team_members').select('id, name').textSearch('name', `'${searchTerm}'`),
+        client.from('projects').select('id, name').ilike('name', `%${searchTerm}%`).limit(5),
+        client.from('tasks').select('id, title, project_id').ilike('title', `%${searchTerm}%`).limit(5),
+        client.from('team_members').select('id, name').ilike('name', `%${searchTerm}%`).limit(5)
     ]);
-    
-    if (projectsError) console.error("Project search error", projectsError);
-    if (tasksError) console.error("Task search error", tasksError);
-    if (membersError) console.error("Member search error", membersError);
 
     return {
         projects: snakeToCamel(projects || []),
         tasks: snakeToCamel(tasks || []),
-        teamMembers: snakeToCamel(teamMembers || []),
+        teamMembers: snakeToCamel(teamMembers || [])
     };
 };

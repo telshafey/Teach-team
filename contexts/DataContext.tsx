@@ -3,23 +3,14 @@ import * as api from '../services/apiService';
 import { useAuth } from './AuthContext';
 import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
-import { initialData } from '../App.initialData';
-import { slugify } from '../utils/slugify';
 import {
-  TeamMember,
-  DailyLog,
-  Notification,
-  Meeting,
-  ExpenseClaim,
-  Role,
-  SiteSettings,
-  TeamMemberFormData,
-  DailyLogFormData,
-  MeetingFormData,
-  PlanStatus,
-  ExpenseClaimStatus,
-  RoleId,
+  TeamMember, Role, DailyLog, SiteSettings, Notification, Meeting, ExpenseClaim,
+  TeamMemberFormData, DailyLogFormData, PlanStatus, RoleId, MeetingFormData, ExpenseClaimFormData
 } from '../types';
+import { initialData } from '../App.initialData';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const SUPABASE_SETTINGS_KEY = 'supabase_settings';
 
 interface AppDataContextType {
   teamMembers: TeamMember[];
@@ -27,9 +18,9 @@ interface AppDataContextType {
   notifications: Notification[];
   meetings: Meeting[];
   expenseClaims: ExpenseClaim[];
-  roles: Role[];
   siteSettings: SiteSettings | null;
   currency: string;
+  roles: Role[];
   isLoading: boolean;
   
   handleUpdateSiteSettings: (settings: SiteSettings) => Promise<void>;
@@ -39,13 +30,13 @@ interface AppDataContextType {
   handleUpdateDailyLog: (log: DailyLog) => Promise<void>;
   handleDeleteDailyLog: (logId: string) => Promise<void>;
   markNotificationAsRead: (notificationId: string) => Promise<void>;
-  handleAddMeeting: (meetingData: MeetingFormData) => Promise<void>;
   handleUpdatePlanStatus: (memberId: number, status: PlanStatus) => Promise<void>;
-  handleSubmitExpenseClaim: (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => Promise<void>;
-  handleUpdateExpenseClaimStatus: (claimId: string, status: ExpenseClaimStatus) => Promise<void>;
   handleAddRole: (roleData: { name: string, permissions?: string[] }) => Promise<Role>;
   handleUpdateRole: (role: Role) => Promise<void>;
   handleDeleteRole: (roleId: RoleId) => Promise<void>;
+  handleSubmitExpenseClaim: (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => Promise<void>;
+  handleUpdateExpenseClaimStatus: (claimId: string, status: 'approved' | 'rejected') => Promise<void>;
+  handleAddMeeting: (meetingData: MeetingFormData) => Promise<void>;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -54,296 +45,268 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
-  
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [expenseClaims, setExpenseClaims] = useState<ExpenseClaim[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(initialData.siteSettings);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const currency = siteSettings?.currency || 'USD';
-
-  const fetchData = useCallback(async () => {
-    if (!currentUser || !supabaseClient) {
-        setIsLoading(false);
-        return;
-    };
+  const fetchData = useCallback(async (client: SupabaseClient) => {
     setIsLoading(true);
-
     try {
       const [
-        teamMembersData,
-        dailyLogsData,
+        membersData,
+        logsData,
         notificationsData,
         meetingsData,
-        expenseClaimsData,
-        rolesData,
-        siteSettingsData
+        claimsData,
+        settingsData,
+        rolesData
       ] = await Promise.all([
-        api.fetchTeamMembers(supabaseClient),
-        api.fetchDailyLogs(supabaseClient),
-        api.fetchNotifications(supabaseClient),
-        api.fetchMeetings(supabaseClient),
-        api.fetchExpenseClaims(supabaseClient),
-        api.fetchRoles(supabaseClient),
-        api.fetchSiteSettings(supabaseClient)
+        api.fetchTeamMembers(client),
+        api.fetchDailyLogs(client),
+        api.fetchNotifications(client),
+        api.fetchMeetings(client),
+        api.fetchExpenseClaims(client),
+        api.fetchSiteSettings(client),
+        api.fetchRoles(client),
       ]);
 
-      setTeamMembers(teamMembersData);
-      setDailyLogs(dailyLogsData);
+      setTeamMembers(membersData);
+      setDailyLogs(logsData);
       setNotifications(notificationsData);
       setMeetings(meetingsData);
-      setExpenseClaims(expenseClaimsData);
+      setExpenseClaims(claimsData);
+      setSiteSettings(settingsData || initialData.siteSettings);
       setRoles(rolesData);
-      if (siteSettingsData) {
-        setSiteSettings(siteSettingsData);
-        // Also update theme color variable in CSS
-        document.documentElement.style.setProperty('--theme-color-500', siteSettingsData.themeColor);
-        document.documentElement.style.setProperty('--theme-color-600', siteSettingsData.themeColor);
-        document.documentElement.style.setProperty('--theme-color-700', siteSettingsData.themeColor);
-        document.documentElement.style.setProperty('--theme-color-100', `${siteSettingsData.themeColor}1A`); // with opacity
-      }
-      
+
     } catch (error: any) {
-      addToast(`فشل تحميل بيانات التطبيق: ${error.message}`, 'error');
+      addToast(`فشل تحميل البيانات: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, supabaseClient, addToast]);
+  }, [addToast]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (currentUser && supabaseClient) {
+      fetchData(supabaseClient);
+    } else {
+      setIsLoading(false);
+    }
+  }, [currentUser, supabaseClient, fetchData]);
 
-  // Handlers for data manipulation
-  
   const handleUpdateSiteSettings = async (settings: SiteSettings) => {
     if (!supabaseClient) return;
     try {
-      await api.upsert(supabaseClient, 'site_settings', { id: 1, settings });
-      setSiteSettings(settings);
-      localStorage.setItem('supabase_settings', JSON.stringify(settings.databaseSettings));
-    } catch (error) {
-      addToast('فشل تحديث الإعدادات.', 'error');
-      throw error;
+        const { data } = await supabaseClient.from('site_settings').update({ settings: api.camelToSnake(settings) }).eq('id', 1).select().single();
+        if (data) {
+            const newSettings = api.snakeToCamel(data.settings) as SiteSettings;
+            setSiteSettings(newSettings);
+            // Also update local storage for next app load
+            if(newSettings.databaseSettings) {
+                localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(newSettings.databaseSettings));
+            }
+        }
+    } catch(error) {
+        addToast('فشل تحديث الإعدادات.', 'error');
+        throw error;
     }
   };
 
   const handleAddMember = async (memberData: TeamMemberFormData) => {
     if (!supabaseClient) return;
-    try {
-      const newMember = await api.createNewUser(supabaseClient, memberData);
-      setTeamMembers(prev => [...prev, newMember]);
-      addToast('تمت إضافة العضو بنجاح.', 'success');
-    } catch (error) {
-      addToast('فشل إضافة العضو.', 'error');
-      throw error;
+    const { password, ...profileData } = memberData;
+    if (!password) throw new Error("Password is required for new members.");
+    
+    // Create auth user
+    const { data: authData, error: signUpError } = await supabaseClient.auth.signUp({
+        email: profileData.email!,
+        password: password,
+    });
+
+    if (signUpError) {
+      addToast(`فشل إنشاء المستخدم: ${signUpError.message}`, 'error');
+      throw signUpError;
+    }
+
+    if (authData.user) {
+        try {
+            // Create user profile
+            const newMember = await api.insert<TeamMember>(supabaseClient, 'team_members', {
+                ...profileData,
+                authUserId: authData.user.id
+            });
+            setTeamMembers(prev => [...prev, newMember]);
+            addToast(`تمت إضافة ${newMember.name} بنجاح.`, 'success');
+        } catch (profileError) {
+            // Rollback auth user creation if profile fails
+            // In a real app, you might want a more robust transaction/cleanup process
+            // For now, we'll just log it. Supabase admin can delete the orphaned auth user.
+            console.error("Failed to create profile, auth user might be orphaned:", profileError);
+            addToast('فشل إنشاء ملف تعريف المستخدم.', 'error');
+            throw profileError;
+        }
     }
   };
 
   const handleUpdateMember = async (memberId: number, memberData: Partial<TeamMemberFormData>) => {
     if (!supabaseClient) return;
     try {
-      const [updatedMember] = await api.update(supabaseClient, 'team_members', memberId, memberData);
-      setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
-      addToast('تم تحديث بيانات العضو.', 'success');
+        const updatedMember = await api.update<TeamMember>(supabaseClient, 'team_members', memberId, memberData);
+        setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
+        addToast(`تم تحديث بيانات ${updatedMember.name}.`, 'success');
     } catch (error) {
-      addToast('فشل تحديث بيانات العضو.', 'error');
-      throw error;
+        addToast('فشل تحديث بيانات العضو.', 'error');
+        throw error;
     }
   };
-
+  
   const handleAddDailyLog = async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;
     try {
-      const newLog = await api.insert(supabaseClient, 'daily_logs', logData);
-      setDailyLogs(prev => [...prev, newLog]);
-      addToast('تم إضافة السجل بنجاح.', 'success');
+        const newLog = await api.insert<DailyLog>(supabaseClient, 'daily_logs', logData);
+        setDailyLogs(prev => [...prev, newLog]);
+        addToast('تم تسجيل النشاط بنجاح.', 'success');
     } catch (error) {
-      addToast('فشل إضافة السجل.', 'error');
-      throw error;
+        addToast('فشل تسجيل النشاط.', 'error');
+        throw error;
     }
   };
 
   const handleUpdateDailyLog = async (log: DailyLog) => {
     if (!supabaseClient) return;
     try {
-      const [updatedLog] = await api.update(supabaseClient, 'daily_logs', log.id, log);
-      setDailyLogs(prev => prev.map(l => l.id === log.id ? updatedLog : l));
-      addToast('تم تحديث السجل.', 'success');
+        const updatedLog = await api.update<DailyLog>(supabaseClient, 'daily_logs', log.id, log);
+        setDailyLogs(prev => prev.map(l => l.id === log.id ? updatedLog : l));
+        addToast('تم تحديث السجل.', 'success');
     } catch (error) {
-      addToast('فشل تحديث السجل.', 'error');
-      throw error;
+        addToast('فشل تحديث السجل.', 'error');
+        throw error;
     }
   };
 
   const handleDeleteDailyLog = async (logId: string) => {
     if (!supabaseClient) return;
     try {
-      await api.deleteById(supabaseClient, 'daily_logs', logId);
-      setDailyLogs(prev => prev.filter(l => l.id !== logId));
-      addToast('تم حذف السجل.', 'success');
+        await api.deleteById(supabaseClient, 'daily_logs', logId);
+        setDailyLogs(prev => prev.filter(l => l.id !== logId));
+        addToast('تم حذف السجل.', 'success');
     } catch (error) {
-      addToast('فشل حذف السجل.', 'error');
-      throw error;
+        addToast('فشل حذف السجل.', 'error');
+        throw error;
     }
   };
 
   const markNotificationAsRead = async (notificationId: string) => {
     if (!supabaseClient) return;
-    const originalNotifications = [...notifications];
     setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
     try {
       await api.update(supabaseClient, 'notifications', notificationId, { read: true });
     } catch (error) {
-      setNotifications(originalNotifications);
-      addToast('فشل تحديث الإشعار.', 'error');
+      console.error("Failed to mark notification as read:", error);
+      // Optionally revert state, but for UX it might be better to leave it as read.
     }
   };
-
-  const handleAddMeeting = async (meetingData: MeetingFormData) => {
-    if (!supabaseClient) return;
-    
-    let newMeeting: Meeting | null = null;
-    try {
-      // Step 1: Create the meeting record
-      newMeeting = await api.insert(supabaseClient, 'meetings', {
-        title: meetingData.title,
-        scheduled_time: meetingData.scheduledTime,
-        jitsi_room_name: `TeemTime-${slugify(meetingData.title)}-${Date.now()}`
-      });
-
-      if (!newMeeting) {
-          throw new Error("لم يتم إنشاء سجل الاجتماع.");
-      }
-
-      // Step 2: Prepare and insert participants
-      const participantsData = meetingData.participants.map(memberId => ({
-          meeting_id: newMeeting!.id,
-          team_member_id: memberId
-      }));
-      
-      if (participantsData.length > 0) {
-        await api.insertMany(supabaseClient, 'meeting_participants', participantsData);
-      }
-
-      // If all successful, update the local state
-      setMeetings(prev => [...prev, { ...newMeeting!, participants: meetingData.participants }]);
-      addToast('تم جدولة الاجتماع بنجاح.', 'success');
-
-    } catch (error: any) {
-        // If any step fails, roll back
-        if (newMeeting && newMeeting.id) {
-            console.log(`Rolling back meeting creation (ID: ${newMeeting.id}) due to an error.`);
-            await api.deleteById(supabaseClient, 'meetings', newMeeting.id);
-        }
-        
-        const errorMessage = error.message || 'حدث خطأ غير معروف.';
-        console.error("Full error object during meeting save:", error); 
-        addToast(`فشل جدولة الاجتماع: ${errorMessage}`, 'error');
-        throw error;
-    }
-  };
-
+  
   const handleUpdatePlanStatus = async (memberId: number, status: PlanStatus) => {
     if (!supabaseClient) return;
     const member = teamMembers.find(m => m.id === memberId);
     if (!member) return;
-
-    const originalMembers = [...teamMembers];
     const updatedPlan = { ...member.weeklyPlan, status };
-    const updatedMember = { ...member, weeklyPlan: updatedPlan };
-
-    setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
-    
     try {
-      await api.update(supabaseClient, 'team_members', memberId, { weekly_plan: updatedPlan });
-      addToast('تم تحديث حالة الخطة.', 'success');
+        const updatedMember = await api.update<TeamMember>(supabaseClient, 'team_members', memberId, { weeklyPlan: updatedPlan });
+        setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
+        addToast(`تم تحديث حالة الخطة لـ ${member.name}.`, 'success');
     } catch (error) {
-      setTeamMembers(originalMembers);
-      addToast('فشل تحديث حالة الخطة.', 'error');
-      throw error;
-    }
-  };
-
-  const handleSubmitExpenseClaim = async (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => {
-    if (!supabaseClient) return;
-    try {
-      const newClaim = await api.insert(supabaseClient, 'expense_claims', { ...claimData, status: 'pending' });
-      setExpenseClaims(prev => [...prev, newClaim]);
-      addToast('تم تقديم طلب الصرف بنجاح.', 'success');
-    } catch (error) {
-      addToast('فشل تقديم طلب الصرف.', 'error');
-      throw error;
-    }
-  };
-  
-  const handleUpdateExpenseClaimStatus = async (claimId: string, status: ExpenseClaimStatus) => {
-    if (!supabaseClient) return;
-    const originalClaims = [...expenseClaims];
-    const claimToUpdate = expenseClaims.find(c => c.id === claimId);
-    if (!claimToUpdate) return;
-
-    setExpenseClaims(prev => prev.map(c => c.id === claimId ? { ...c, status } : c));
-    
-    try {
-      await api.update(supabaseClient, 'expense_claims', claimId, { status });
-      addToast('تم تحديث حالة طلب الصرف.', 'success');
-    } catch (error) {
-      setExpenseClaims(originalClaims);
-      addToast('فشل تحديث حالة طلب الصرف.', 'error');
-      throw error;
+        addToast('فشل تحديث حالة الخطة.', 'error');
+        throw error;
     }
   };
 
   const handleAddRole = async (roleData: { name: string, permissions?: string[] }): Promise<Role> => {
-    if (!supabaseClient) throw new Error("Client not available");
+    if (!supabaseClient) throw new Error("Client not ready");
     try {
-      const newRole = await api.insert(supabaseClient, 'roles', { ...roleData, id: slugify(roleData.name), permissions: roleData.permissions || [] });
-      setRoles(prev => [...prev, newRole]);
-      addToast('تم إضافة الدور بنجاح.', 'success');
-      return newRole;
+        const newRole = await api.insert<Role>(supabaseClient, 'roles', { ...roleData, permissions: roleData.permissions || [] });
+        setRoles(prev => [...prev, newRole]);
+        addToast('تم إنشاء الدور بنجاح.', 'success');
+        return newRole;
     } catch (error) {
-      addToast('فشل إضافة الدور. قد يكون المعرّف مستخدمًا بالفعل.', 'error');
-      throw error;
+        addToast('فشل إنشاء الدور.', 'error');
+        throw error;
     }
   };
-
+  
   const handleUpdateRole = async (role: Role) => {
     if (!supabaseClient) return;
-    const originalRoles = [...roles];
-    setRoles(prev => prev.map(r => r.id === role.id ? role : r));
-
     try {
-      await api.update(supabaseClient, 'roles', role.id, role);
-      // No success toast needed for optimistic updates unless it's a critical action
+        const updatedRole = await api.update<Role>(supabaseClient, 'roles', role.id, role);
+        setRoles(prev => prev.map(r => r.id === role.id ? updatedRole : r));
+        addToast(`تم تحديث دور "${role.name}".`, 'success');
     } catch (error) {
-      setRoles(originalRoles);
-      addToast('فشل تحديث الدور.', 'error');
-      throw error;
+        addToast('فشل تحديث الدور.', 'error');
+        throw error;
     }
   };
 
   const handleDeleteRole = async (roleId: RoleId) => {
     if (!supabaseClient) return;
-    const membersInRole = teamMembers.filter(m => m.roleId === roleId).length;
-    if (membersInRole > 0) {
-      addToast(`لا يمكن حذف الدور لأن هناك ${membersInRole} أعضاء مرتبطين به.`, 'error');
-      throw new Error("Role is in use");
+    if (teamMembers.some(m => m.roleId === roleId)) {
+        addToast('لا يمكن حذف الدور لأنه مسند لأحد أعضاء الفريق.', 'error');
+        throw new Error("Role is in use");
     }
     try {
-      await api.deleteById(supabaseClient, 'roles', roleId);
-      setRoles(prev => prev.filter(r => r.id !== roleId));
-      addToast('تم حذف الدور.', 'success');
+        await api.deleteById(supabaseClient, 'roles', roleId);
+        setRoles(prev => prev.filter(r => r.id !== roleId));
+        addToast('تم حذف الدور.', 'success');
     } catch (error) {
-      addToast('فشل حذف الدور.', 'error');
-      throw error;
+        addToast('فشل حذف الدور.', 'error');
+        throw error;
     }
   };
 
+    const handleSubmitExpenseClaim = async (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => {
+        if (!supabaseClient) return;
+        try {
+            const newClaim = await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', {
+                ...claimData,
+                status: 'pending'
+            });
+            setExpenseClaims(prev => [...prev, newClaim]);
+            addToast('تم تقديم طلب الصرف بنجاح.', 'success');
+        } catch (error) {
+            addToast('فشل تقديم طلب الصرف.', 'error');
+            throw error;
+        }
+    };
+    
+    const handleUpdateExpenseClaimStatus = async (claimId: string, status: 'approved' | 'rejected') => {
+        if (!supabaseClient) return;
+        try {
+            const updatedClaim = await api.update<ExpenseClaim>(supabaseClient, 'expense_claims', claimId, { status });
+            setExpenseClaims(prev => prev.map(c => c.id === claimId ? updatedClaim : c));
+            addToast('تم تحديث حالة طلب الصرف.', 'success');
+        } catch (error) {
+            addToast('فشل تحديث حالة الطلب.', 'error');
+            throw error;
+        }
+    };
+
+    const handleAddMeeting = async (meetingData: MeetingFormData) => {
+        if (!supabaseClient) return;
+        const jitsiRoomName = `BokraTeamMeeting-${Date.now()}`;
+        try {
+            const newMeeting = await api.insert<Meeting>(supabaseClient, 'meetings', { ...meetingData, jitsiRoomName });
+            setMeetings(prev => [...prev, newMeeting]);
+            addToast('تم جدولة الاجتماع بنجاح.', 'success');
+        } catch (error) {
+            addToast('فشل جدولة الاجتماع.', 'error');
+            throw error;
+        }
+    };
 
   const value = {
     teamMembers,
@@ -351,9 +314,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     notifications,
     meetings,
     expenseClaims,
-    roles,
     siteSettings,
-    currency,
+    currency: siteSettings?.currency || 'USD',
+    roles,
     isLoading,
     handleUpdateSiteSettings,
     handleAddMember,
@@ -362,16 +325,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     handleUpdateDailyLog,
     handleDeleteDailyLog,
     markNotificationAsRead,
-    handleAddMeeting,
     handleUpdatePlanStatus,
-    handleSubmitExpenseClaim,
-    handleUpdateExpenseClaimStatus,
     handleAddRole,
     handleUpdateRole,
-    handleDeleteRole
+    handleDeleteRole,
+    handleSubmitExpenseClaim,
+    handleUpdateExpenseClaimStatus,
+    handleAddMeeting,
   };
 
-  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
+  return (
+    <AppDataContext.Provider value={value}>
+      {children}
+    </AppDataContext.Provider>
+  );
 };
 
 export const useAppDataContext = () => {
