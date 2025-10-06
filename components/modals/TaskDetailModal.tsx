@@ -57,7 +57,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
             timestamp: new Date().toISOString(),
         };
         
-        const createdAttachment = await api.insert(supabaseClient, 'task_attachments', { ...newAttachment, task_id: task.id });
+        // FIX: Cast result to 'unknown' first to solve strict type conversion error. The API returns a TaskAttachment shape,
+        // but TypeScript infers the return type from the argument (which includes task_id), causing a mismatch.
+        const createdAttachment = await api.insert(supabaseClient, 'task_attachments', { ...newAttachment, task_id: task.id }) as unknown as TaskAttachment;
 
         const updatedTask = { ...task, attachments: [...(task.attachments || []), createdAttachment] };
         await handleUpdateTask(updatedTask);
@@ -73,6 +75,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   const handleRemoveAttachment = async (attachmentId: string) => {
       // Note: This only removes the DB record, not the file from storage, for simplicity.
       // A full implementation would also delete from Supabase Storage.
+      if (!task.attachments) return;
       await api.deleteById(supabaseClient, 'task_attachments', attachmentId);
       const updatedAttachments = task.attachments.filter(a => a.id !== attachmentId);
       const updatedTask = { ...task, attachments: updatedAttachments };

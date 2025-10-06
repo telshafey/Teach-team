@@ -1,20 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
-import { PlusIcon, SearchIcon, ExclamationTriangleIcon, FolderIcon } from '../ui/Icons';
+import { PlusIcon, SearchIcon, ExclamationTriangleIcon, FolderIcon, TrashIcon, PencilIcon } from '../ui/Icons';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 import { EmptyState } from '../ui/EmptyState';
+import { ConfirmationModal } from '../modals/ConfirmationModal';
 
 interface ProjectCardProps {
   project: Project;
   onSelect: (projectId: string) => void;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+  canManage: boolean;
   currency: string;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, onSelect, currency }) => {
+const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, onSelect, onEdit, onDelete, canManage, currency }) => {
     const { dailyLogs } = useAppDataContext();
     const hoursLogged = useMemo(() => dailyLogs.filter(log => log.projectId === project.id).reduce((sum, log) => sum + log.hours, 0), [dailyLogs, project.id]);
     
@@ -30,7 +34,13 @@ const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, onSelect,
     };
 
     return (
-        <div onClick={() => onSelect(project.id)} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all">
+        <div onClick={() => onSelect(project.id)} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all group relative">
+            {canManage && (
+                <div className="absolute top-2 left-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(project); }} className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(project); }} className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+                </div>
+            )}
             <div className="flex justify-between items-start">
                 <h3 className="font-bold text-slate-800 dark:text-slate-100 pr-2">{project.name}</h3>
                 <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getStatusStyles(project.status)}`}>{project.status}</span>
@@ -77,10 +87,13 @@ interface ProjectsPageProps {
 }
 
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, initialState }) => {
-    const { projects, handleAddProject, isLoading } = useProjectContext();
+    const { projects, handleAddProject, handleUpdateProject, handleDeleteProject, isLoading } = useProjectContext();
     const { hasPermission } = useAuth();
     const { currency } = useAppDataContext();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>(initialState?.statusFilter || 'all');
     
@@ -93,12 +106,33 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
     }, [projects, searchTerm, statusFilter]);
 
     const handleSaveProject = async (projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
-        if (!projectToUpdate) {
+        if (projectToUpdate) {
+            await handleUpdateProject({ ...projectToUpdate, ...projectData });
+        } else {
             await handleAddProject(projectData, suggestedTasks);
         }
     };
 
+    const handleOpenForm = (project: Project | null) => {
+        setEditingProject(project);
+        setIsFormModalOpen(true);
+    };
+
+    const handleDeleteClick = (project: Project) => {
+        setProjectToDelete(project);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (projectToDelete) {
+            await handleDeleteProject(projectToDelete.id);
+            setIsDeleteConfirmOpen(false);
+            setProjectToDelete(null);
+        }
+    };
+
     const projectStatuses: ProjectStatus[] = ['نشط', 'مكتمل', 'معلق'];
+    const canManage = hasPermission('manage_projects');
 
     return (
         <div className="p-6">
@@ -107,8 +141,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">المشاريع</h2>
                     <p className="text-md text-slate-500 dark:text-slate-400">تتبع وإدارة جميع مشاريعك من هنا.</p>
                 </div>
-                {hasPermission('manage_projects') && (
-                    <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                {canManage && (
+                    <button onClick={() => handleOpenForm(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
                         <PlusIcon className="w-5 h-5"/><span>إضافة مشروع جديد</span>
                     </button>
                 )}
@@ -142,7 +176,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
             ) : filteredProjects.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} onSelect={onProjectSelect} currency={currency} />
+                        <ProjectCard key={project.id} project={project} onSelect={onProjectSelect} onEdit={handleOpenForm} onDelete={handleDeleteClick} canManage={canManage} currency={currency} />
                     ))}
                 </div>
             ) : (
@@ -153,12 +187,24 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
                 />
             )}
 
-            {isModalOpen && (
+            {isFormModalOpen && (
                 <ProjectFormModal 
-                    isOpen={isModalOpen} 
-                    onClose={() => setIsModalOpen(false)}
+                    isOpen={isFormModalOpen} 
+                    onClose={() => setIsFormModalOpen(false)}
                     onSave={handleSaveProject} 
-                    project={null}
+                    project={editingProject}
+                />
+            )}
+            
+            {isDeleteConfirmOpen && (
+                 <ConfirmationModal
+                    isOpen={isDeleteConfirmOpen}
+                    onClose={() => setIsDeleteConfirmOpen(false)}
+                    onConfirm={confirmDelete}
+                    title="تأكيد حذف المشروع"
+                    message={`هل أنت متأكد من رغبتك في حذف مشروع "${projectToDelete?.name}"؟ سيتم حذف جميع المهام والسجلات المرتبطة به. لا يمكن التراجع عن هذا الإجراء.`}
+                    confirmText="نعم، احذف"
+                    isDestructive
                 />
             )}
         </div>

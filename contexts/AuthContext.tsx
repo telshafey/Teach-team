@@ -28,6 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchPublicData = useCallback(async () => {
     if (!supabaseClient) return;
+    // FIX: api.fetchRoles now returns a strongly-typed Role[] array.
     const apiRoles = await api.fetchRoles(supabaseClient);
     setRoles(apiRoles);
     const newRolesMap = apiRoles.reduce((acc, role) => {

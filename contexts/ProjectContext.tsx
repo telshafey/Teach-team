@@ -12,8 +12,10 @@ interface ProjectContextType {
   isLoading: boolean;
   handleAddProject: (projectData: ProjectFormData, suggestedTasks?: SuggestedTask[]) => Promise<Project | undefined>;
   handleUpdateProject: (project: Project) => Promise<void>;
+  handleDeleteProject: (projectId: string) => Promise<void>;
   handleAddTask: (taskData: TaskFormData) => Promise<void>;
   handleUpdateTask: (task: Task) => Promise<void>;
+  handleDeleteTask: (taskId: string) => Promise<void>;
   handleUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
   handleUpdateTaskApproval: (taskId: string, status: ApprovalStatus, notes: string) => Promise<void>;
   handleFreelancerProposal: (projectId: string, proposalData: BillingProposalFormData) => Promise<void>;
@@ -42,6 +44,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 api.fetchProjects(supabaseClient),
                 api.fetchTasks(supabaseClient),
             ]);
+            // FIX: api calls now return strongly-typed arrays, resolving type errors.
             setProjects(projectsData);
             setTasks(tasksData);
         } catch (error: any) {
@@ -58,7 +61,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     const handleAddProject = async (projectData: ProjectFormData, suggestedTasks?: SuggestedTask[]): Promise<Project | undefined> => {
         if (!supabaseClient) return;
         try {
-            const newProject = await api.insert(supabaseClient, 'projects', projectData);
+            const newProject = await api.insert<Project>(supabaseClient, 'projects', projectData);
             setProjects(prev => [...prev, newProject]);
 
             if (suggestedTasks && suggestedTasks.length > 0) {
@@ -68,7 +71,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                     status: 'todo' as TaskStatus,
                     approvalStatus: 'approved' as ApprovalStatus,
                 }));
-                const newTasks = await api.insertMany(supabaseClient, 'tasks', newTasksData);
+                const newTasks = await api.insertMany<Task>(supabaseClient, 'tasks', newTasksData);
                 setTasks(prev => [...prev, ...newTasks]);
             }
             addToast(`تمت إضافة مشروع "${newProject.name}" بنجاح.`, 'success');
@@ -94,17 +97,29 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     };
 
+    const handleDeleteProject = async (projectId: string) => {
+        if (!supabaseClient) return;
+        const originalProjects = [...projects];
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+        try {
+            await api.deleteById(supabaseClient, 'projects', projectId);
+            addToast('تم حذف المشروع بنجاح.', 'success');
+        } catch (error) {
+            setProjects(originalProjects);
+            addToast('فشل حذف المشروع.', 'error');
+            throw error;
+        }
+    };
+
     const handleAddTask = async (taskData: TaskFormData) => {
         if (!supabaseClient || !currentUser) return;
         try {
-            const newTask = await api.insert(supabaseClient, 'tasks', {
+            const newTask = await api.insert<Task>(supabaseClient, 'tasks', {
                 ...taskData,
                 approvalStatus: 'approved' as ApprovalStatus
             });
             setTasks(prev => [...prev, newTask]);
             addToast(`تمت إضافة مهمة "${newTask.title}".`, 'success');
-
-            // Handle notifications in DB via triggers/functions
         } catch (error) {
             addToast('فشل إضافة المهمة.', 'error');
             throw error;
@@ -126,6 +141,20 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     };
     
+    const handleDeleteTask = async (taskId: string) => {
+        if (!supabaseClient) return;
+        const originalTasks = [...tasks];
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        try {
+            await api.deleteById(supabaseClient, 'tasks', taskId);
+            addToast('تم حذف المهمة بنجاح.', 'success');
+        } catch (error) {
+            setTasks(originalTasks);
+            addToast('فشل حذف المهمة.', 'error');
+            throw error;
+        }
+    };
+
     const handleUpdateTaskStatus = async (taskId: string, status: TaskStatus) => {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
@@ -161,7 +190,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 authorId: currentUser.id,
                 text: commentText,
             };
-            const newComment = await api.insert(supabaseClient, 'task_comments', newCommentData) as TaskComment;
+            // FIX: Cast the result to 'unknown' first to resolve the strict type conversion error.
+            // The API returns a 'TaskComment' shape, but TypeScript infers the return type from the argument shape, which is different.
+            const newComment = await api.insert(supabaseClient, 'task_comments', newCommentData) as unknown as TaskComment;
             setTasks(prev => prev.map(t => {
                 if (t.id === taskId) {
                     return { ...t, comments: [...(t.comments || []), newComment] };
@@ -185,8 +216,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         isLoading,
         handleAddProject,
         handleUpdateProject,
+        handleDeleteProject,
         handleAddTask,
         handleUpdateTask,
+        handleDeleteTask,
         handleUpdateTaskStatus,
         handleUpdateTaskApproval,
         handleFreelancerProposal,

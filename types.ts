@@ -39,7 +39,8 @@ export interface WeeklyPlan {
 
 export interface TeamMember {
   id: number;
-  auth_user_id?: string;
+  // FIX: Changed auth_user_id to authUserId to follow camelCase convention used throughout the app.
+  authUserId?: string;
   name: string;
   email: string;
   roleId: RoleId;
@@ -50,7 +51,7 @@ export interface TeamMember {
   weeklyPlan: WeeklyPlan;
 }
 
-export interface TeamMemberFormData extends Omit<Partial<TeamMember>, 'id' | 'weeklyPlan' | 'auth_user_id'> {
+export interface TeamMemberFormData extends Omit<Partial<TeamMember>, 'id' | 'weeklyPlan' | 'authUserId'> {
     password?: string;
 }
 
@@ -186,8 +187,9 @@ export interface Task {
   status: TaskStatus;
   approvalStatus: ApprovalStatus;
   approvalNotes?: string;
-  comments: TaskComment[];
-  attachments: TaskAttachment[];
+  // FIX: Made comments and attachments optional, as tasks may not have them upon creation or when fetched.
+  comments?: TaskComment[];
+  attachments?: TaskAttachment[];
 }
 
 export type TaskFormData = Omit<Task, 'id' | 'approvalStatus' | 'approvalNotes' | 'comments' | 'attachments'>;

@@ -1,16 +1,18 @@
 import React from 'react';
 import { Task } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
-import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon } from '../ui/Icons';
+import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon, TrashIcon } from '../ui/Icons';
 import { useTimeTracking } from '../../contexts/TimeTrackingContext';
 
 interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
   onCardClick: (task: Task) => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
+  canManage: boolean;
 }
 
 const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: string }> = ({ status, notes }) => {
@@ -54,7 +56,7 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
     );
 };
 
-export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onCardClick, onDragStart, onDragEnd, isDragging }) => {
+export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canManage }) => {
   const { teamMembers, dailyLogs } = useAppDataContext();
   const { activeTimer, startTimer, stopTimer } = useTimeTracking();
   
@@ -88,16 +90,26 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onC
       onDragStart={(e) => onDragStart(e, task.id)}
       onDragEnd={onDragEnd}
       onClick={() => onCardClick(task)}
-      className={`bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-3 cursor-grab hover:bg-slate-50 dark:hover:bg-slate-600 transition-all ${getApprovalBorder()} ${isDragging ? 'opacity-50 ring-2 ring-sky-500' : ''} ${isThisTaskActive ? 'ring-2 ring-green-500 shadow-lg' : ''}`}
+      className={`bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-3 cursor-grab hover:bg-slate-50 dark:hover:bg-slate-600 transition-all group relative ${getApprovalBorder()} ${isDragging ? 'opacity-50 ring-2 ring-sky-500' : ''} ${isThisTaskActive ? 'ring-2 ring-green-500 shadow-lg' : ''}`}
     >
       <div className="flex justify-between items-start">
         <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm pr-2">{task.title}</p>
-        <button 
-            onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
-            className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 flex-shrink-0" 
-            aria-label="تعديل المهمة">
-          <PencilIcon className="w-4 h-4" />
-        </button>
+        {canManage && (
+            <div className="flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
+                    className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400" 
+                    aria-label="تعديل المهمة">
+                  <PencilIcon className="w-4 h-4" />
+                </button>
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); onDelete(task); }} 
+                    className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400" 
+                    aria-label="حذف المهمة">
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+            </div>
+        )}
       </div>
       
       {task.approvalStatus === 'rejected' && task.approvalNotes && (

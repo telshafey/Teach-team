@@ -10,6 +10,7 @@ import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { GanttChart } from './GanttChart';
 import { FreelancerBillingModal } from '../modals/FreelancerBillingModal';
+import { ConfirmationModal } from '../modals/ConfirmationModal';
 
 
 interface ProjectDetailPageProps {
@@ -23,20 +24,27 @@ const TaskColumn: React.FC<{
     tasks: Task[];
     status: TaskStatus;
     onEdit: (task: Task) => void;
+    onDelete: (task: Task) => void;
     onCardClick: (task: Task) => void;
     onDrop: (status: TaskStatus) => void;
     onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
     onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
     draggingTaskId: string | null;
-}> = ({ title, tasks, status, onEdit, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId }) => {
+    canManage: boolean;
+}> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canManage }) => {
   const [isOver, setIsOver] = useState(false);
+  
+  const placeholder = useMemo(() => {
+    if (!draggingTaskId) return null;
+    return <div className="h-24 w-full bg-sky-200/50 dark:bg-sky-800/50 border-2 border-dashed border-sky-400 rounded-lg" />;
+  }, [draggingTaskId]);
   
   return (
     <div 
         onDragOver={(e) => { e.preventDefault(); setIsOver(true); }}
         onDragLeave={() => setIsOver(false)}
         onDrop={() => { onDrop(status); setIsOver(false); }}
-        className={`bg-slate-100 dark:bg-slate-800/50 p-3 rounded-lg flex-1 transition-colors ${isOver ? 'bg-sky-100 dark:bg-sky-900/50' : ''}`}
+        className={`bg-slate-100 dark:bg-slate-800/50 p-3 rounded-lg flex-1 transition-colors`}
     >
         <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-4 px-1">{title} ({tasks.length})</h3>
         <div className="space-y-3 min-h-[60vh]">
@@ -45,19 +53,22 @@ const TaskColumn: React.FC<{
                     key={task.id} 
                     task={task} 
                     onEdit={onEdit} 
+                    onDelete={onDelete}
                     onCardClick={onCardClick}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     isDragging={draggingTaskId === task.id}
+                    canManage={canManage}
                 />
             ))}
+            {isOver && placeholder}
         </div>
     </div>
   );
 };
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, onBack, initialTaskIdToOpen }) => {
-    const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleUpdateTaskStatus, handleFreelancerProposal } = useProjectContext();
+    const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
     const { teamMembers } = useAppDataContext();
     const { currentUser, hasPermission } = useAuth();
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -66,6 +77,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [viewingTask, setViewingTask] = useState<Task | null>(null);
     const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+    const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
     const project = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
@@ -97,6 +110,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         );
     }
 
+    const canManage = hasPermission('manage_projects');
     const canPropose = currentUser?.roleId === 'freelancer' && !project.freelancerContract;
 
     const handleSaveProposal = async (proposalData: BillingProposalFormData) => {
@@ -130,6 +144,20 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         }
     };
 
+    const handleDeleteClick = (task: Task) => {
+        setTaskToDelete(task);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (taskToDelete) {
+            await handleDeleteTask(taskToDelete.id);
+            setIsDeleteConfirmOpen(false);
+            setTaskToDelete(null);
+        }
+    };
+
+
     return (
         <div className="p-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
@@ -137,7 +165,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     <button onClick={onBack} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
                     <div className="flex items-center space-x-3 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
-                         {hasPermission('manage_projects') && (
+                         {canManage && (
                             <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
                          )}
                     </div>
@@ -152,7 +180,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                             <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
                         </button>
                     </div>
-                    {hasPermission('manage_projects') && (
+                    {canManage && (
                         <button onClick={() => openTaskModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                             <PlusIcon className="w-5 h-5"/><span>إضافة مهمة</span>
                         </button>
@@ -172,33 +200,39 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         tasks={tasksByStatus.todo}
                         status="todo"
                         onEdit={openTaskModal}
+                        onDelete={handleDeleteClick}
                         onCardClick={setViewingTask}
                         onDrop={handleDrop}
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
+                        canManage={canManage}
                     />
                     <TaskColumn 
                         title="قيد التنفيذ" 
                         tasks={tasksByStatus.inprogress}
                         status="inprogress"
                         onEdit={openTaskModal}
+                        onDelete={handleDeleteClick}
                         onCardClick={setViewingTask}
                         onDrop={handleDrop}
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
+                        canManage={canManage}
                     />
                     <TaskColumn 
                         title="مكتملة" 
                         tasks={tasksByStatus.done}
                         status="done"
                         onEdit={openTaskModal}
+                        onDelete={handleDeleteClick}
                         onCardClick={setViewingTask}
                         onDrop={handleDrop}
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
+                        canManage={canManage}
                     />
                 </div>
             ) : (
@@ -240,6 +274,18 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     onClose={() => setIsBillingModalOpen(false)}
                     onSave={handleSaveProposal}
                     project={project}
+                />
+            )}
+            
+            {isDeleteConfirmOpen && (
+                 <ConfirmationModal
+                    isOpen={isDeleteConfirmOpen}
+                    onClose={() => setIsDeleteConfirmOpen(false)}
+                    onConfirm={confirmDelete}
+                    title="تأكيد حذف المهمة"
+                    message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+                    confirmText="نعم، احذف"
+                    isDestructive
                 />
             )}
         </div>
