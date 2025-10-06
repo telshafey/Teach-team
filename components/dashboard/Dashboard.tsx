@@ -83,13 +83,13 @@ export const Dashboard: React.FC = () => {
       case 'settings':
       case 'roles':
       case 'database':
-        return <Suspense fallback={<LoadingFallback />}><SettingsPage initialView={view} onNavigate={handleNavigate} /></Suspense>;
+        return <SettingsPage initialView={view} onNavigate={handleNavigate} />;
       case 'finance':
         return <Suspense fallback={<LoadingFallback />}><FinancePage /></Suspense>;
       case 'meetings':
-        return <Suspense fallback={<LoadingFallback />}><MeetingsPage onJoinMeeting={(meeting: Meeting) => handleNavigate('meetingRoom', { meeting })} /></Suspense>;
+        return <MeetingsPage onJoinMeeting={(meeting: Meeting) => handleNavigate('meetingRoom', { meeting })} />;
       case 'meetingRoom':
-        return <Suspense fallback={<LoadingFallback />}><MeetingRoom meeting={props.meeting} onLeave={() => handleNavigate('meetings')} /></Suspense>;
+        return <MeetingRoom meeting={props.meeting} onLeave={() => handleNavigate('meetings')} />;
       case 'profile':
         return <Suspense fallback={<LoadingFallback />}><ProfilePage /></Suspense>;
       default:

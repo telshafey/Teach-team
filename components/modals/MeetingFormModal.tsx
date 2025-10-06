@@ -1,7 +1,8 @@
-import React, { useState, FormEvent, useEffect } from 'react';
+import React, { useState, FormEvent, useEffect, useMemo } from 'react';
 import { MeetingFormData } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { SearchIcon } from '../ui/Icons';
 
 interface MeetingFormModalProps {
   isOpen: boolean;
@@ -16,13 +17,13 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
   const [title, setTitle] = useState('');
   const [dateTime, setDateTime] = useState('');
   const [participants, setParticipants] = useState<Set<number>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Reset state when modal opens
     if (isOpen) {
         setTitle('');
         setDateTime('');
-        // Automatically add the current user as a participant
+        setSearchTerm('');
         if (currentUser) {
             setParticipants(new Set([currentUser.id]));
         } else {
@@ -31,11 +32,16 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
     }
   }, [currentUser, isOpen]);
 
+  const filteredMembers = useMemo(() => {
+    if (!searchTerm) return teamMembers;
+    return teamMembers.filter(member => 
+      member.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [teamMembers, searchTerm]);
 
   if (!isOpen) return null;
   
   const handleParticipantChange = (memberId: number) => {
-    // The current user cannot be unselected
     if (memberId === currentUser?.id) return;
 
     setParticipants(prev => {
@@ -61,7 +67,6 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
         onClose();
     } catch (error) {
         console.error("Failed to save meeting", error);
-        // Error is handled in the context now, no need for toast here.
     } finally {
         setIsSaving(false);
     }
@@ -83,8 +88,20 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">المشاركون</label>
-                    <div className="max-h-60 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-md p-2 space-y-2">
-                    {teamMembers.map(member => (
+                    <div className="relative mb-2">
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <SearchIcon className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="ابحث عن عضو بالفريق..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full p-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                        />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-md p-2 space-y-2">
+                    {filteredMembers.map(member => (
                         <label key={member.id} className={`flex items-center space-x-3 rtl:space-x-reverse p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md ${member.id === currentUser?.id ? 'opacity-70' : 'cursor-pointer'}`}>
                         <input
                             type="checkbox"

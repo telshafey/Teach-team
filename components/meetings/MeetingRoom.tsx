@@ -41,7 +41,8 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             parentNode: jitsiContainerRef.current,
             userInfo: {
                 displayName: currentUser.name,
-                email: `${currentUser.id}@teemtime.app` // Example email
+                email: currentUser.email,
+                avatarUrl: currentUser.avatarUrl,
             },
             configOverwrite: {
                 startWithAudioMuted: false,

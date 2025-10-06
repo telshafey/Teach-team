@@ -9,15 +9,29 @@ import { ToastContainer } from './components/ui/ToastContainer';
 import { TimeTrackingProvider } from './contexts/TimeTrackingContext';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { SupabaseProvider, useSupabase } from './contexts/SupabaseContext';
-import { Logo } from './components/ui/Logo';
 
 const AppContent: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
 
   if (isLoading) {
+    // Use a static logo here to avoid context dependency issues during the initial auth loading phase.
+    const StaticLogo = () => (
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
+                    <circle cx="50" cy="50" r="48" fill="transparent"/>
+                    <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <circle cx="50" cy="50" r="5" fill="white"/>
+                </svg>
+            </div>
+            <span className="text-2xl font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
+                Bokra Team
+            </span>
+        </div>
+    );
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-white dark:bg-slate-900">
-             <div className="animate-pulse"><Logo /></div>
+             <div className="animate-pulse"><StaticLogo /></div>
         </div>
     );
   }

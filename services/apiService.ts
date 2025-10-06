@@ -58,12 +58,9 @@ export const fetchTasks = async (client: SupabaseClient) => {
     const taskIds = tasksData.map(t => t.id);
 
     // 2. Fetch comments and attachments in parallel
-    let commentsData: any[] | null;
-    let attachmentsData: any[] | null;
-
     const [
-        { data: cData, error: commentsError },
-        { data: aData, error: attachmentsError }
+        { data: commentsData, error: commentsError },
+        { data: attachmentsData, error: attachmentsError }
     ] = await Promise.all([
         client.from('task_comments').select('*').in('task_id', taskIds),
         client.from('task_attachments').select('*').in('task_id', taskIds),
@@ -71,15 +68,11 @@ export const fetchTasks = async (client: SupabaseClient) => {
     
     if (commentsError) {
         console.error("Error fetching task comments:", commentsError);
-        commentsData = [];
-    } else {
-        commentsData = cData;
+        throw commentsError;
     }
     if (attachmentsError) {
         console.error("Error fetching task attachments:", attachmentsError);
-        attachmentsData = [];
-    } else {
-        attachmentsData = aData;
+        throw attachmentsError;
     }
 
     // 3. Join data on the client

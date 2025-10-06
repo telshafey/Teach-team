@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';

@@ -1,10 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SuggestedTask } from '../types';
 
-// This replaces the placeholder content "full contents of services/geminiService.ts".
+let ai: GoogleGenAI | null = null;
 
-// Initialize the Google Gemini AI client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Lazily initializes and returns the GoogleGenAI client.
+ * This prevents the app from crashing on startup if the API key is not provided.
+ */
+const getAiClient = (): GoogleGenAI | null => {
+  if (ai) {
+    return ai;
+  }
+  if (process.env.API_KEY) {
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return ai;
+  }
+  // Log a warning for developers in the console, but don't throw a fatal error here.
+  console.warn("Gemini API Key is not configured. AI features will be disabled.");
+  return null;
+};
+
 
 /**
  * Generates performance notes for a team member using the Gemini API.
@@ -14,6 +29,11 @@ export const generatePerformanceNotes = async (
   tasks: { title: string; status: string }[],
   logs: { hours: number; description:string }[]
 ): Promise<string> => {
+  const client = getAiClient();
+  if (!client) {
+    throw new Error('خدمة الذكاء الاصطناعي غير مهيأة. يرجى التواصل مع المسؤول.');
+  }
+
   const taskSummary = tasks.map(t => `- ${t.title} (Status: ${t.status})`).join('\n');
   const logSummary = logs.map(l => `- Logged ${l.hours.toFixed(1)} hours for: ${l.description}`).join('\n');
 
@@ -31,7 +51,7 @@ export const generatePerformanceNotes = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
@@ -46,6 +66,11 @@ export const generatePerformanceNotes = async (
  * Generates a suggested task plan for a project description using the Gemini API.
  */
 export const generateTaskPlan = async (projectDescription: string): Promise<SuggestedTask[]> => {
+  const client = getAiClient();
+  if (!client) {
+    throw new Error('خدمة الذكاء الاصطناعي غير مهيأة. يرجى التواصل مع المسؤول.');
+  }
+  
   const prompt = `
     Based on the following project description, generate a list of main tasks required to complete the project.
     For each task, suggest a suitable role ('employee', 'manager', 'freelancer', or 'any').
@@ -56,7 +81,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
   `;
   
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
