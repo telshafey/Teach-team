@@ -1,5 +1,4 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-// FIX: Import the 'ExpenseClaim' type.
 import { ExpenseClaim, ExpenseClaimFormData } from '../../types';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';

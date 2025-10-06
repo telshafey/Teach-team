@@ -1,30 +1,50 @@
 import React from 'react';
+import { GlobalSearch } from './GlobalSearch';
 import { NotificationBell } from './NotificationBell';
-import { Notification } from '../../types';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Bars3Icon } from '../ui/Icons';
-import { ActiveTimerBar } from './ActiveTimerBar';
+import { View } from '../dashboard/Dashboard';
+import { Notification } from '../../types';
 
 interface HeaderProps {
+  onNavigate: (view: View, props?: any) => void;
   onToggleSidebar: () => void;
-  onNotificationSelect: (notification: Notification) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNotificationSelect }) => {
+export const Header: React.FC<HeaderProps> = ({ onNavigate, onToggleSidebar }) => {
+
+  const handleNotificationSelect = (notification: Notification) => {
+    if (notification.projectId && notification.taskId) {
+      onNavigate('projectDetail', {
+        projectId: notification.projectId,
+        initialTaskIdToOpen: notification.taskId,
+      });
+    } else if (notification.projectId) {
+      onNavigate('projectDetail', { projectId: notification.projectId });
+    }
+  };
+
   return (
-    <header className="flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm z-20">
-      <div className="flex items-center justify-between p-4 h-20">
+    <header className="flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center">
-          <button onClick={onToggleSidebar} className="text-slate-500 dark:text-slate-400 lg:hidden" aria-label="Open sidebar">
+          <button
+            onClick={onToggleSidebar}
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 lg:hidden"
+            aria-controls="sidebar"
+            aria-expanded="false" // This should be dynamic if we track sidebar state here
+          >
+            <span className="sr-only">Open sidebar</span>
             <Bars3Icon className="w-6 h-6" />
           </button>
         </div>
-        <div className="flex items-center space-x-4 rtl:space-x-reverse">
+        
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <GlobalSearch onNavigate={onNavigate} />
+          <NotificationBell onSelect={handleNotificationSelect} />
           <ThemeToggle />
-          <NotificationBell onSelect={onNotificationSelect} />
         </div>
       </div>
-      <ActiveTimerBar />
     </header>
   );
 };

@@ -1,75 +1,153 @@
-import React, { createContext, useState, useContext, ReactNode, useMemo, useCallback, useEffect } from 'react';
-// FIX: Corrected import paths.
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import * as api from '../services/apiService';
+import { useSupabase } from './SupabaseContext';
 import { TeamMember, Role, Permission } from '../types';
-import { fetchTeamMembers, fetchRoles } from '../services/apiService';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
+  session: Session | null;
   currentUser: TeamMember | null;
-  teamMembers: TeamMember[];
-  rolesMap: Record<string, Role>;
-  handleLogin: (user: TeamMember) => void;
-  handleLogout: () => void;
-  updateCurrentUser: (user: TeamMember) => void;
-  hasPermission: (permission: Permission) => boolean;
   isLoading: boolean;
+  roles: Role[];
+  rolesMap: Record<string, Role>;
+  handleLogin: (email: string, password: string) => Promise<{ error: any | null }>;
+  handleLogout: () => void;
+  hasPermission: (permission: Permission) => boolean;
+  updateCurrentUser: (userData: Partial<TeamMember>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { supabaseClient } = useSupabase();
+  const [session, setSession] = useState<Session | null>(null);
   const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesMap, setRolesMap] = useState<Record<string, Role>>({});
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchPublicData = useCallback(async () => {
+    if (!supabaseClient) return;
+    const apiRoles = await api.fetchRoles(supabaseClient);
+    setRoles(apiRoles);
+    const newRolesMap = apiRoles.reduce((acc, role) => {
+      acc[role.id] = role;
+      return acc;
+    }, {} as Record<string, Role>);
+    setRolesMap(newRolesMap);
+  }, [supabaseClient]);
+  
   useEffect(() => {
-    const loadAuthData = async () => {
-        try {
-            const [fetchedMembers, fetchedRoles] = await Promise.all([
-                fetchTeamMembers(),
-                fetchRoles()
-            ]);
-            setTeamMembers(fetchedMembers);
-            setRoles(fetchedRoles);
-        // FIX: Added curly braces to the catch block to fix syntax error.
-        } catch (error) {
-            console.error("Failed to load authentication data", error);
-        } finally {
-            setIsLoading(false);
+    if (!supabaseClient) {
+        setIsLoading(false);
+        return;
+    }
+    
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        if (session?.user) {
+          await fetchPublicData();
+            
+          const { data, error } = await supabaseClient
+            .from('team_members')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            await supabaseClient.auth.signOut();
+            setCurrentUser(null);
+          } else if (data) {
+            setCurrentUser(api.snakeToCamel(data) as TeamMember);
+          } else {
+            console.warn(`No profile found for authenticated user ${session.user.id}. Signing out.`);
+            await supabaseClient.auth.signOut();
+            setCurrentUser(null);
+          }
+        } else {
+          setCurrentUser(null);
+          setRoles([]);
+          setRolesMap({});
         }
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
     };
-    loadAuthData();
-  }, []);
+  }, [supabaseClient, fetchPublicData]);
 
-  const rolesMap = useMemo(() => roles.reduce((acc, role) => ({ ...acc, [role.id]: role }), {}), [roles]);
+  const handleLogin = async (email: string, password: string) => {
+    if (!supabaseClient) return { error: { message: "Database client not initialized." } };
+    
+    const { data: sessionData, error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
+    
+    if (signInError) {
+      return { error: signInError };
+    }
 
-  const hasPermission = useCallback((permission: Permission): boolean => {
-    if (!currentUser) return false;
-    const userRole = rolesMap[currentUser.roleId];
-    return userRole?.permissions.includes(permission) ?? false;
-  }, [currentUser, rolesMap]);
+    if (sessionData.user) {
+        const { data: profileData, error: profileError } = await supabaseClient
+            .from('team_members')
+            .select('id')
+            .eq('auth_user_id', sessionData.user.id)
+            .maybeSingle();
+        
+        if (profileError) {
+            await supabaseClient.auth.signOut();
+            return { error: profileError };
+        }
 
-  const handleLogin = (user: TeamMember) => setCurrentUser(user);
-  const handleLogout = () => setCurrentUser(null);
-
-  const updateCurrentUser = (user: TeamMember) => {
-    setCurrentUser(user);
-    // Also update the list of team members to keep it in sync
-    setTeamMembers(prev => prev.map(m => m.id === user.id ? user : m));
+        if (!profileData) {
+            await supabaseClient.auth.signOut();
+            return { error: { message: "الحساب غير مهيأ. يرجى التواصل مع المسؤول." } };
+        }
+    }
+    
+    return { error: null };
   };
 
-  const value = { currentUser, teamMembers, rolesMap, handleLogin, handleLogout, updateCurrentUser, hasPermission, isLoading };
+  const handleLogout = async () => {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    setCurrentUser(null);
+    setSession(null);
+  };
 
-  if (isLoading) {
-      return <div className="flex h-screen w-full items-center justify-center"><LoadingSpinner className="h-10 w-10 text-sky-500" /></div>;
+  const hasPermission = useCallback((permission: Permission): boolean => {
+    if (!currentUser) {
+      return false;
+    }
+    if (currentUser.roleId === 'gm') {
+      return true;
+    }
+    if (!rolesMap[currentUser.roleId]) {
+      return false;
+    }
+    return rolesMap[currentUser.roleId].permissions.includes(permission);
+  }, [currentUser, rolesMap]);
+
+  const updateCurrentUser = async (userData: Partial<TeamMember>) => {
+    if (!currentUser || !supabaseClient) return;
+    await api.update(supabaseClient, 'team_members', currentUser.id, userData);
+    
+    const { data, error } = await supabaseClient
+      .from('team_members')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (!error && data) {
+      setCurrentUser(api.snakeToCamel(data) as TeamMember);
+    }
   }
-  
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+
+  const value = { session, currentUser, isLoading, roles, rolesMap, handleLogin, handleLogout, hasPermission, updateCurrentUser };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

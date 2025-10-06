@@ -41,13 +41,18 @@ export const ProfilePage: React.FC = () => {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        updateCurrentUser({
-            ...currentUser,
-            name,
-            avatarUrl
-        });
-        setIsSaving(false);
-        addToast('تم تحديث الملف الشخصي بنجاح', 'success');
+        try {
+            await updateCurrentUser({
+                name,
+                avatarUrl
+            });
+            addToast('تم تحديث الملف الشخصي بنجاح', 'success');
+        } catch (error) {
+            console.error("Failed to update profile:", error);
+            addToast('فشل تحديث الملف الشخصي. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {

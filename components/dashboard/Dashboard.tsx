@@ -1,150 +1,123 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
-import { useAuth } from '../../contexts/AuthContext';
-import { PersonalDashboard } from './PersonalDashboard';
-import { ManagerDashboard } from './ManagerDashboard';
 import { GeneralManagerDashboard } from './GeneralManagerDashboard';
-// FIX: Corrected import paths.
-import { Notification, Meeting, DailyLogFormData } from '../../types';
-import { BottomNavBar } from './BottomNavBar';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { ManagerDashboard } from './ManagerDashboard';
+import { PersonalDashboard } from './PersonalDashboard';
+import { TeamManagementPage } from '../team/TeamManagementPage';
+import { ProjectDetailPage } from '../project/ProjectDetailPage';
+import { ProjectsPage } from '../project/ProjectsPage';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useTimeTracking } from '../../contexts/TimeTrackingContext';
 import { LogFormModal } from '../modals/LogFormModal';
+import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { ActiveTimerBar } from '../shared/ActiveTimerBar';
+import { useAppDataContext } from '../../contexts/DataContext';
+import { DailyLogFormData, Meeting } from '../../types';
+import { format } from 'date-fns';
+import { BottomNavBar } from './BottomNavBar';
+// FIX: Directly import components that were causing prop-type errors with React.lazy
+import { SettingsPage } from '../settings/SettingsPage';
+import { MeetingsPage } from '../meetings/MeetingsPage';
+import { MeetingRoom } from '../meetings/MeetingRoom';
 
-// Lazy load page components for code splitting
-const ProjectsPage = lazy(() => import('../project/ProjectsPage').then(module => ({ default: module.ProjectsPage })));
-// FIX: Corrected import path.
-const ProjectDetailPage = lazy(() => import('../project/ProjectDetailPage').then(module => ({ default: module.ProjectDetailPage })));
-const TeamManagementPage = lazy(() => import('../team/TeamManagementPage').then(module => ({ default: module.TeamManagementPage })));
-const TeamMemberDetailPage = lazy(() => import('../team/TeamMemberDetailPage').then(module => ({ default: module.TeamMemberDetailPage })));
+// Lazy loading for less frequently accessed pages
 const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
-const SettingsPage = lazy(() => import('../settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
-const MeetingsPage = lazy(() => import('../meetings/MeetingsPage').then(module => ({ default: module.MeetingsPage })));
-const MeetingRoom = lazy(() => import('../meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
 const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
 
+export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database';
 
-export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile';
-
-interface ViewState {
-  view: View;
-  projectId?: string;
-  memberId?: number;
-  taskId?: string;
-  meeting?: Meeting;
-  from?: View;
-  initialState?: any;
-}
+const LoadingFallback: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center">
+    <LoadingSpinner />
+  </div>
+);
 
 export const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
-  const { teamMembers, handleAddDailyLog } = useAppDataContext();
   const { showLogModalFor, closeLogModal } = useTimeTracking();
-
-  const [viewState, setViewState] = useState<ViewState>({ view: 'dashboard' });
+  const { handleAddDailyLog } = useAppDataContext();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  const [navigation, setNavigation] = useState<{ view: View; props: any }>({
+    view: 'dashboard',
+    props: {},
+  });
 
-  const handleNavigate = useCallback((view: View, state: Omit<ViewState, 'view'> = {}) => {
-    window.scrollTo(0, 0); // Scroll to top on navigation
-    setViewState({ view, ...state });
+  const handleNavigate = useCallback((view: View, props: any = {}) => {
+    setNavigation({ view, props });
+    setIsSidebarOpen(false); // Close sidebar on navigation
   }, []);
 
-  const handleNotificationSelect = useCallback((notification: Notification) => {
-    handleNavigate('projectDetail', {
-      projectId: notification.projectId,
-      taskId: notification.taskId,
-    });
-  }, [handleNavigate]);
-
-  const handleJoinMeeting = useCallback((meeting: Meeting) => {
-    handleNavigate('meetingRoom', { meeting });
-  }, [handleNavigate]);
-  
-  const handleLeaveMeeting = useCallback(() => {
-    handleNavigate('meetings');
-  }, [handleNavigate]);
-
-  const handleSaveTimeLog = async (logData: DailyLogFormData) => {
+  const handleSaveTimerLog = async (logData: DailyLogFormData) => {
     if (!currentUser || !showLogModalFor) return;
-    await handleAddDailyLog({ 
-        ...logData, 
-        teamMemberId: currentUser.id, 
-        date: new Date().toISOString().split('T')[0] 
+    await handleAddDailyLog({
+      ...logData,
+      teamMemberId: currentUser.id,
+      date: format(new Date(), 'yyyy-MM-dd'),
     });
     closeLogModal();
   };
 
   const renderView = () => {
-    switch (viewState.view) {
+    const { view, props } = navigation;
+
+    switch (view) {
       case 'dashboard':
         if (currentUser?.roleId === 'gm') return <GeneralManagerDashboard onNavigate={handleNavigate} />;
-        if (currentUser?.roleId === 'manager') return <ManagerDashboard onViewMemberDetail={(memberId) => handleNavigate('teamDetail', { memberId })} onSelectMember={(memberId) => handleNavigate('teamDetail', { memberId })} />;
+        if (currentUser?.roleId === 'pm' || currentUser?.roleId === 'marketing_manager') return <ManagerDashboard onNavigate={handleNavigate} />;
         return <PersonalDashboard />;
       case 'projects':
-        return <ProjectsPage onSelectProject={(projectId) => handleNavigate('projectDetail', { projectId })} initialState={viewState.initialState} />;
+        return <ProjectsPage onProjectSelect={(projectId) => handleNavigate('projectDetail', { projectId })} initialState={props.initialState}/>;
       case 'projectDetail':
-        return <ProjectDetailPage projectId={viewState.projectId!} initialTaskId={viewState.taskId} onBack={() => handleNavigate('projects')} />;
+        return <ProjectDetailPage projectId={props.projectId} onBack={() => handleNavigate('projects')} initialTaskIdToOpen={props.initialTaskIdToOpen} />;
       case 'team':
-        return <TeamManagementPage onSelectMemberForDetail={(memberId) => handleNavigate('teamDetail', { memberId })} />;
       case 'teamDetail':
-        const memberToView = teamMembers.find(m => m.id === viewState.memberId);
-        if (!memberToView) {
-          handleNavigate('team');
-          return null;
-        }
-        return <TeamMemberDetailPage member={memberToView} onBack={() => handleNavigate(viewState.from || 'team')} />;
+        return <TeamManagementPage initialView={view} initialProps={props} onNavigate={handleNavigate} />;
       case 'reports':
-        return <ReportsPage />;
+        return <Suspense fallback={<LoadingFallback />}><ReportsPage /></Suspense>;
       case 'analytics':
-        return <AnalyticsPage />;
+        return <Suspense fallback={<LoadingFallback />}><AnalyticsPage /></Suspense>;
       case 'settings':
-      case 'siteSettings':
       case 'roles':
-        return <SettingsPage initialView={viewState.view} onNavigate={handleNavigate} />;
+      case 'database':
+        return <Suspense fallback={<LoadingFallback />}><SettingsPage initialView={view} onNavigate={handleNavigate} /></Suspense>;
       case 'finance':
-          return <FinancePage />;
+        return <Suspense fallback={<LoadingFallback />}><FinancePage /></Suspense>;
       case 'meetings':
-          return <MeetingsPage onJoinMeeting={handleJoinMeeting} />;
+        return <Suspense fallback={<LoadingFallback />}><MeetingsPage onJoinMeeting={(meeting: Meeting) => handleNavigate('meetingRoom', { meeting })} /></Suspense>;
       case 'meetingRoom':
-          if (!viewState.meeting) {
-              handleNavigate('meetings');
-              return null;
-          }
-          return <MeetingRoom meeting={viewState.meeting} onLeave={handleLeaveMeeting} />;
+        return <Suspense fallback={<LoadingFallback />}><MeetingRoom meeting={props.meeting} onLeave={() => handleNavigate('meetings')} /></Suspense>;
       case 'profile':
-        return <ProfilePage />;
+        return <Suspense fallback={<LoadingFallback />}><ProfilePage /></Suspense>;
       default:
-        return <PersonalDashboard />;
+        return <GeneralManagerDashboard onNavigate={handleNavigate} />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900" dir="rtl">
-      <Sidebar currentView={viewState.view} onNavigate={handleNavigate} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden" dir="rtl">
+      <Sidebar currentView={navigation.view} onNavigate={handleNavigate} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} onNotificationSelect={handleNotificationSelect} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-           <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><LoadingSpinner className="h-10 w-10 text-sky-500" /></div>}>
-            {renderView()}
-          </Suspense>
+        <Header onNavigate={handleNavigate} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <ActiveTimerBar />
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+          {renderView()}
         </main>
-        <div className="lg:hidden h-16" /> {/* Spacer for bottom nav */}
-        <BottomNavBar currentView={viewState.view} onNavigate={handleNavigate} />
+        <BottomNavBar currentView={navigation.view} onNavigate={handleNavigate} />
       </div>
-      
+
       {showLogModalFor && currentUser && (
         <LogFormModal
-            isOpen={!!showLogModalFor}
-            onClose={closeLogModal}
-            onSave={handleSaveTimeLog}
-            log={null}
-            date={new Date().toISOString().split('T')[0]}
-            memberId={currentUser.id}
-            initialData={showLogModalFor}
+          isOpen={!!showLogModalFor}
+          onClose={closeLogModal}
+          onSave={handleSaveTimerLog}
+          log={null}
+          date={format(new Date(), 'yyyy-MM-dd')}
+          memberId={currentUser.id}
+          initialData={showLogModalFor}
         />
       )}
     </div>

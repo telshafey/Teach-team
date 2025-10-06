@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, lazy } from 'react';
 import { SiteSettingsPage } from './SiteSettingsPage';
 import { RoleManagementPage } from './RoleManagementPage';
 import { View } from '../dashboard/Dashboard';
+import { useAuth } from '../../contexts/AuthContext';
+
+const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
+
 
 interface SettingsPageProps {
     initialView?: View;
@@ -9,8 +13,11 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavigate }) => {
+    const { hasPermission } = useAuth();
+
     const getInitialTab = () => {
         if (initialView === 'roles') return 'roles';
+        if (initialView === 'database') return 'database';
         return 'site';
     };
     const [activeTab, setActiveTab] = useState(getInitialTab());
@@ -34,10 +41,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavig
                 >
                     الأدوار والصلاحيات
                 </button>
+                {hasPermission('manage_db_settings') && (
+                     <button
+                        onClick={() => setActiveTab('database')}
+                        className={`px-4 py-2 text-sm font-medium ${activeTab === 'database' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        إعدادات قاعدة البيانات
+                    </button>
+                )}
             </div>
 
             {activeTab === 'site' && <SiteSettingsPage />}
             {activeTab === 'roles' && <RoleManagementPage onNavigate={onNavigate} />}
+            {activeTab === 'database' && hasPermission('manage_db_settings') && <DatabaseSettingsPage />}
         </div>
     );
 };

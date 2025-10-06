@@ -29,7 +29,7 @@ function isProject(item: unknown): item is Project {
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen, onClose, item }) => {
   const { handleUpdatePlanStatus, teamMembers } = useAppDataContext();
-  const { handleUpdateTaskApproval, handleResolveBilling, projects } = useProjectContext();
+  const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
@@ -61,7 +61,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
         if (isTask(item)) {
             await handleUpdateTaskApproval(item.id, status as ApprovalStatus, notes);
         } else if (isProject(item)) {
-            await handleResolveBilling(item.id, status as ContractStatus, notes);
+            const projectToUpdate = projects.find(p => p.id === item.id);
+            if (projectToUpdate && projectToUpdate.freelancerContract) {
+                const updatedContract = { ...projectToUpdate.freelancerContract, status: status as ContractStatus, notes };
+                await handleUpdateProject({ ...projectToUpdate, freelancerContract: updatedContract });
+            }
         } else if (isTeamMember(item)) {
             await handleUpdatePlanStatus(item.id, status as PlanStatus);
         }

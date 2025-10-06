@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface CardProps {
-  // FIX: Changed title from string to React.ReactNode to allow passing JSX elements.
   title?: React.ReactNode;
   icon?: React.ReactNode;
   headerActions?: React.ReactNode;

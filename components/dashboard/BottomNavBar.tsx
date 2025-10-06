@@ -2,7 +2,8 @@ import React from 'react';
 import { HomeIcon, FolderIcon, VideoCameraIcon, UsersIcon } from '../ui/Icons';
 import { useAppDataContext } from '../../contexts/DataContext';
 
-type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom';
+// Fix: Add 'database' to the View type to match the definition in Dashboard.tsx
+type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database';
 
 interface BottomNavItemProps {
   icon: React.ReactNode;

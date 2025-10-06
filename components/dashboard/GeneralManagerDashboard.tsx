@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
-// FIX: Corrected import paths.
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, PieChartData } from '../ui/Charts';

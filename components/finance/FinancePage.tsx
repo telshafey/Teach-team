@@ -9,7 +9,7 @@ import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
 import { CurrencyDollarIcon, PlusIcon, PencilIcon, CheckIcon, NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { BarChart } from '../ui/Charts';
+import { BarChart, PieChart, PieChartData } from '../ui/Charts';
 import { EmptyState } from '../ui/EmptyState';
 import { DecisionDetailModal } from '../modals/DecisionDetailModal';
 import { calculateProjectCostBreakdown } from '../../utils/costs';
@@ -56,6 +56,51 @@ const FinanceOverview: React.FC = () => {
         </div>
     );
 };
+
+const ProjectFinancials: React.FC<{ project: Project }> = ({ project }) => {
+    const { teamMembers, dailyLogs, expenseClaims, currency } = useAppDataContext();
+    const { employeeCost, freelancerCost, expenseCost, totalCost } = useMemo(() =>
+        calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims),
+        [project, teamMembers, dailyLogs, expenseClaims]
+    );
+
+    const budget = project.budgetAmount || 0;
+    const budgetUsage = budget > 0 ? (totalCost / budget) * 100 : 0;
+    const remainingBudget = budget - totalCost;
+
+    const costBreakdownData: PieChartData[] = [
+        { label: 'تكلفة الموظفين', value: employeeCost, color: '#38bdf8' }, // sky
+        { label: 'تكلفة المستقلين', value: freelancerCost, color: '#6366f1' }, // indigo
+        { label: 'مصروفات أخرى', value: expenseCost, color: '#f59e0b' }, // amber
+    ].filter(d => d.value > 0);
+
+    return (
+        <Card title={project.name}>
+            <div className="space-y-4">
+                <div>
+                    <div className="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 mb-1">
+                        <span>استخدام الميزانية ({totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} / {budget.toLocaleString()})</span>
+                        <span>{budgetUsage.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
+                        <div
+                            className={`h-2.5 rounded-full ${budgetUsage > 100 ? 'bg-red-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(budgetUsage, 100)}%` }}
+                        ></div>
+                    </div>
+                     <p className={`text-xs mt-2 font-semibold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                        {remainingBudget >= 0 ? `المتبقي: ${remainingBudget.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${currency}` : `تجاوز: ${Math.abs(remainingBudget).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${currency}`}
+                    </p>
+                </div>
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <h4 className="font-semibold text-sm text-slate-700 dark:text-slate-200 mb-3">تفصيل التكلفة</h4>
+                    <PieChart data={costBreakdownData} />
+                </div>
+            </div>
+        </Card>
+    );
+};
+
 
 const ExpenseClaimsTab: React.FC = () => {
     const { expenseClaims, teamMembers, handleUpdateExpenseClaimStatus } = useAppDataContext();
@@ -140,7 +185,7 @@ const SalariesTab: React.FC<{ onEdit: (member: TeamMember) => void }> = ({ onEdi
                                 <td className="px-4 py-2 font-medium">{member.name}</td>
                                 <td className="px-4 py-2">{member.salary || member.hourlyRate || 'N/A'}</td>
                                 <td className="px-4 py-2 text-left">
-                                    {hasPermission('manage_team') && member.roleId !== 'freelancer' && (
+                                    {hasPermission('manage_team') && (
                                         <button onClick={() => onEdit(member)} className="p-2 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
                                     )}
                                 </td>
@@ -252,18 +297,16 @@ const FreelancerContractsTab: React.FC<{ onReview: (project: Project) => void }>
 };
 
 export const FinancePage: React.FC = () => {
-    const { currency, handleUpdateMember, handleSubmitExpenseClaim } = useAppDataContext();
-    const { hasPermission } = useAuth();
-    const [activeTab, setActiveTab] = useState('overview');
+    const { handleUpdateMember, handleSubmitExpenseClaim } = useAppDataContext();
+    const { projects } = useProjectContext();
+    const { hasPermission, currentUser } = useAuth();
+    const [activeTab, setActiveTab] = useState(currentUser?.roleId === 'freelancer' ? 'freelancer' : 'overview');
     const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [reviewingItem, setReviewingItem] = useState<Project | null>(null);
     
-    const handleSaveSalary = async (memberId: number, salary: number) => {
-        const member = editingMember;
-        if (member) {
-            await handleUpdateMember({ ...member, salary });
-        }
+    const handleSaveRate = async (memberId: number, data: { salary?: number; hourlyRate?: number }) => {
+        await handleUpdateMember(memberId, data);
         setEditingMember(null);
     };
 
@@ -283,14 +326,19 @@ export const FinancePage: React.FC = () => {
 
             <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
                 <nav className="-mb-px flex space-x-6 rtl:space-x-reverse overflow-x-auto" aria-label="Tabs">
-                    <button onClick={() => setActiveTab('overview')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                        نظرة عامة
-                    </button>
-                    {hasPermission('manage_freelancer_contracts') && (
-                        <button onClick={() => setActiveTab('freelancer')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'freelancer' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                            عقود المستقلين
+                    {hasPermission('view_finances') && (
+                        <button onClick={() => setActiveTab('overview')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                            نظرة عامة
                         </button>
                     )}
+                    {hasPermission('view_finances') && (
+                        <button onClick={() => setActiveTab('project_financials')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'project_financials' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                            مالية المشاريع
+                        </button>
+                    )}
+                    <button onClick={() => setActiveTab('freelancer')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'freelancer' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                        {currentUser?.roleId === 'freelancer' ? 'عقودي' : 'عقود المستقلين'}
+                    </button>
                     <button onClick={() => setActiveTab('expenses')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'expenses' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
                         طلبات الصرف
                     </button>
@@ -301,6 +349,11 @@ export const FinancePage: React.FC = () => {
             </div>
 
             {activeTab === 'overview' && <FinanceOverview />}
+            {activeTab === 'project_financials' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {projects.map(p => <ProjectFinancials key={p.id} project={p} />)}
+                </div>
+            )}
             {activeTab === 'freelancer' && <FreelancerContractsTab onReview={setReviewingItem} />}
             {activeTab === 'expenses' && <ExpenseClaimsTab />}
             {activeTab === 'salaries' && <SalariesTab onEdit={setEditingMember} />}
@@ -309,7 +362,7 @@ export const FinancePage: React.FC = () => {
                 <SalaryEditModal
                     isOpen={!!editingMember}
                     onClose={() => setEditingMember(null)}
-                    onSave={handleSaveSalary}
+                    onSave={handleSaveRate}
                     member={editingMember}
                 />
             )}

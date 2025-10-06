@@ -1,5 +1,4 @@
 import React from 'react';
-// FIX: Corrected import path.
 import { Task } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon } from '../ui/Icons';
@@ -55,7 +54,7 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
     );
 };
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onCardClick, onDragStart, onDragEnd, isDragging }) => {
+export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onCardClick, onDragStart, onDragEnd, isDragging }) => {
   const { teamMembers, dailyLogs } = useAppDataContext();
   const { activeTimer, startTimer, stopTimer } = useTimeTracking();
   
@@ -142,4 +141,4 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onCardClick, o
       </div>
     </div>
   );
-};
+});

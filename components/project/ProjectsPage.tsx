@@ -1,265 +1,166 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
-// FIX: Corrected import paths.
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { Card } from '../ui/Card';
-import { FolderIcon, PlusIcon, ClockIcon, SearchIcon, ExclamationTriangleIcon } from '../ui/Icons';
-import { Project, ProjectStatus, SuggestedTask } from '../../types';
-import { ProjectFormModal } from '../modals/ProjectFormModal';
-import { EmptyState } from '../ui/EmptyState';
-import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 
-// Helper to determine if text should be light or dark based on background color
-const getTextColorForBackground = (hexColor: string): 'text-white' | 'text-slate-800' => {
-    try {
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-        // Using the luminance formula
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.5 ? 'text-slate-800' : 'text-white';
-    } catch (e) {
-        return 'text-slate-800'; // Default to dark text on error
-    }
-};
+
+import React, { useState, useMemo } from 'react';
+import { useProjectContext } from '../../contexts/ProjectContext';
+import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
+import { PlusIcon, SearchIcon, ExclamationTriangleIcon, FolderIcon } from '../ui/Icons';
+import { ProjectFormModal } from '../modals/ProjectFormModal';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAppDataContext } from '../../contexts/DataContext';
+import { ProjectCardSkeleton } from './ProjectCardSkeleton';
+import { EmptyState } from '../ui/EmptyState';
 
 interface ProjectCardProps {
-    project: Project;
-    onSelect: (id: string) => void;
+  project: Project;
+  onSelect: (projectId: string) => void;
+  currency: string;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
-    const { dailyLogs, teamMembers, expenseClaims } = useAppDataContext();
-    const { tasks } = useProjectContext();
+const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, onSelect, currency }) => {
+    const { dailyLogs } = useAppDataContext();
+    const hoursLogged = useMemo(() => dailyLogs.filter(log => log.projectId === project.id).reduce((sum, log) => sum + log.hours, 0), [dailyLogs, project.id]);
     
-    const projectTasks = useMemo(() => tasks.filter(t => t.projectId === project.id), [tasks, project.id]);
-    const loggedHours = useMemo(() => dailyLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + l.hours, 0), [dailyLogs, project.id]);
+    const budgetUsage = project.budgetHours ? (hoursLogged / project.budgetHours) * 100 : 0;
     
-    const completedTasks = projectTasks.filter(t => t.status === 'done').length;
-    const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
-
-    const totalCost = useMemo(() => {
-        let labor = 0;
-        const projectLogs = dailyLogs.filter(l => l.projectId === project.id);
-        projectLogs.forEach(log => {
-            const member = teamMembers.find(m => m.id === log.teamMemberId);
-            if (member) {
-                if (member.hourlyRate) labor += log.hours * member.hourlyRate;
-                else if (member.salary) labor += log.hours * (member.salary / (22 * 8));
-            }
-        });
-        const expenses = expenseClaims.filter(e => e.projectId === project.id && e.status === 'approved').reduce((sum, e) => sum + e.amount, 0);
-        return labor + expenses;
-    }, [project.id, dailyLogs, teamMembers, expenseClaims]);
-    
-    const isOverBudget = project.budgetAmount && totalCost > project.budgetAmount;
-
-    const renderStatusBadge = () => {
-        const baseClasses = 'text-xs font-bold px-3 py-1 rounded-full border';
-        if (project.status === 'custom' && project.customStatusName && project.customStatusColor) {
-            const textColorClass = getTextColorForBackground(project.customStatusColor);
-            return (
-                <span
-                    className={`${baseClasses} ${textColorClass}`}
-                    style={{ 
-                        backgroundColor: `${project.customStatusColor}20`, // Add transparency
-                        borderColor: project.customStatusColor 
-                    }}
-                >
-                    {project.customStatusName}
-                </span>
-            );
+    const getStatusStyles = (status: ProjectStatus) => {
+        switch (status) {
+            case 'نشط': return 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300';
+            case 'مكتمل': return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+            case 'معلق': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
+            default: return 'bg-slate-100 text-slate-800 dark:text-slate-800';
         }
-
-        const statusStyles: { [key: string]: string } = {
-            'نشط': 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-900/70 dark:text-sky-200 dark:border-sky-700',
-            'مكتمل': 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/70 dark:text-green-200 dark:border-green-700',
-            'معلق': 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/70 dark:text-amber-200 dark:border-amber-700',
-        };
-        return <span className={`${baseClasses} ${statusStyles[project.status]}`}>{project.status}</span>;
     };
 
-
     return (
-        <div 
-            onClick={() => onSelect(project.id)} 
-            className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-xl hover:border-sky-300 dark:hover:border-sky-500 transition-all duration-200 ease-in-out hover:-translate-y-1 hover:scale-[1.02]"
-        >
+        <div onClick={() => onSelect(project.id)} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4 space-y-3 cursor-pointer hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all">
             <div className="flex justify-between items-start">
-                <h3 className="font-bold text-slate-800 dark:text-slate-100">{project.name}</h3>
-                {renderStatusBadge()}
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 pr-2">{project.name}</h3>
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getStatusStyles(project.status)}`}>{project.status}</span>
             </div>
-            
+
             <div>
-                <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">التقدم</span>
-                    <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">{Math.round(progress)}%</span>
+                <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    <span>تقدم الميزانية (ساعات)</span>
+                    <span>{budgetUsage.toFixed(0)}%</span>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                    <div className="bg-sky-500 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
+                    <div 
+                        className={`h-2 rounded-full ${budgetUsage > 90 ? 'bg-red-500' : 'bg-sky-500'}`}
+                        style={{ width: `${Math.min(budgetUsage, 100)}%` }}
+                    ></div>
                 </div>
+                {project.budgetNotificationSent && (
+                    <div className="flex items-center space-x-1 rtl:space-x-reverse text-amber-600 dark:text-amber-400 text-xs mt-2">
+                        <ExclamationTriangleIcon className="w-4 h-4" title={`تم إرسال إشعار بتجاوز ${project.budgetNotificationSent}% من الميزانية`} />
+                        <span>تجاوز الميزانية</span>
+                    </div>
+                )}
             </div>
 
-            <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
-                <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                    <ClockIcon className="w-4 h-4 text-slate-400" />
-                    <span>{loggedHours.toFixed(1)} / {project.budgetHours || 'N/A'} ساعة</span>
+            <div className="flex justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-3 text-slate-600 dark:text-slate-300">
+                <div>
+                    <span className="font-semibold">{hoursLogged.toFixed(1)}</span>
+                    <span className="text-xs"> / {project.budgetHours || '∞'} ساعة</span>
                 </div>
-                 <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                    {isOverBudget && <ExclamationTriangleIcon className="w-4 h-4 text-red-500" title="تم تجاوز الميزانية" />}
-                    <span>{completedTasks} / {projectTasks.length} مهام</span>
-                </div>
+                {project.budgetAmount && (
+                    <div>
+                        <span className="font-semibold">{project.budgetAmount.toLocaleString()}</span>
+                        <span className="text-xs"> {currency}</span>
+                    </div>
+                )}
             </div>
         </div>
     );
-};
-
+});
 
 interface ProjectsPageProps {
-    onSelectProject: (projectId: string) => void;
-    initialState?: { statusFilter?: ProjectStatus };
+  onProjectSelect: (projectId: string) => void;
+  initialState?: { statusFilter: ProjectStatus };
 }
 
-export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onSelectProject, initialState }) => {
-    const { projects, handleAddProject, handleUpdateProject, handleAddTask, isLoading } = useProjectContext();
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, initialState }) => {
+    const { projects, handleAddProject, isLoading } = useProjectContext();
     const { hasPermission } = useAuth();
+    const { currency } = useAppDataContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>(initialState?.statusFilter || 'all');
-
-    useEffect(() => {
-        if (initialState?.statusFilter) {
-            setStatusFilter(initialState.statusFilter);
-        }
-    }, [initialState]);
-
-    const handleOpenModal = (project: Project | null) => {
-        setEditingProject(project);
-        setIsModalOpen(true);
-    };
-
-    const handleSaveProject = async (projectData: any, tasksToAdd: SuggestedTask[] = []) => {
-        if (editingProject) {
-            await handleUpdateProject({ ...editingProject, ...projectData });
-        } else {
-            const newProject = await handleAddProject(projectData);
-            // After creating the project, add the AI-suggested tasks
-            for (const task of tasksToAdd) {
-                await handleAddTask({
-                    title: task.title,
-                    projectId: newProject.id,
-                    status: 'todo'
-                });
-            }
-        }
-    };
     
     const filteredProjects = useMemo(() => {
-        return projects.filter(project => {
-            const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+        return projects.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
     }, [projects, searchTerm, statusFilter]);
 
-    const renderContent = () => {
-        if (isLoading) {
-            return (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {Array.from({ length: 8 }).map((_, i) => <ProjectCardSkeleton key={i} />)}
-                </div>
-            );
+    const handleSaveProject = async (projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
+        if (!projectToUpdate) {
+            await handleAddProject(projectData, suggestedTasks);
         }
-
-        if (projects.length === 0) {
-             return (
-                <Card>
-                    <EmptyState
-                        icon={<FolderIcon className="w-10 h-10" />}
-                        title="لا توجد مشاريع بعد"
-                        message="ابدأ بإضافة مشروعك الأول لتنظيم مهامك."
-                        action={hasPermission('manage_projects') && (
-                            <button onClick={() => handleOpenModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
-                                <PlusIcon className="w-5 h-5"/><span>إضافة مشروع</span>
-                            </button>
-                        )}
-                    />
-                </Card>
-             );
-        }
-
-        if (filteredProjects.length > 0) {
-            return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} onSelect={onSelectProject} />
-                    ))}
-                </div>
-            );
-        }
-
-        return (
-            <Card>
-                <EmptyState
-                    icon={<SearchIcon className="w-10 h-10" />}
-                    title="لا توجد مشاريع تطابق بحثك"
-                    message="حاول تغيير كلمات البحث أو الفلاتر المستخدمة."
-                />
-            </Card>
-        );
     };
+
+    const projectStatuses: ProjectStatus[] = ['نشط', 'مكتمل', 'معلق'];
 
     return (
         <div className="p-6">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">المشاريع</h2>
-                    <p className="text-md text-slate-500 dark:text-slate-400">استعرض وأدر جميع المشاريع.</p>
+                    <p className="text-md text-slate-500 dark:text-slate-400">تتبع وإدارة جميع مشاريعك من هنا.</p>
                 </div>
-                <div className="flex items-center flex-wrap gap-2">
-                    <div className="relative">
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <SearchIcon className="w-5 h-5 text-slate-400" />
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="ابحث بالاسم..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-56 py-2 pr-10 pl-4 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-700 dark:text-white"
-                        />
+                {hasPermission('manage_projects') && (
+                    <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                        <PlusIcon className="w-5 h-5"/><span>إضافة مشروع جديد</span>
+                    </button>
+                )}
+            </div>
+
+            <div className="mb-6 bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4">
+                <div className="relative flex-grow">
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <SearchIcon className="w-5 h-5 text-slate-400" />
                     </div>
-
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | 'all')}
-                        className="py-2 pr-3 pl-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-700 dark:text-white"
-                        aria-label="تصفية حسب الحالة"
-                    >
-                        <option value="all">كل الحالات</option>
-                        <option value="نشط">نشط</option>
-                        <option value="مكتمل">مكتمل</option>
-                        <option value="معلق">معلق</option>
-                    </select>
-
-                    {hasPermission('manage_projects') && (
-                        <button onClick={() => handleOpenModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
-                            <PlusIcon className="w-5 h-5"/><span>إضافة مشروع</span>
-                        </button>
-                    )}
+                    <input 
+                        type="text" 
+                        placeholder="ابحث عن مشروع..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full p-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                    />
+                </div>
+                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    <button onClick={() => setStatusFilter('all')} className={`px-3 py-1.5 text-sm rounded-full ${statusFilter === 'all' ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>الكل</button>
+                    {projectStatuses.map(status => (
+                        <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 text-sm rounded-full ${statusFilter === status ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>{status}</button>
+                    ))}
                 </div>
             </div>
-            
-            {renderContent()}
+
+            {isLoading ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[...Array(6)].map((_, i) => <ProjectCardSkeleton key={i} />)}
+                </div>
+            ) : filteredProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredProjects.map(project => (
+                        <ProjectCard key={project.id} project={project} onSelect={onProjectSelect} currency={currency} />
+                    ))}
+                </div>
+            ) : (
+                <EmptyState
+                    icon={<FolderIcon className="w-12 h-12" />}
+                    title="لا توجد مشاريع"
+                    message="لم يتم العثور على مشاريع تطابق معايير البحث أو التصفية."
+                />
+            )}
 
             {isModalOpen && (
                 <ProjectFormModal 
-                    isOpen={isModalOpen}
+                    isOpen={isModalOpen} 
                     onClose={() => setIsModalOpen(false)}
-                    onSave={handleSaveProject}
-                    project={editingProject}
+                    onSave={handleSaveProject} 
+                    project={null}
                 />
             )}
         </div>

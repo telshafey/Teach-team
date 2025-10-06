@@ -72,8 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpe
   ];
   
   const adminNavItems: NavItemData[] = [
-      { view: 'siteSettings', label: 'إعدادات النظام', icon: <Cog8ToothIcon className="w-6 h-6" />, permission: () => hasPermission('manage_roles') }, // Assuming GMs manage settings
-      { view: 'roles', label: 'إدارة الأدوار', icon: <WrenchScrewdriverIcon className="w-6 h-6" />, permission: () => hasPermission('manage_roles') },
+      { view: 'settings', label: 'الإعدادات', icon: <Cog8ToothIcon className="w-6 h-6" />, permission: () => hasPermission('manage_roles') },
   ];
   
   const visibleAdminItems = adminNavItems.filter(item => item.permission());

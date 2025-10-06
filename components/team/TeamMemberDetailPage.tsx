@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-// FIX: Corrected import paths.
 import { TeamMember } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
@@ -9,6 +8,7 @@ import { UserIcon, ClockIcon } from '../ui/Icons';
 import { BarChart } from '../ui/Charts';
 import { generatePerformanceNotes } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 
 interface TeamMemberDetailPageProps {
   member: TeamMember;
@@ -19,6 +19,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
   const { dailyLogs } = useAppDataContext();
   const { tasks, projects } = useProjectContext();
   const { rolesMap, hasPermission } = useAuth();
+  const { addToast } = useToast();
   const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
   const [performanceNotes, setPerformanceNotes] = useState('');
 
@@ -36,14 +37,14 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
       return acc;
     }, {} as Record<string, string>);
 
-    // FIX: Explicitly type the accumulator in the reduce function to prevent type inference issues.
     const data = memberLogs.reduce((acc: Record<string, number>, log) => {
       const projectName = log.projectId ? (projectsMap[log.projectId] || log.projectId) : 'مهام أخرى';
       acc[projectName] = (acc[projectName] || 0) + log.hours;
       return acc;
     }, {});
     
-    return Object.entries(data).map(([label, value]) => ({ label, value }));
+    // Fix: Explicitly type the destructured array from Object.entries to resolve the type inference issue.
+    return Object.entries(data).map(([label, value]: [string, number]) => ({ label, value }));
   }, [memberLogs, projects]);
 
   const handleGenerateNotes = async () => {
@@ -58,7 +59,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
         setPerformanceNotes(notes);
     } catch (error) {
         console.error("Error generating notes:", error);
-        setPerformanceNotes("حدث خطأ أثناء إنشاء الملخص. يرجى المحاولة مرة أخرى.");
+        addToast("حدث خطأ أثناء إنشاء ملخص الأداء. يرجى المحاولة مرة أخرى.", "error");
     } finally {
         setIsGeneratingNotes(false);
     }

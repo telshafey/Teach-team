@@ -1,5 +1,4 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-// FIX: Corrected import paths.
 import { DailyLog, DailyLogFormData } from '../../types';
 import { useProjectContext } from '../../contexts/ProjectContext';
 
@@ -81,7 +80,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
           </div>
           <div>
             <label htmlFor="project" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع</label>
-            <select id="project" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, taskId: ''})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 read-only:cursor-not-allowed" required readOnly={isFromTimer}>
+            <select id="project" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, taskId: ''})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70" required disabled={isFromTimer}>
               <option value="">عمل آخر / غير مرتبط بمشروع</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -89,7 +88,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
            {formData.projectId && availableTasks.length > 0 && (
             <div>
               <label htmlFor="task" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المهمة (اختياري)</label>
-              <select id="task" value={formData.taskId} onChange={e => setFormData({...formData, taskId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 read-only:cursor-not-allowed" readOnly={isFromTimer}>
+              <select id="task" value={formData.taskId} onChange={e => setFormData({...formData, taskId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70" disabled={isFromTimer}>
                 <option value="">اختر مهمة</option>
                 {availableTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
               </select>

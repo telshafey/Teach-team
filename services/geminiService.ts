@@ -1,97 +1,95 @@
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
+import { SuggestedTask } from '../types';
 
-// Per guidelines, assume API_KEY is pre-configured and accessible.
+// This replaces the placeholder content "full contents of services/geminiService.ts".
+
+// Initialize the Google Gemini AI client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * Generates performance notes for a team member using the Gemini API.
+ */
 export const generatePerformanceNotes = async (
   memberName: string,
   tasks: { title: string; status: string }[],
-  logs: { hours: number; description: string }[]
+  logs: { hours: number; description:string }[]
 ): Promise<string> => {
+  const taskSummary = tasks.map(t => `- ${t.title} (Status: ${t.status})`).join('\n');
+  const logSummary = logs.map(l => `- Logged ${l.hours.toFixed(1)} hours for: ${l.description}`).join('\n');
+
   const prompt = `
-    Please generate a performance review summary in Arabic for the team member: ${memberName}.
-    
-    Here is their recent activity:
-    Tasks:
-    ${tasks.map(t => `- ${t.title} (Status: ${t.status})`).join('\n')}
-    
-    Work Logs:
-    ${logs.map(l => `- Logged ${l.hours} hours for: ${l.description}`).join('\n')}
-    
-    Based on this data, provide a concise and constructive performance summary. Please structure your response with the following sections:
-    - "النقاط الإيجابية والإنجازات:" (Positive Points & Achievements)
-    - "نقاط للتحسين والتطوير:" (Areas for Improvement & Development)
+    Based on the following data for team member "${memberName}", generate a concise performance review summary in Arabic.
+    Focus on achievements, areas of high productivity, and potential areas for improvement. Keep it professional and constructive.
 
-    The tone should be professional and encouraging.
-  `;
-  
-  try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction: "You are an HR assistant writing performance reviews in Arabic.",
-        temperature: 0.5,
-      },
-    });
+    Tasks Summary:
+    ${taskSummary}
 
-    return response.text;
-  } catch (error) {
-    console.error("Error generating performance notes:", error);
-    return "حدث خطأ أثناء إنشاء ملاحظات الأداء.";
-  }
-};
+    Recent Activity Logs:
+    ${logSummary}
 
-
-export const generateTaskPlan = async (projectDescription: string) => {
-  const prompt = `
-    Based on the following project description, generate a list of tasks needed to complete it.
-    For each task, provide a clear title and suggest a suitable role ('employee', 'manager', 'freelancer', 'any').
-    Project Description: "${projectDescription}"
+    Performance Summary (in Arabic):
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    return response.text;
+  } catch (error) {
+    console.error('Error generating performance notes:', error);
+    throw new Error('Failed to generate performance notes from AI service.');
+  }
+};
+
+/**
+ * Generates a suggested task plan for a project description using the Gemini API.
+ */
+export const generateTaskPlan = async (projectDescription: string): Promise<SuggestedTask[]> => {
+  const prompt = `
+    Based on the following project description, generate a list of main tasks required to complete the project.
+    For each task, suggest a suitable role ('employee', 'manager', 'freelancer', or 'any').
+    Return the result as a JSON array of objects, where each object has "title" and "suggestedRole" properties.
+
+    Project Description:
+    "${projectDescription}"
+  `;
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        systemInstruction: "You are an expert project manager. Your goal is to break down a project description into a clear, actionable list of tasks in JSON format.",
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            tasks: {
-              type: Type.ARRAY,
-              description: "A list of tasks to complete the project.",
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: {
-                    type: Type.STRING,
-                    description: "The title of the task."
-                  },
-                  suggestedRole: {
-                    type: Type.STRING,
-                    description: "The suggested role to perform this task.",
-                    enum: ['employee', 'manager', 'freelancer', 'any'],
-                  }
-                },
-                required: ["title", "suggestedRole"]
-              }
-            }
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: {
+                type: Type.STRING,
+                description: 'The title of the task.',
+              },
+              suggestedRole: {
+                type: Type.STRING,
+                description: "The suggested role for the task ('employee', 'manager', 'freelancer', 'any').",
+              },
+            },
+            required: ['title', 'suggestedRole'],
           },
-          required: ["tasks"]
-        }
-      }
+        },
+      },
     });
 
-    // FIX: Trim whitespace from the response before parsing as JSON.
-    // The response text can sometimes contain leading/trailing whitespace which breaks JSON.parse.
-    const jsonResponse = JSON.parse(response.text.trim());
-    return jsonResponse.tasks || [];
-
+    const jsonText = response.text.trim();
+    // It's possible for the model to return an empty string or malformed JSON
+    if (!jsonText) {
+        return [];
+    }
+    const tasks = JSON.parse(jsonText);
+    return tasks as SuggestedTask[];
   } catch (error) {
-    console.error("Error generating task plan:", error);
-    throw new Error("حدث خطأ أثناء إنشاء خطة المهام المقترحة.");
+    console.error('Error generating task plan:', error);
+    throw new Error('Failed to generate task plan from AI service.');
   }
 };

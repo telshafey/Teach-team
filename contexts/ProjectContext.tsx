@@ -1,178 +1,231 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import * as api from '../services/apiService';
-import { Project, Task, TaskStatus, ApprovalStatus, TaskComment, TaskAttachment, ProjectFormData, TaskFormData, BillingProposalFormData, ContractStatus, SuggestedTask, FreelancerContract } from '../types';
 import { useToast } from './ToastContext';
+import { Project, Task, ProjectFormData, TaskFormData, SuggestedTask, TaskStatus, BillingProposalFormData, FreelancerContract, TeamMember, TaskComment } from '../types';
 import { useAuth } from './AuthContext';
+import { useSupabase } from './SupabaseContext';
+import { parseMentions } from '../utils/mentions';
 
 interface ProjectContextType {
   projects: Project[];
   tasks: Task[];
   isLoading: boolean;
-  getProjectById: (projectId: string) => Project | undefined;
-  getTasksByProjectId: (projectId: string) => Task[];
+  
+  handleAddProject: (projectData: ProjectFormData, suggestedTasks?: SuggestedTask[]) => Promise<void>;
   handleUpdateProject: (project: Project) => Promise<void>;
-  handleAddProject: (projectData: ProjectFormData) => Promise<Project>;
+  
+  handleAddTask: (taskData: TaskFormData) => Promise<void>;
   handleUpdateTask: (task: Task) => Promise<void>;
-  handleAddTask: (taskData: Omit<Task, 'id' | 'approvalStatus' | 'comments' | 'attachments'>) => Promise<void>;
-  handleUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
-  handleUpdateTaskApproval: (taskId: string, status: ApprovalStatus, notes?: string) => Promise<void>;
-  handleBulkUpdateTaskApproval: (taskIds: string[], status: ApprovalStatus) => Promise<void>;
-  handleAddTaskComment: (taskId: string, text: string) => Promise<void>;
-  handleAddTaskAttachment: (taskId: string, file: File) => Promise<void>;
-  handleSetFreelancerContract: (projectId: string, contractData: Omit<FreelancerContract, 'status' | 'notes'>) => Promise<void>;
+  handleAddTaskComment: (taskId: string, commentText: string, allMembers: TeamMember[]) => Promise<void>;
+  handleUpdateTaskStatus: (taskId: string, newStatus: TaskStatus) => Promise<void>;
+  handleUpdateTaskApproval: (taskId: string, status: Task['approvalStatus'], notes?: string) => Promise<void>;
+
+  handleFreelancerProposal: (projectId: string, proposal: BillingProposalFormData) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { currentUser } = useAuth();
+  const { supabaseClient } = useSupabase();
+  const { addToast } = useToast();
+  
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { addToast } = useToast();
-  const { currentUser } = useAuth();
+  
+  const fetchData = useCallback(async () => {
+    if (!currentUser || !supabaseClient) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const [projectsData, tasksData] = await Promise.all([
+        api.fetchProjects(supabaseClient),
+        api.fetchTasks(supabaseClient),
+      ]);
+      setProjects(projectsData);
+      setTasks(tasksData);
+    } catch (error) {
+      console.error("Failed to fetch project data:", error);
+      addToast("فشل تحميل بيانات المشاريع.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser, supabaseClient, addToast]);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [fetchedProjects, fetchedTasks] = await Promise.all([
-          api.fetchProjects(),
-          api.fetchTasks(),
-        ]);
-        setProjects(fetchedProjects);
-        setTasks(fetchedTasks);
-      } catch (error) {
-        console.error("Failed to load project data", error);
-        addToast('فشل تحميل بيانات المشاريع', 'error');
-      } finally {
-        setIsLoading(false);
+    fetchData();
+  }, [fetchData]);
+
+  // Project Handlers
+  const handleAddProject = async (projectData: ProjectFormData, suggestedTasks: SuggestedTask[] = []) => {
+    if (!supabaseClient) return;
+    try {
+      const newProject = await api.insert(supabaseClient, 'projects', projectData);
+      setProjects(prev => [...prev, newProject]);
+      addToast('تمت إضافة المشروع بنجاح.', 'success');
+
+      if (suggestedTasks.length > 0) {
+        const taskPromises = suggestedTasks.map(st => 
+          api.insert(supabaseClient, 'tasks', {
+            title: st.title,
+            projectId: newProject.id,
+            status: 'todo',
+            approvalStatus: 'pending',
+            comments: [],
+            attachments: [],
+          })
+        );
+        const newTasksData = await Promise.all(taskPromises);
+        const newTasks = newTasksData.map(item => item as Task);
+        setTasks(prev => [...prev, ...newTasks]);
+        addToast(`تمت إضافة ${newTasks.length} مهام مقترحة للمشروع.`, 'info');
       }
+
+    } catch (error) {
+      addToast('فشل إضافة المشروع.', 'error');
+      throw error;
+    }
+  };
+  
+  const handleUpdateProject = async (project: Project) => {
+    if (!supabaseClient) return;
+    try {
+      const updatedProject = await api.update(supabaseClient, 'projects', project.id, project);
+      setProjects(prev => prev.map(p => p.id === project.id ? updatedProject[0] : p));
+      addToast('تم تحديث المشروع بنجاح.', 'success');
+    } catch (error) {
+      addToast('فشل تحديث المشروع.', 'error');
+      throw error;
+    }
+  };
+
+  // Task Handlers
+  const handleAddTask = async (taskData: TaskFormData) => {
+    if (!supabaseClient) return;
+    try {
+      const newTaskData = { ...taskData, approvalStatus: 'pending', comments: [], attachments: [] };
+      const newTask = await api.insert(supabaseClient, 'tasks', newTaskData);
+      setTasks(prev => [...prev, newTask]);
+      addToast('تمت إضافة المهمة بنجاح.', 'success');
+    } catch (error) {
+      addToast('فشل إضافة المهمة.', 'error');
+      throw error;
+    }
+  };
+
+  const handleUpdateTask = async (task: Task) => {
+    if (!supabaseClient) return;
+    try {
+      const updatedTask = await api.update(supabaseClient, 'tasks', task.id, task);
+      setTasks(prev => prev.map(t => t.id === task.id ? updatedTask[0] : t));
+      addToast('تم تحديث المهمة بنجاح.', 'success');
+    } catch (error) {
+      addToast('فشل تحديث المهمة.', 'error');
+      throw error;
+    }
+  };
+  
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
+    if (!supabaseClient) return;
+    const originalTasks = [...tasks];
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+    
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+    
+    try {
+      await api.update(supabaseClient, 'tasks', taskId, { status: newStatus });
+    } catch (error) {
+      addToast('فشل تحديث حالة المهمة.', 'error');
+      setTasks(originalTasks);
+    }
+  };
+
+  const handleUpdateTaskApproval = async (taskId: string, status: Task['approvalStatus'], notes?: string) => {
+    if (!supabaseClient) return;
+    try {
+      const updatedTask = await api.update(supabaseClient, 'tasks', taskId, { approval_status: status, approval_notes: notes });
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask[0] : t));
+      addToast('تم تحديث حالة الموافقة.', 'success');
+    } catch (error) {
+      addToast('فشل تحديث حالة الموافقة.', 'error');
+      throw error;
+    }
+  };
+
+  const handleAddTaskComment = async (taskId: string, commentText: string, allMembers: TeamMember[]) => {
+    if (!currentUser || !supabaseClient) return;
+    const taskToUpdate = tasks.find(t => t.id === taskId);
+    if (!taskToUpdate) return;
+    
+    const newComment: Omit<TaskComment, 'id'> = {
+      authorId: currentUser.id,
+      text: commentText,
+      timestamp: new Date().toISOString(),
     };
-    loadData();
-  }, [addToast]);
-
-  const getProjectById = useCallback((projectId: string) => projects.find(p => p.id === projectId), [projects]);
-  const getTasksByProjectId = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
-  
-  const handleUpdateProject = useCallback(async (project: Project) => {
-    const updatedProject = await api.updateProject(project);
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-    addToast('تم تحديث المشروع بنجاح', 'success');
-  }, [addToast]);
-
-  const handleAddProject = useCallback(async (projectData: ProjectFormData): Promise<Project> => {
-    const newProject = await api.addProject(projectData);
-    setProjects(prev => [...prev, newProject]);
-    addToast('تمت إضافة المشروع بنجاح', 'success');
-    return newProject;
-  }, [addToast]);
-
-  const handleUpdateTask = useCallback(async (task: Task) => {
-    const updatedTask = await api.updateTask(task);
-    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-    addToast('تم تحديث المهمة بنجاح', 'success');
-  }, [addToast]);
-  
-  const handleAddTask = useCallback(async (taskData: Omit<Task, 'id' | 'approvalStatus' | 'comments' | 'attachments'>) => {
-    const newTask = await api.addTask(taskData);
-    setTasks(prev => [...prev, newTask]);
-    addToast('تمت إضافة المهمة بنجاح', 'success');
-  }, [addToast]);
-
-  const handleUpdateTaskStatus = useCallback(async (taskId: string, status: TaskStatus) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      const updatedTask = await api.updateTask({ ...task, status });
-      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-    }
-  }, [tasks]);
-
-  const handleUpdateTaskApproval = useCallback(async (taskId: string, status: ApprovalStatus, notes?: string) => {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-          const updatedTask = await api.updateTask({ ...task, approvalStatus: status, approvalNotes: notes });
-          setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-          addToast(`تم ${status === 'approved' ? 'اعتماد' : 'تحديث'} المهمة.`, 'success');
-      }
-  }, [tasks, addToast]);
-  
-  const handleBulkUpdateTaskApproval = useCallback(async (taskIds: string[], status: ApprovalStatus) => {
-      setTasks(prev => prev.map(t => taskIds.includes(t.id) ? { ...t, approvalStatus: status } : t));
-      addToast(`تم تحديث ${taskIds.length} مهام بنجاح.`, 'success');
-  }, [addToast]);
-
-  const handleAddTaskComment = useCallback(async (taskId: string, text: string) => {
-    if (!currentUser) return;
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      const newComment: TaskComment = {
-        id: `comment_${Date.now()}`,
-        authorId: currentUser.id,
+    
+    const mentionedUsers = parseMentions(commentText, allMembers);
+    const notificationsToCreate = mentionedUsers
+      .filter(user => user.id !== currentUser.id)
+      .map(user => ({
+        recipientId: user.id,
+        type: 'comment_mention' as const,
         timestamp: new Date().toISOString(),
-        text,
-      };
-      const updatedTask = { ...task, comments: [...task.comments, newComment] };
-      await handleUpdateTask(updatedTask);
-    }
-  }, [tasks, currentUser, handleUpdateTask]);
+        read: false,
+        projectId: taskToUpdate.projectId,
+        taskId: taskToUpdate.id,
+        taskTitle: taskToUpdate.title,
+        commentAuthorName: currentUser.name,
+      }));
 
-  const handleAddTaskAttachment = useCallback(async (taskId: string, file: File) => {
+    if (notificationsToCreate.length > 0) {
+        try {
+            await api.insertMany(supabaseClient, 'notifications', notificationsToCreate);
+        } catch (error) {
+            console.error("Failed to create mention notifications", error);
+        }
+    }
+    
+    const createdComment = await api.insert(supabaseClient, 'task_comments', { ...newComment, task_id: taskId });
+    const updatedTask = { ...taskToUpdate, comments: [...(taskToUpdate.comments || []), createdComment] };
+    setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+  };
+
+  const handleFreelancerProposal = async (projectId: string, proposal: BillingProposalFormData) => {
       if (!currentUser) return;
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-          const newAttachment: TaskAttachment = {
-              id: `attach_${Date.now()}`,
-              uploaderId: currentUser.id,
-              fileName: file.name,
-              fileUrl: URL.createObjectURL(file), // In a real app, this would be an upload URL
-              timestamp: new Date().toISOString(),
-          };
-          const updatedTask = { ...task, attachments: [...task.attachments, newAttachment] };
-          await handleUpdateTask(updatedTask);
-          addToast('تم رفع المرفق بنجاح', 'success');
-      }
-  }, [tasks, currentUser, handleUpdateTask, addToast]);
+      const projectToUpdate = projects.find(p => p.id === projectId);
+      if (!projectToUpdate) return;
 
-  const handleSetFreelancerContract = useCallback(async (projectId: string, contractData: Omit<FreelancerContract, 'status' | 'notes'>) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-        const isNewAssignment = !project.freelancerContract;
-        const updatedProject = {
-            ...project,
-            freelancerContract: {
-                ...project.freelancerContract,
-                ...contractData,
-                status: 'approved' as ContractStatus,
-            }
-        };
-        await handleUpdateProject(updatedProject);
-        addToast(isNewAssignment ? 'تم تعيين المستقل وتفعيل العقد بنجاح.' : 'تم تحديث العقد بنجاح.', 'success');
-    }
-  }, [projects, handleUpdateProject, addToast]);
+      const contract: FreelancerContract = {
+          freelancerId: currentUser.id,
+          type: proposal.type,
+          amount: proposal.amount,
+          hourlyRate: proposal.hourlyRate,
+          status: 'pending'
+      };
 
+      await handleUpdateProject({ ...projectToUpdate, freelancerContract: contract });
+  };
+  
 
   const value = {
     projects,
     tasks,
     isLoading,
-    getProjectById,
-    getTasksByProjectId,
-    handleUpdateProject,
     handleAddProject,
-    handleUpdateTask,
+    handleUpdateProject,
     handleAddTask,
+    handleUpdateTask,
+    handleAddTaskComment,
     handleUpdateTaskStatus,
     handleUpdateTaskApproval,
-    handleBulkUpdateTaskApproval,
-    handleAddTaskComment,
-    handleAddTaskAttachment,
-    handleSetFreelancerContract,
+    handleFreelancerProposal
   };
 
-  return (
-    <ProjectContext.Provider value={value}>
-      {children}
-    </ProjectContext.Provider>
-  );
+  return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 };
 
 export const useProjectContext = () => {

@@ -1,5 +1,5 @@
 {
-  "name": "Tech Team",
+  "name": "Bokra Team",
   "description": "تطبيق ويب لتخطيط ساعات عمل الفريق، تسجيل المهام اليومية، وربطها بالمهام المطلوبة مع ملخصات ذكية.",
   "requestFramePermissions": [
     "camera",

@@ -1,164 +1,38 @@
-# تيك تيم (TeemTime)
+# Tech Team - أداة إدارة الفريق
 
-تطبيق ويب متكامل مصمم لمساعدة الفرق على تنظيم وتتبع عملهم بكفاءة. يوفر التطبيق أدوات لتخطيط ساعات عمل الفريق، تسجيل المهام اليومية وربطها بالمشاريع، وإدارة الجوانب المالية، مع تقديم ملخصات ذكية مدعومة بالذكاء الاصطناعي.
+This is a comprehensive web application designed to help tech teams manage their projects, track time, and streamline workflows. Built with React, TypeScript, and Supabase, it provides a powerful yet intuitive interface for managers and team members alike.
 
-## ✨ الميزات الرئيسية
+## ✨ Features
 
-- **لوحات تحكم مخصصة**: واجهات مختلفة لكل دور (مدير عام، مدير مشروع، موظف) لعرض البيانات الأكثر أهمية.
-- **إدارة المشاريع**:
-    - عرض المشاريع على شكل بطاقات مع تتبع التقدم.
-    - لوحة مهام (Kanban Board) لتنظيم المهام (لم تبدأ، قيد التنفيذ، مكتملة).
-    - إضافة مهام وتعليقات ومرفقات.
-- **إدارة الفريق**:
-    - عرض هيكل الفريق بشكل شجري.
-    - صفحات تفصيلية لكل عضو فريق مع تحليلات لأدائه.
-    - إدارة الأدوار والصلاحيات للتحكم في الوصول.
-- **تسجيل الدوام والإنتاجية**:
-    - تقويم تفاعلي لعرض الساعات المسجلة.
-    - إضافة وتعديل السجلات اليومية بسهولة.
-- **إدارة مالية**:
-    - تقديم ومراجعة طلبات صرف المصروفات.
-    - تتبع تكاليف المشاريع بناءً على ساعات عمل الفريق.
-    - إدارة الرواتب وأجور المستقلين.
-- **تقارير وتحليلات**:
-    - رسوم بيانية تفاعلية لتحليل توزيع ساعات العمل وحالة المهام.
-    - تقارير حول ميزانيات المشاريع.
-- **ميزات الذكاء الاصطناعي (AI)**:
-    - **مساعد تخطيط ذكي**: يقوم بتحليل وصف المشروع واقتراح قائمة مهام أولية.
-    - **ملخصات الأداء**: يقوم بإنشاء ملخصات لأداء الموظفين بناءً على مهامهم وسجلاتهم.
-- **اجتماعات الفيديو**:
-    - جدولة اجتماعات الفريق.
-    - الانضمام إلى غرف اجتماعات فيديو مباشرة داخل التطبيق (مدعوم بـ Jitsi).
-- **نظام إشعارات**: تنبيهات فورية للمهام الجديدة، التعليقات، والطلبات التي تحتاج لمراجعة.
-- **واجهة قابلة للتخصيص**: دعم الوضع الليلي (Dark Mode) والنهاري (Light Mode).
+- **Dashboards per Role**: Customized dashboards for General Managers, Project Managers, and individual team members, providing relevant information at a glance.
+- **Project Management**: Create and manage projects, define budgets (in hours and currency), and track progress.
+- **Task Management**: A Kanban-style board for each project to manage tasks through different stages (To Do, In Progress, Done).
+- **Daily Logging**: Team members can log their daily hours and activities, linking them to specific projects and tasks.
+- **Team Hierarchy**: A clear tree view of the team structure, showing reporting lines.
+- **Performance Insights**: AI-powered performance summaries for team members based on their tasks and logs.
+- **Financial Tracking**: Manage salaries, employee expense claims, and freelancer contracts.
+- **Real-time Meetings**: Integrated video conferencing using Jitsi for seamless team collaboration.
+- **Customizable Roles & Permissions**: Fine-grained control over what each user can see and do.
+- **Reporting & Analytics**: Visualize data with charts to understand project costs, team productivity, and more.
+- **Dark Mode**: A sleek dark theme for comfortable viewing in low-light environments.
 
-## 🚀 التقنيات المستخدمة
+## 🛠️ Tech Stack
 
-- **الواجهة الأمامية**: React, TypeScript
-- **التصميم**: Tailwind CSS
-- **الذكاء الاصطناعي**: Google Gemini API (`@google/genai`)
-- **اجتماعات الفيديو**: Jitsi Meet External API
-- **مكتبات مساعدة**:
-    - `date-fns` لمعالجة التواريخ.
-    - `csv-stringify` لتصدير البيانات.
+- **Frontend**: React, TypeScript, Tailwind CSS
+- **Backend & Database**: Supabase (PostgreSQL, Auth, Realtime)
+- **AI Integration**: Google Gemini API for generating performance notes and task plans.
+- **Video Conferencing**: Jitsi Meet
 
-## 🏁 كيفية التشغيل
+## 🚀 Getting Started
 
-هذا التطبيق مصمم للعمل مباشرة في المتصفح دون الحاجة إلى خطوات بناء معقدة.
+1.  **Environment Variables**: Ensure you have a `.env` file with your `API_KEY` for the Google Gemini API.
+2.  **Database Setup**: The application is configured to connect to a Supabase backend. The connection details can be configured in the app's settings.
+3.  **Authentication**: The app uses Supabase Auth. Users can log in to access their personalized dashboard.
 
-1.  **افتح ملف `index.html`**: يمكنك فتح هذا الملف مباشرة في أي متصفح ويب حديث.
-2.  **مفتاح API**:
-    - ميزات الذكاء الاصطناعي (مثل إنشاء خطط المهام وملاحظات الأداء) تتطلب مفتاح API صالح من Google Gemini.
-    - يفترض التطبيق أن المفتاح متوفر كمتغير بيئة (`process.env.API_KEY`) في بيئة التشغيل.
+## 📁 Project Structure
 
-## 📦 النشر (Deployment)
-
-التطبيق الآن جاهز للنشر! بما أنه تطبيق واجهة أمامية (client-side) خالص، يمكن نشره بسهولة على أي خدمة استضافة ثابتة (static hosting).
-
-1.  **الملفات الأساسية**: كل ما تحتاجه هو `index.html` والملفات المرفقة (`index.tsx`, `metadata.json`, ...).
-2.  **الاستضافة**: قم برفع جميع ملفات المشروع إلى خدمة مثل:
-    *   Firebase Hosting
-    *   Netlify
-    *   Vercel
-    *   GitHub Pages
-3.  **متغيرات البيئة**: تأكد من تكوين متغير البيئة `API_KEY` في خدمة الاستضافة التي اخترتها. هذا المتغير ضروري لتشغيل ميزات الذكاء الاصطناعي.
-
-التطبيق لا يتطلب خادمًا (server) أو عملية بناء (build process) معقدة، مما يجعل عملية النشر سريعة ومباشرة.
-
-## 🧪 الاختبارات (Testing)
-
-لضمان جودة التطبيق واستقراره، يُنصح بشدة بإضافة مجموعة من الاختبارات الآلية. هذا يساعد على اكتشاف الأخطاء مبكراً ويمنح الثقة عند إضافة ميزات جديدة أو تعديل الكود الحالي.
-
-### 1. اختبارات الوحدات (Unit Tests)
-
-تُستخدم لاختبار المكونات الفردية بشكل معزول للتأكد من أنها تعمل كما هو متوقع.
-
-**الأدوات المقترحة**: [Jest](https://jestjs.io/) و [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
-
-**مثال: اختبار المكون `PerformanceSummaryCard.tsx`**
-
-```tsx
-// components/dashboard/PerformanceSummaryCard.test.tsx
-
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { PerformanceSummaryCard } from './PerformanceSummaryCard';
-
-describe('PerformanceSummaryCard', () => {
-  it('should render stats and calculate percentage change correctly', () => {
-    const props = {
-      currentMonthHours: 150,
-      lastMonthHours: 120, // +25% change
-      currentMonthTasks: 40,
-      lastMonthTasks: 50,   // -20% change
-    };
-
-    render(<PerformanceSummaryCard {...props} />);
-
-    // Check if current values are displayed
-    expect(screen.getByText(/150.0 ساعة/i)).toBeInTheDocument();
-    expect(screen.getByText(/40 مهمة/i)).toBeInTheDocument();
-
-    // Check for positive percentage change
-    const positiveChange = screen.getByText(/25%/i);
-    expect(positiveChange).toBeInTheDocument();
-    expect(positiveChange.closest('div')).toHaveClass('text-green-600');
-
-    // Check for negative percentage change
-    const negativeChange = screen.getByText(/20%/i);
-    expect(negativeChange).toBeInTheDocument();
-    expect(negativeChange.closest('div')).toHaveClass('text-red-600');
-  });
-});
-```
-
-### 2. الاختبارات الشاملة (End-to-End Tests)
-
-تُستخدم لمحاكاة سلوك المستخدم الحقيقي عبر التطبيق بأكمله، من البداية إلى النهاية.
-
-**الأدوات المقترحة**: [Cypress](https://www.cypress.io/) أو [Playwright](https://playwright.dev/).
-
-**مثال: اختبار عملية تسجيل الدخول باستخدام Cypress**
-
-```javascript
-// cypress/e2e/login_spec.cy.ts
-
-describe('Login Flow', () => {
-  it('should allow a manager to log in and see their dashboard', () => {
-    // Visit the login page
-    cy.visit('/');
-
-    // Select a manager from the dropdown
-    // Note: We are selecting by value, which is the user's ID. '2' is Fatima Al-Zahrani (manager).
-    cy.get('#user-select').select('2');
-
-    // Click the login button
-    cy.get('button[type="submit"]').click();
-
-    // Assert that we are on the manager dashboard
-    cy.contains('h2', 'لوحة تحكم المدير').should('be.visible');
-    cy.contains('p', 'مرحباً فاطمة الزهراني، إليك نظرة على فريقك.').should('be.visible');
-
-    // Assert that the decision center card is visible
-    cy.contains('h3', 'مركز اتخاذ القرار').should('be.visible');
-  });
-});
-```
-
-## 📂 هيكل المشروع
-
-```
-/
-├── components/         # مكونات React UI، مقسمة حسب الميزات
-│   ├── dashboard/      # مكونات لوحات التحكم الرئيسية
-│   ├── modals/         # المكونات المنبثقة (Modals)
-│   ├── project/        # مكونات خاصة بالمشاريع والمهام
-│   ├── shared/         # مكونات مشتركة مثل صفحة تسجيل الدخول
-│   ├── team/           # مكونات إدارة الفريق
-│   └── ui/             # مكونات UI عامة (أزرار، بطاقات، أيقونات)
-├── contexts/           # React Contexts لإدارة الحالة العامة للتطبيق
-├── services/           # الخدمات مثل apiService و geminiService
-├── types.ts            # تعريفات TypeScript العامة
-├── index.html          # نقطة الدخول الرئيسية للتطبيق
-└── index.tsx           # ملف React الرئيسي
-```
+- `components/`: Contains all React components, organized by feature (dashboard, project, team, etc.) and UI elements.
+- `contexts/`: React Context providers for managing global state (Auth, Data, Projects, etc.).
+- `services/`: Modules for interacting with external APIs (Supabase, Gemini).
+- `types.ts`: Centralized TypeScript type definitions for the entire application.
+- `utils/`: Helper functions for various tasks like date formatting, cost calculation, etc.

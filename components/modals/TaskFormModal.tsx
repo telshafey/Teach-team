@@ -1,5 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { Task, Project, TeamMember, TaskStatus, TaskFormData } from '../../types';
+import { useToast } from '../../contexts/ToastContext';
 
 interface TaskFormModalProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
         onClose();
     } catch (error) {
         console.error("Failed to save task", error);
+        // Toast is now handled by the context with a more specific message
     } finally {
         setIsSaving(false);
     }

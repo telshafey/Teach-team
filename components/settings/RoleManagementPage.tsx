@@ -147,7 +147,7 @@ export const RoleManagementPage: React.FC<RoleManagementPageProps> = ({ onNaviga
         }
     };
     
-    const coreRoles = ['gm', 'manager', 'employee', 'freelancer'];
+    const coreRoles = ['gm', 'admin', 'pm', 'marketing_manager', 'engineer', 'employee', 'freelancer'];
 
     return (
         <Card>
@@ -197,7 +197,11 @@ export const RoleManagementPage: React.FC<RoleManagementPageProps> = ({ onNaviga
                                                         <input
                                                             type="checkbox"
                                                             checked={isAllSelected}
-                                                            ref={el => el && (el.indeterminate = isIndeterminate)}
+                                                            ref={el => {
+                                                              if (el) {
+                                                                el.indeterminate = isIndeterminate;
+                                                              }
+                                                            }}
                                                             onChange={(e) => handleGroupPermissionChange(group.permissions, e.target.checked)}
                                                             disabled={selectedRole.id === 'gm'}
                                                             className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
