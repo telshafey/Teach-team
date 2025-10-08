@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect, useCa
 import {
   TeamMember, Role, DailyLog, Notification, Meeting, ExpenseClaim,
   SiteSettings, TeamMemberFormData, DailyLogFormData, MeetingFormData,
-  ExpenseClaimFormData, PlanStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveRequestFormData, LeaveStatus, Permission, OvertimeRequestFormData, WorkContractChangeRequest, WorkContractChangeRequestFormData, WorkContractChangeStatus
+  ExpenseClaimFormData, PlanStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveRequestFormData, LeaveStatus, Permission, OvertimeRequestFormData, WorkContractChangeRequest, WorkContractChangeRequestFormData, WorkContractChangeStatus, Penalty, PenaltyFormData, PenaltyStatus
 } from '../types';
 import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
@@ -21,6 +21,7 @@ interface AppDataContextType {
   overtimeRequests: OvertimeRequest[];
   leaveRequests: LeaveRequest[];
   workContractChangeRequests: WorkContractChangeRequest[];
+  penalties: Penalty[];
   siteSettings: SiteSettings | null;
   currency: string;
   isLoading: boolean;
@@ -54,6 +55,9 @@ interface AppDataContextType {
   submitWorkContractChangeRequest: (formData: WorkContractChangeRequestFormData) => Promise<void>;
   handleUpdateWorkContractChangeRequestStatus: (requestId: string, status: WorkContractChangeStatus, managerNotes: string, approvedValues?: { hours: number; salary: number }) => Promise<void>;
   
+  handleIssuePenalty: (formData: PenaltyFormData) => Promise<void>;
+  handleUpdatePenaltyStatus: (penaltyId: string, status: PenaltyStatus, managerNotes: string) => Promise<void>;
+
   handleAddRole: (roleData: { name: string, permissions: Permission[] }) => Promise<void>;
   handleUpdateRole: (role: Role) => Promise<void>;
   handleDeleteRole: (roleId: string) => Promise<void>;
@@ -77,6 +81,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [workContractChangeRequests, setWorkContractChangeRequests] = useState<WorkContractChangeRequest[]>([]);
+  const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(appInitialData.siteSettings);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -97,6 +102,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         overtimeRequestsData,
         leaveRequestsData,
         workContractChangeRequestsData,
+        penaltiesData,
         siteSettingsData
       ] = await Promise.all([
         api.fetchAll<TeamMember>(supabaseClient, 'team_members'),
@@ -108,6 +114,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         api.fetchAll<OvertimeRequest>(supabaseClient, 'overtime_requests'),
         api.fetchLeaveRequests(supabaseClient),
         api.fetchAll<WorkContractChangeRequest>(supabaseClient, 'contract_change_requests'),
+        api.fetchAll<Penalty>(supabaseClient, 'penalties'),
         supabaseClient.from('site_settings').select('settings').eq('id', 1).single(),
       ]);
 
@@ -120,6 +127,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setOvertimeRequests(overtimeRequestsData);
       setLeaveRequests(leaveRequestsData);
       setWorkContractChangeRequests(workContractChangeRequestsData);
+      setPenalties(penaltiesData);
 
       if (siteSettingsData.data) {
         setSiteSettings(siteSettingsData.data.settings as SiteSettings);
@@ -145,6 +153,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setOvertimeRequests([]);
       setLeaveRequests([]);
       setWorkContractChangeRequests([]);
+      setPenalties([]);
       // keep roles and site settings
     }
   }, [currentUser, fetchData]);
@@ -478,6 +487,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    // Penalty Handlers
+    const handleIssuePenalty = async (formData: PenaltyFormData) => {
+        if (!supabaseClient || !currentUser) return;
+        try {
+            const newPenalty = await api.insert<Penalty>(supabaseClient, 'penalties', { 
+                ...formData, 
+                issuerId: currentUser.id, 
+                status: 'pending' 
+            });
+            setPenalties(prev => [...prev, newPenalty]);
+            addToast('تم إصدار الجزاء وهو الآن قيد المراجعة.', 'success');
+        } catch (e) {
+            addToast('فشل إصدار الجزاء.', 'error');
+            throw e;
+        }
+    };
+
+    const handleUpdatePenaltyStatus = async (penaltyId: string, status: PenaltyStatus, managerNotes: string) => {
+        if (!supabaseClient) return;
+        try {
+            const updatedPenalty = await api.update<Penalty>(supabaseClient, 'penalties', penaltyId, { status, managerNotes });
+            setPenalties(prev => prev.map(p => p.id === penaltyId ? updatedPenalty : p));
+            addToast('تم تحديث حالة الجزاء.', 'success');
+        } catch (e) {
+            addToast('فشل تحديث حالة الجزاء.', 'error');
+            throw e;
+        }
+    };
+
 
   // Role Handlers
   const handleAddRole = async (roleData: { name: string, permissions: Permission[] }) => {
@@ -540,6 +578,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     overtimeRequests,
     leaveRequests,
     workContractChangeRequests,
+    penalties,
     siteSettings,
     currency: siteSettings?.currency || 'USD',
     isLoading,
@@ -563,6 +602,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     handleUpdateOvertimeStatus,
     submitWorkContractChangeRequest,
     handleUpdateWorkContractChangeRequestStatus,
+    handleIssuePenalty,
+    handleUpdatePenaltyStatus,
     handleAddRole,
     handleUpdateRole,
     handleDeleteRole,

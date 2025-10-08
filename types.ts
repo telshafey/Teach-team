@@ -44,7 +44,9 @@ export type Permission =
   | 'view_analytics'
   | 'view_finances'
   | 'generate_performance_notes'
-  | 'approve_work_contract_changes';
+  | 'approve_work_contract_changes'
+  | 'issue_penalties'
+  | 'approve_penalties';
 
 export interface Role {
   id: string;
@@ -318,6 +320,31 @@ export interface MeetingFormData {
   members: number[];
 }
 
+// --- PENALTIES ---
+
+export type PenaltyStatus = 'pending' | 'approved' | 'appealed' | 'rejected';
+
+export interface Penalty {
+  id: string;
+  teamMemberId: number;
+  issuerId: number;
+  reason: string;
+  amount: number;
+  date: string;
+  status: PenaltyStatus;
+  appealReason?: string;
+  managerNotes?: string;
+  createdAt: string;
+}
+
+export interface PenaltyFormData {
+  teamMemberId: number;
+  reason: string;
+  amount: number;
+  date: string;
+}
+
+
 // --- MISC ---
 
 export interface GlobalSearchResults {
@@ -325,3 +352,5 @@ export interface GlobalSearchResults {
   tasks: Pick<Task, 'id' | 'title' | 'projectId'>[];
   teamMembers: Pick<TeamMember, 'id' | 'name'>[];
 }
+
+export type DecisionItem = TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty;

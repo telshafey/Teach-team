@@ -76,6 +76,65 @@ ON public.contract_change_requests FOR ALL
 USING (get_my_role() = 'gm');
 ```
 
+### جدول `penalties` (الجزاءات)
+
+هذا الجدول لتسجيل الجزاءات والخصومات. قم بتنفيذ الاستعلامات التالية لتأمين الجدول:
+
+```sql
+-- الخطوة 1: إنشاء دوال مساعدة (إذا لم تكن موجودة بالفعل)
+-- هذه الدوال ضرورية لسياسات الأمان أدناه
+CREATE OR REPLACE FUNCTION get_my_team_member_id()
+RETURNS INT LANGUAGE sql STABLE AS $$
+  SELECT id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE sql STABLE AS $$
+  SELECT role_id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+
+-- الخطوة 2: إنشاء الجدول لتخزين الجزاءات
+CREATE TABLE public.penalties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_member_id INT NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
+  issuer_id INT NOT NULL REFERENCES public.team_members(id),
+  reason TEXT NOT NULL,
+  amount NUMERIC NOT NULL CHECK (amount > 0),
+  date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending, approved, appealed, rejected
+  appeal_reason TEXT,
+  manager_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- الخطوة 3: تفعيل أمان مستوى الصف
+ALTER TABLE public.penalties ENABLE ROW LEVEL SECURITY;
+
+-- الخطوة 4: إنشاء سياسات الأمان
+-- السياسة 4.1: السماح للمستخدمين بعرض جزاءاتهم الخاصة فقط
+CREATE POLICY "Allow users to view their own penalties"
+ON public.penalties FOR SELECT
+USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
+
+-- السياسة 4.2: السماح للمديرين بإنشاء وعرض جزاءات فرقهم
+CREATE POLICY "Allow managers to manage their team's penalties"
+ON public.penalties FOR ALL
+USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id())
+WITH CHECK ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
+
+-- السياسة 4.3: منح المدير العام صلاحية الوصول الكامل
+CREATE POLICY "Allow GM full access to penalties"
+ON public.penalties FOR ALL
+USING (get_my_role() = 'gm');
+
+-- السياسة 4.4: السماح للمستخدمين بتقديم استئناف (إذا تم تفعيل الميزة)
+CREATE POLICY "Allow users to appeal their penalties"
+ON public.penalties FOR UPDATE
+USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id))
+WITH CHECK (status = 'appealed');
+```
+
+
 ## 📁 هيكل المشروع
 
 - `components/`: يحتوي على جميع مكونات React، منظمة حسب الميزات (لوحة التحكم، المشاريع، الفريق، إلخ) والعناصر العامة لواجهة المستخدم.

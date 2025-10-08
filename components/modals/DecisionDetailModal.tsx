@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus } from '../../types';
+import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus, Penalty, PenaltyStatus } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { DAYS_OF_WEEK } from '../../constants';
@@ -10,7 +10,7 @@ import { arSA } from 'date-fns/locale';
 interface DecisionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | null;
+  item: TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty | null;
 }
 
 // Type guards
@@ -29,14 +29,21 @@ function isLeaveRequest(item: any): item is LeaveRequest {
 function isWorkContractChangeRequest(item: any): item is WorkContractChangeRequest {
     return item && typeof item.requestedWeeklyHours === 'number' && typeof item.requestedSalary === 'number' && 'reason' in item;
 }
+function isPenalty(item: any): item is Penalty {
+    return item && typeof item.reason === 'string' && typeof item.amount === 'number' && 'issuerId' in item;
+}
 function isTeamMember(item: any): item is TeamMember {
     const member = item as TeamMember;
-    return member && typeof member.name === 'string' && typeof member.roleId === 'string' && 'weeklyPlan' in member && !isTask(item) && !isProject(item) && !isOvertimeRequest(item) && !isLeaveRequest(item) && !isWorkContractChangeRequest(item);
+    // This is the crucial fix: ensure the item has a property unique to TeamMember
+    // AND is not any of the other types to be safe.
+    return member && typeof member.name === 'string' && 'weeklyPlan' in member &&
+           !isTask(item) && !isProject(item) && !isOvertimeRequest(item) &&
+           !isLeaveRequest(item) && !isWorkContractChangeRequest(item) && !isPenalty(item);
 }
 
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen, onClose, item }) => {
-  const { handleUpdatePlanStatus, teamMembers, handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, currency } = useAppDataContext();
+  const { handleUpdatePlanStatus, teamMembers, handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, handleUpdatePenaltyStatus, currency } = useAppDataContext();
   const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
   const { hasPermission } = useAuth();
   const [notes, setNotes] = useState('');
@@ -65,7 +72,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
     return null;
   }
   
-  const handleDecision = async (status: PlanStatus | ApprovalStatus | ContractStatus | OvertimeStatus | LeaveStatus | WorkContractChangeStatus) => {
+  const handleDecision = async (status: PlanStatus | ApprovalStatus | ContractStatus | OvertimeStatus | LeaveStatus | WorkContractChangeStatus | PenaltyStatus) => {
     const requiresNotes = status === 'rejected' || status === 'needs-adjustment';
     
     if (requiresNotes && !notes.trim() && !isTeamMember(item)) {
@@ -87,6 +94,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
             await handleUpdateOvertimeStatus(item.id, status as OvertimeStatus, notes);
         } else if (isLeaveRequest(item)) {
             await handleUpdateLeaveStatus(item.id, status as LeaveStatus, notes);
+        } else if (isPenalty(item)) {
+            await handleUpdatePenaltyStatus(item.id, status as PenaltyStatus, notes);
         } else if (isWorkContractChangeRequest(item)) {
             const mods = {
                 hours: parseFloat(modifiedValues.hours),
@@ -117,6 +126,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
       if (isOvertimeRequest(item)) return 'approve_overtime';
       if (isLeaveRequest(item)) return 'approve_leave_requests';
       if (isWorkContractChangeRequest(item)) return 'approve_work_contract_changes';
+      if (isPenalty(item)) return 'approve_penalties';
       if (isTeamMember(item)) return 'approve_weekly_plans';
       return null;
   }
@@ -125,6 +135,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
 
   const renderContent = () => {
     const member = teamMembers.find(m => m.id === (item as any).teamMemberId);
+    if (isPenalty(item)) {
+        return (
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">مراجعة جزاء</h3>
+                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                    <p><strong>الموظف:</strong> {member?.name}</p>
+                    <p><strong>التاريخ:</strong> {format(parseISO(item.date), 'd MMMM yyyy', { locale: arSA })}</p>
+                    <p><strong>المبلغ:</strong> {item.amount} {currency}</p>
+                    <p><strong>السبب:</strong> {item.reason}</p>
+                </div>
+            </div>
+        )
+    }
     if (isWorkContractChangeRequest(item)) {
         return (
             <div>
