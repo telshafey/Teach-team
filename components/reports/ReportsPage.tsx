@@ -241,11 +241,9 @@ export const ReportsPage: React.FC = () => {
                         <button onClick={handleGenerateReport} disabled={isLoading} className="w-full sm:w-auto flex justify-center px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400">
                            {isLoading ? 'جارٍ الإنشاء...' : 'إنشاء التقرير'}
                         </button>
-                        {/* FIX: Replaced "..." with valid Tailwind CSS classes for styling. */}
                         <button onClick={() => generatedReport && downloadCSV(generatedReport.headers, generatedReport.rows, 'report')} disabled={!generatedReport} className="w-full sm:w-auto flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">
                            <DocumentArrowDownIcon className="w-5 h-5"/> <span>تنزيل (CSV)</span>
                         </button>
-                         {/* FIX: Replaced "..." with valid Tailwind CSS classes for styling. */}
                          <button onClick={() => window.print()} disabled={!generatedReport} className="w-full sm:w-auto flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">
                            <DocumentDuplicateIcon className="w-5 h-5"/> <span>طباعة</span>
                         </button>
@@ -275,10 +273,8 @@ export const ReportsPage: React.FC = () => {
                             </div>
                              {totalPages > 1 && (
                                 <div className="p-4 flex justify-between items-center text-sm">
-                                    {/* FIX: Replaced "..." with valid Tailwind CSS classes for styling. */}
                                     <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1} className="flex items-center space-x-1 rtl:space-x-reverse px-3 py-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"><ChevronRightIcon className="w-4 h-4"/> <span>السابق</span></button>
                                     <span>صفحة {currentPage} من {totalPages}</span>
-                                    {/* FIX: Replaced "..." with valid Tailwind CSS classes for styling. */}
                                     <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage === totalPages} className="flex items-center space-x-1 rtl:space-x-reverse px-3 py-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"><span>التالي</span><ChevronLeftIcon className="w-4 h-4"/></button>
                                 </div>
                             )}

@@ -1,7 +1,6 @@
 import React from 'react';
 import { DailyLog } from '../../types';
 import { PencilIcon, PlusIcon, TrashIcon } from '../ui/Icons';
-// FIX: Corrected import path
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';

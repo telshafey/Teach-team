@@ -1,5 +1,4 @@
 import React from 'react';
-// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 
 export const Logo: React.FC = () => {

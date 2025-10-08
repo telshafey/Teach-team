@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus, Penalty, PenaltyStatus } from '../../types';
+import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus, Penalty, PenaltyStatus, DecisionItem } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { DAYS_OF_WEEK } from '../../constants';
@@ -10,35 +10,37 @@ import { arSA } from 'date-fns/locale';
 interface DecisionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty | null;
+  item: DecisionItem | null;
 }
 
-// Type guards
+// --- Robust Type Guards ---
 function isTask(item: any): item is Task {
-  return item && typeof item.title === 'string' && typeof item.projectId === 'string';
+  // `approvalStatus` is a good discriminator for Task
+  return item && typeof item.title === 'string' && typeof item.projectId === 'string' && 'approvalStatus' in item;
 }
 function isProject(item: any): item is Project {
+    // `freelancerContract` is unique to Project in this context
     return item && typeof item.name === 'string' && 'freelancerContract' in item;
 }
 function isOvertimeRequest(item: any): item is OvertimeRequest {
+    // `requestedHours` and `weekStartDate` are unique to OvertimeRequest
     return item && typeof item.requestedHours === 'number' && typeof item.weekStartDate === 'string';
 }
 function isLeaveRequest(item: any): item is LeaveRequest {
+    // `startDate` and `endDate` are unique to LeaveRequest
     return item && typeof item.reason === 'string' && typeof item.startDate === 'string';
 }
 function isWorkContractChangeRequest(item: any): item is WorkContractChangeRequest {
+    // `requestedWeeklyHours` and `requestedSalary` are unique
     return item && typeof item.requestedWeeklyHours === 'number' && typeof item.requestedSalary === 'number' && 'reason' in item;
 }
 function isPenalty(item: any): item is Penalty {
+    // `issuerId` is unique to Penalty
     return item && typeof item.reason === 'string' && typeof item.amount === 'number' && 'issuerId' in item;
 }
 function isTeamMember(item: any): item is TeamMember {
-    const member = item as TeamMember;
-    // This is the crucial fix: ensure the item has a property unique to TeamMember
-    // AND is not any of the other types to be safe.
-    return member && typeof member.name === 'string' && 'weeklyPlan' in member &&
-           !isTask(item) && !isProject(item) && !isOvertimeRequest(item) &&
-           !isLeaveRequest(item) && !isWorkContractChangeRequest(item) && !isPenalty(item);
+    // `weeklyPlan` is unique to TeamMember within the DecisionItem union type.
+    return item && typeof item.name === 'string' && 'weeklyPlan' in item;
 }
 
 

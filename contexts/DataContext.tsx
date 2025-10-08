@@ -25,6 +25,7 @@ interface AppDataContextType {
   siteSettings: SiteSettings | null;
   currency: string;
   isLoading: boolean;
+  isStorageConfigured: boolean;
   
   // Handlers
   handleAddMember: (memberData: TeamMemberFormData) => Promise<void>;
@@ -84,6 +85,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(appInitialData.siteSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStorageConfigured, setIsStorageConfigured] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!supabaseClient) {
@@ -132,6 +134,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (siteSettingsData.data) {
         setSiteSettings(siteSettingsData.data.settings as SiteSettings);
       }
+      
+      // Check for storage bucket configuration
+      const { error: bucketError } = await supabaseClient.storage.getBucket('task_attachments');
+      if (bucketError) {
+          console.warn('Storage bucket "task_attachments" not found. File uploads will be disabled.');
+          setIsStorageConfigured(false);
+      } else {
+          setIsStorageConfigured(true);
+      }
+
     } catch (error: any) {
       addToast(`فشل تحميل البيانات الرئيسية: ${error.message}`, 'error');
     } finally {
@@ -582,6 +594,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     siteSettings,
     currency: siteSettings?.currency || 'USD',
     isLoading,
+    isStorageConfigured,
     handleAddMember,
     handleUpdateMember,
     handleUpdatePlanStatus,

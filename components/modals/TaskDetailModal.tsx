@@ -10,6 +10,7 @@ import { useSupabase } from '../../contexts/SupabaseContext';
 import * as api from '../../services/apiService';
 import { fileToBase64 } from '../../utils/files';
 import { ConfirmationModal } from './ConfirmationModal';
+import { useToast } from '../../contexts/ToastContext';
 
 
 interface TaskDetailModalProps {
@@ -19,14 +20,16 @@ interface TaskDetailModalProps {
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClose, task }) => {
-  const { teamMembers } = useAppDataContext();
+  const { teamMembers, isStorageConfigured } = useAppDataContext();
   const { projects, handleUpdateTask, handleAddTaskComment, handleUpdateTaskComment, handleDeleteTaskComment } = useProjectContext();
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
+  const { addToast } = useToast();
   
   // States for comments and attachments
   const [newComment, setNewComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [showStorageErrorModal, setShowStorageErrorModal] = useState(false);
   
   // States for comment editing/deleting
   const [editingComment, setEditingComment] = useState<TaskComment | null>(null);
@@ -57,6 +60,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isStorageConfigured) {
+        setShowStorageErrorModal(true);
+        e.target.value = ''; // Clear file input
+        return;
+    }
+    
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
       const file = e.target.files[0];
@@ -80,9 +89,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
 
         const updatedTask = { ...task, attachments: [...(task.attachments || []), createdAttachment] };
         await handleUpdateTask(updatedTask);
+        addToast('تم رفع المرفق بنجاح.', 'success');
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error uploading file:", error);
+        let toastMessage: string;
+        if (error.message.toLowerCase().includes('rls')) {
+            toastMessage = 'فشل رفع الملف. ليس لديك الصلاحية للرفع.';
+        } else {
+            toastMessage = 'حدث خطأ غير متوقع أثناء رفع الملف. يرجى المحاولة مرة أخرى.';
+        }
+        addToast(toastMessage, 'error');
       } finally {
         setIsUploading(false);
       }
@@ -91,10 +108,34 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
 
   const handleRemoveAttachment = async (attachmentId: string) => {
       if (!task.attachments) return;
-      await api.deleteById(supabaseClient, 'task_attachments', attachmentId);
-      const updatedAttachments = task.attachments.filter(a => a.id !== attachmentId);
-      const updatedTask = { ...task, attachments: updatedAttachments };
-      await handleUpdateTask(updatedTask);
+
+      const attachment = task.attachments.find(a => a.id === attachmentId);
+      if (!attachment) return;
+
+      try {
+        // First, delete the database record. This is the source of truth for the UI.
+        await api.deleteById(supabaseClient, 'task_attachments', attachmentId);
+
+        // Then update the task's JSONB column to keep it in sync.
+        const updatedAttachments = task.attachments.filter(a => a.id !== attachmentId);
+        const updatedTask = { ...task, attachments: updatedAttachments };
+        await handleUpdateTask(updatedTask);
+        addToast('تم حذف المرفق بنجاح.', 'success');
+        
+        // Finally, attempt to delete the file from storage.
+        // If this fails, we have an orphaned file, but the app state is consistent.
+        const filePath = new URL(attachment.fileUrl).pathname.split(`/public/task_attachments/`)[1];
+        if (filePath) {
+            const { error: storageError } = await supabaseClient.storage.from('task_attachments').remove([filePath]);
+            if (storageError && storageError.message !== 'The resource was not found') {
+                // Log this for maintenance, but don't bother the user.
+                console.warn(`Failed to delete orphaned file from storage: ${filePath}`, storageError);
+            }
+        }
+      } catch(error: any) {
+        console.error("Error removing attachment:", error);
+        addToast(`فشل حذف المرفق: ${error.message}`, 'error');
+      }
   };
   
   const handleStartEdit = (comment: TaskComment) => {
@@ -273,6 +314,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
             title="تأكيد حذف التعليق"
             message="هل أنت متأكد من رغبتك في حذف هذا التعليق؟ لا يمكن التراجع عن هذا الإجراء."
             isDestructive
+        />
+    )}
+    {showStorageErrorModal && (
+        <ConfirmationModal
+          isOpen={showStorageErrorModal}
+          onClose={() => setShowStorageErrorModal(false)}
+          onConfirm={() => setShowStorageErrorModal(false)}
+          title="خطأ في إعدادات التخزين"
+          message="ميزة رفع الملفات غير مفعلة. يرجى مراجعة المسؤول لإعداد 'bucket' التخزين المسمى 'task_attachments' في لوحة تحكم Supabase كما هو موضح في ملف README.md."
+          confirmText="حسنًا"
         />
     )}
     </>

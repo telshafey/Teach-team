@@ -30,71 +30,88 @@
 2.  **إعداد قاعدة البيانات**: التطبيق مهيأ للاتصال بـ Supabase. يمكن تعديل تفاصيل الاتصال من داخل إعدادات التطبيق (صفحة إعدادات قاعدة البيانات) بواسطة مسؤول النظام.
 3.  **المصادقة (Authentication)**: يستخدم التطبيق Supabase Auth. يمكن للمستخدمين تسجيل الدخول للوصول إلى لوحات التحكم المخصصة لهم.
 
+## ✅ Production Deployment Checklist
+
+قبل نشر التطبيق في بيئة الإنتاج، تأكد من إكمال الخطوات التالية لضمان الأمان والأداء:
+
+1.  **إعداد متغيرات البيئة (Environment Variables)**:
+    -   **API\_KEY**: يجب تعيين متغير `API_KEY` الخاص بـ Google Gemini API في بيئة الإنتاج الخاصة بك. التطبيق لن يعمل بشكل صحيح بدونه.
+
+2.  **أمان قاعدة البيانات (Database Security)**:
+    -   **تفعيل RLS (الأهم)**: هذا هو أهم إجراء أمني. تأكد من أنك قمت بتطبيق سياسات أمان مستوى الصف (RLS) على جميع الجداول الحساسة كما هو موضح في قسم "أمان قاعدة البيانات (هام)" أدناه. **التطبيق غير آمن للإنتاج بدون تفعيل RLS.**
+    -   **إعداد Supabase Storage**: تأكد من إنشاء "bucket" التخزين المطلوب وتطبيق سياسات الأمان (RLS) الخاصة به.
+
+
+3.  **إعدادات Supabase**:
+    -   **استخدام مشروع إنتاجي**: يوصى بشدة باستخدام مشروع Supabase منفصل للإنتاج وآخر للتطوير.
+    -   **النسخ الاحتياطي (Backups)**: قم بتفعيل النسخ الاحتياطي التلقائي في لوحة تحكم Supabase لمشروع الإنتاج الخاص بك.
+
+4.  **عملية البناء (Build Process)**:
+    -   لا توجد خطوات يدوية مطلوبة. إطار العمل المستخدم يقوم تلقائيًا بتجميع وتصغير ملفات JavaScript و CSS لضمان أفضل أداء.
+
 ## 🔒 أمان قاعدة البيانات (هام)
 
-لضمان أمان البيانات الحساسة، يجب تفعيل Row Level Security (RLS) على جداول معينة. تم تحديد ثغرة أمنية حيث أن جدول `contract_change_requests` لا يحتوي على RLS مفعل.
+لضمان أمان البيانات الحساسة، يجب تفعيل Row Level Security (RLS) على جداول معينة.
+
+### دوال SQL المساعدة (Helper Functions)
+قبل تطبيق سياسات الجداول، قم بإنشاء الدوال المساعدة التالية في محرر SQL الخاص بـ Supabase. هذه الدوال ضرورية لعمل السياسات بشكل صحيح.
+
+```sql
+-- دالة للحصول على `id` الخاص بالموظف الحالي من جدول team_members
+CREATE OR REPLACE FUNCTION get_my_team_member_id()
+RETURNS INT LANGUAGE sql STABLE AS $$
+  SELECT id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+
+-- دالة للحصول على `role_id` الخاص بالموظف الحالي
+CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE sql STABLE AS $$
+  SELECT role_id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+```
 
 ### جدول `contract_change_requests`
-
 هذا الجدول يحتوي على معلومات الرواتب الحساسة. قم بتنفيذ الاستعلامات التالية في محرر SQL الخاص بـ Supabase لتأمين الجدول:
 
 ```sql
 -- الخطوة 1: تفعيل أمان مستوى الصف للجدول
 ALTER TABLE public.contract_change_requests ENABLE ROW LEVEL SECURITY;
 
--- الخطوة 2: إنشاء دوال مساعدة للحصول على معلومات المستخدم الحالي
--- (قد تكون هذه الدوال موجودة بالفعل، ولكن يتم تضمينها هنا للاكتمال)
-CREATE OR REPLACE FUNCTION get_my_team_member_id()
-RETURNS INT LANGUAGE sql STABLE AS $$
-  SELECT id FROM public.team_members WHERE auth_user_id = auth.uid()
-$$;
+-- الخطوة 2: حذف السياسات القديمة لجعل النص البرمجي قابلاً لإعادة التشغيل
+DROP POLICY IF EXISTS "Allow users to view their own requests" ON public.contract_change_requests;
+DROP POLICY IF EXISTS "Allow users to create their own requests" ON public.contract_change_requests;
+DROP POLICY IF EXISTS "Allow managers to view their team's requests" ON public.contract_change_requests;
+DROP POLICY IF EXISTS "Allow managers to update their team's requests" ON public.contract_change_requests;
+DROP POLICY IF EXISTS "Allow GM full access" ON public.contract_change_requests;
 
-CREATE OR REPLACE FUNCTION get_my_role()
-RETURNS TEXT LANGUAGE sql STABLE AS $$
-  SELECT role_id FROM public.team_members WHERE auth_user_id = auth.uid()
-$$;
-
--- الخطوة 3: إنشاء سياسات الأمان
--- السياسة 3.1: السماح للمستخدمين بعرض طلباتهم الخاصة
+-- الخطوة 3: إنشاء سياسات الأمان الصحيحة
 CREATE POLICY "Allow users to view their own requests"
 ON public.contract_change_requests FOR SELECT
 USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
 
--- السياسة 3.2: السماح للمستخدمين بإنشاء طلبات لأنفسهم
 CREATE POLICY "Allow users to create their own requests"
 ON public.contract_change_requests FOR INSERT
 WITH CHECK (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
 
--- السياسة 3.3: السماح للمديرين بعرض وتحديث طلبات فرقهم
-CREATE POLICY "Allow managers to manage their team's requests"
-ON public.contract_change_requests FOR SELECT, UPDATE
+CREATE POLICY "Allow managers to view their team's requests"
+ON public.contract_change_requests FOR SELECT
+USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
+    
+CREATE POLICY "Allow managers to update their team's requests"
+ON public.contract_change_requests FOR UPDATE
 USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
 
--- السياسة 3.4: منح المدير العام صلاحية الوصول الكامل
 CREATE POLICY "Allow GM full access"
 ON public.contract_change_requests FOR ALL
 USING (get_my_role() = 'gm');
 ```
 
 ### جدول `penalties` (الجزاءات)
-
 هذا الجدول لتسجيل الجزاءات والخصومات. قم بتنفيذ الاستعلامات التالية لتأمين الجدول:
 
 ```sql
--- الخطوة 1: إنشاء دوال مساعدة (إذا لم تكن موجودة بالفعل)
--- هذه الدوال ضرورية لسياسات الأمان أدناه
-CREATE OR REPLACE FUNCTION get_my_team_member_id()
-RETURNS INT LANGUAGE sql STABLE AS $$
-  SELECT id FROM public.team_members WHERE auth_user_id = auth.uid()
-$$;
-
-CREATE OR REPLACE FUNCTION get_my_role()
-RETURNS TEXT LANGUAGE sql STABLE AS $$
-  SELECT role_id FROM public.team_members WHERE auth_user_id = auth.uid()
-$$;
-
--- الخطوة 2: إنشاء الجدول لتخزين الجزاءات
-CREATE TABLE public.penalties (
+-- الخطوة 1: إنشاء الجدول لتخزين الجزاءات (إذا لم يكن موجودًا)
+CREATE TABLE IF NOT EXISTS public.penalties (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_member_id INT NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
   issuer_id INT NOT NULL REFERENCES public.team_members(id),
@@ -107,31 +124,68 @@ CREATE TABLE public.penalties (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- الخطوة 3: تفعيل أمان مستوى الصف
+-- الخطوة 2: تفعيل أمان مستوى الصف
 ALTER TABLE public.penalties ENABLE ROW LEVEL SECURITY;
 
--- الخطوة 4: إنشاء سياسات الأمان
--- السياسة 4.1: السماح للمستخدمين بعرض جزاءاتهم الخاصة فقط
+-- الخطوة 3: حذف السياسات القديمة لجعل النص البرمجي قابلاً لإعادة التشغيل
+DROP POLICY IF EXISTS "Allow users to view their own penalties" ON public.penalties;
+DROP POLICY IF EXISTS "Allow managers to manage their team's penalties" ON public.penalties;
+DROP POLICY IF EXISTS "Allow GM full access to penalties" ON public.penalties;
+DROP POLICY IF EXISTS "Allow users to appeal their penalties" ON public.penalties;
+
+-- الخطوة 4: إنشاء سياسات الأمان الصحيحة
 CREATE POLICY "Allow users to view their own penalties"
 ON public.penalties FOR SELECT
 USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
 
--- السياسة 4.2: السماح للمديرين بإنشاء وعرض جزاءات فرقهم
 CREATE POLICY "Allow managers to manage their team's penalties"
 ON public.penalties FOR ALL
 USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id())
 WITH CHECK ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
 
--- السياسة 4.3: منح المدير العام صلاحية الوصول الكامل
 CREATE POLICY "Allow GM full access to penalties"
 ON public.penalties FOR ALL
 USING (get_my_role() = 'gm');
 
--- السياسة 4.4: السماح للمستخدمين بتقديم استئناف (إذا تم تفعيل الميزة)
 CREATE POLICY "Allow users to appeal their penalties"
 ON public.penalties FOR UPDATE
 USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id))
 WITH CHECK (status = 'appealed');
+```
+
+### إعداد Supabase Storage (هام)
+التطبيق يستخدم Supabase Storage لتخزين مرفقات المهام. يجب عليك إعداد bucket التخزين يدويًا.
+
+1.  اذهب إلى لوحة تحكم Supabase لمشروعك.
+2.  اذهب إلى قسم **Storage** من القائمة الجانبية.
+3.  اضغط على **New bucket**.
+4.  أدخل اسم الـ bucket: `task_attachments`.
+5.  فعل خيار **Public bucket**.
+6.  اضغط **Create bucket**.
+7.  بعد إنشاء الـ bucket، اذهب إلى قسم **Policies** الخاص به وقم بإنشاء السياسات التالية (أو قم بتشغيل الأكواد التالية في محرر SQL):
+
+```sql
+-- حذف السياسات القديمة لجعل النص البرمجي قابلاً لإعادة التشغيل
+DROP POLICY IF EXISTS "Allow authenticated users to upload" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public read access" ON storage.objects;
+DROP POLICY IF EXISTS "Allow users to delete their own files" ON storage.objects;
+
+-- إنشاء سياسات الأمان الصحيحة
+CREATE POLICY "Allow authenticated users to upload"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'task_attachments');
+
+CREATE POLICY "Allow public read access"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'task_attachments');
+
+-- The file path is structured as "{team_member_id}/{task_id}/{filename}"
+-- This policy checks that the user's team_member ID matches the first folder in the file path.
+CREATE POLICY "Allow users to delete their own files"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'task_attachments' AND (storage.foldername(name))[1] = (get_my_team_member_id())::text);
 ```
 
 

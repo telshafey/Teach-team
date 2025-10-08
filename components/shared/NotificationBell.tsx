@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 import { Notification } from '../../types';
 import { BellIcon } from '../ui/Icons';

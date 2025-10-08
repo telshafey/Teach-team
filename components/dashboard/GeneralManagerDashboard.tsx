@@ -70,7 +70,6 @@ export const GeneralManagerDashboard: React.FC<GeneralManagerDashboardProps> = (
 
         const membersMap = teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m.name }), {} as Record<number, string>);
 
-        // FIX: Explicitly type the destructured array from Object.entries to resolve the type inference issue.
         return Object.entries(memberHours)
             .map(([memberId, hours]: [string, number]) => ({
                 label: membersMap[Number(memberId)] || `User ${memberId}`,
@@ -90,7 +89,6 @@ export const GeneralManagerDashboard: React.FC<GeneralManagerDashboardProps> = (
 
         const projectsMap = projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {} as Record<string, string>);
 
-        // FIX: Explicitly type the destructured array from Object.entries to resolve the type inference issue.
         return Object.entries(hoursByProject)
             .map(([projectId, hours]: [string, number]) => ({
                 label: projectsMap[projectId] || `Project ${projectId}`,

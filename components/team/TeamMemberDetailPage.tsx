@@ -4,23 +4,21 @@ import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { UserIcon, ClockIcon, SparklesIcon, PencilIcon, CheckIcon, LockClosedIcon } from '../ui/Icons';
+import { UserIcon, ClockIcon, SparklesIcon, PencilIcon } from '../ui/Icons';
 import { BarChart } from '../ui/Charts';
 import { generatePerformanceNotes } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
-import { DAYS_OF_WEEK } from '../../constants';
 import { View } from '../dashboard/Dashboard';
-import { PERMISSION_GROUPS, PERMISSION_DESCRIPTIONS } from '../../permissions';
 
 interface TeamMemberDetailPageProps {
   member: TeamMember;
   onBack: () => void;
-  onEdit: (member: TeamMember) => void;
+  onEdit: () => void;
   onNavigate: (view: View, props?: any) => void;
 }
 
-export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onBack, onEdit, onNavigate }) => {
+export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onBack, onEdit }) => {
   const { dailyLogs } = useAppDataContext();
   const { tasks, projects } = useProjectContext();
   const { rolesMap, hasPermission } = useAuth();
@@ -55,7 +53,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
     setIsGeneratingNotes(true);
     setPerformanceNotes('');
     try {
-        const recentLogs = memberLogs.slice(-20);
+        const recentLogs = memberLogs.slice(-20); // Get most recent 20 logs
         const notes = await generatePerformanceNotes(
           member.name,
           memberTasks.map(t => ({ title: t.title, status: t.status })),
@@ -70,74 +68,59 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
     }
   };
 
-  const weeklyDaysOff = useMemo(() => {
-    return (member.daysOff || []).map(dayIndex => DAYS_OF_WEEK[dayIndex]).join('، ');
-  }, [member.daysOff]);
-
   return (
     <div className="p-6">
       <div className="mb-6">
+        <button onClick={onBack} className="text-sm font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 mb-2">&larr; العودة للفريق</button>
         <div className="flex items-center space-x-4 rtl:space-x-reverse">
           <img src={member.avatarUrl} alt={member.name} className="w-16 h-16 rounded-full ring-2 ring-white dark:ring-slate-700 shadow" />
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{member.name}</h2>
+            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{member.name}</h2>
+                {hasPermission('edit_team_members') && (
+                    <button onClick={onEdit} className="p-1 text-slate-500 hover:text-sky-600 dark:hover:text-sky-400">
+                        <PencilIcon className="w-5 h-5"/>
+                    </button>
+                )}
+            </div>
             <p className="text-md text-slate-500 dark:text-slate-400">{role?.name}</p>
           </div>
-          {hasPermission('edit_team_members') && (
-            <button onClick={() => onEdit(member)} className="p-2 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
-          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 space-y-6">
           <Card title="معلومات أساسية" icon={<UserIcon className="w-5 h-5"/>}>
             <div className="space-y-3 text-sm text-slate-700 dark:text-slate-300">
                 <div className="flex justify-between"><span>إجمالي الساعات المسجلة:</span> <span className="font-bold">{totalHoursLogged.toFixed(1)}</span></div>
                 <div className="flex justify-between"><span>المهام المكتملة:</span> <span className="font-bold">{tasksCompleted}</span></div>
                 <div className="flex justify-between"><span>إجمالي المهام:</span> <span className="font-bold">{memberTasks.length}</span></div>
-                {member.weeklyHoursRequirement && <div className="flex justify-between pt-2 border-t"><span>ساعات العمل الأسبوعية:</span> <span className="font-bold">{member.weeklyHoursRequirement} ساعة</span></div>}
-                {weeklyDaysOff && <div className="flex justify-between"><span>أيام الإجازة:</span> <span className="font-bold">{weeklyDaysOff}</span></div>}
             </div>
           </Card>
            {hasPermission('generate_performance_notes') && (
-            <Card title="ملخص الأداء (AI)" icon={<SparklesIcon className="w-5 h-5"/>}>
+            <Card title="ملاحظات الأداء (AI)" icon={<SparklesIcon className="w-5 h-5"/>}>
               <div className="space-y-3">
-                <button onClick={handleGenerateNotes} disabled={isGeneratingNotes} className="w-full px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400 flex justify-center items-center">
+                <button 
+                  onClick={handleGenerateNotes} 
+                  disabled={isGeneratingNotes}
+                  className="w-full px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400 flex justify-center items-center transition-colors"
+                  aria-live="polite"
+                >
                   {isGeneratingNotes ? <LoadingSpinner /> : 'إنشاء ملخص الأداء'}
                 </button>
-                {performanceNotes && <div className="p-3 border rounded-md bg-slate-50 dark:bg-slate-700/50 text-sm whitespace-pre-wrap">{performanceNotes}</div>}
+                {performanceNotes && (
+                    <div className="p-3 border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700/50 text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                        {performanceNotes}
+                    </div>
+                )}
               </div>
             </Card>
            )}
         </div>
-        <div className="lg:col-span-2 space-y-6">
-            <Card title="توزيع ساعات العمل" icon={<ClockIcon className="w-5 h-5"/>}>
+        <div className="md:col-span-2">
+            <Card title="توزيع ساعات العمل على المشاريع" icon={<ClockIcon className="w-5 h-5"/>}>
                 <BarChart title="" data={hoursByProject} />
             </Card>
-            {role && (
-                 <Card 
-                    title="صلاحيات الدور" 
-                    icon={<LockClosedIcon className="w-5 h-5"/>}
-                    headerActions={hasPermission('manage_roles') ? <button onClick={() => onNavigate('roles', { initialRoleId: role.id })} className="text-sm font-semibold text-sky-600">تعديل</button> : null}
-                  >
-                    <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                        {Object.entries(PERMISSION_GROUPS).map(([group, permissions]) => (
-                            <div key={group}>
-                                <h4 className="font-semibold text-sm text-slate-600 dark:text-slate-300 mb-2">{group}</h4>
-                                <div className="space-y-2">
-                                    {permissions.map(p => (
-                                        <div key={p} className="flex items-center space-x-2 rtl:space-x-reverse">
-                                            <CheckIcon className="w-4 h-4 text-green-500" />
-                                            <span className="text-sm text-slate-700 dark:text-slate-200">{PERMISSION_DESCRIPTIONS[p] || p}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            )}
         </div>
       </div>
     </div>

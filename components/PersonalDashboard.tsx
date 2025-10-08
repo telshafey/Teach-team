@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-// FIX: Corrected import paths
 import { useAppDataContext } from '../contexts/DataContext';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { Card } from './ui/Card';

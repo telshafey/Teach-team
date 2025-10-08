@@ -1,5 +1,4 @@
 import React, { useState, useCallback, Suspense, lazy } from 'react';
-// FIX: Corrected import paths
 import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from './shared/Sidebar';
 import { Header } from './shared/Header';
@@ -22,7 +21,6 @@ import { MeetingsPage } from './meetings/MeetingsPage';
 import { MeetingRoom } from './meetings/MeetingRoom';
 
 // Lazy loading for less frequently accessed pages
-// FIX: Corrected import paths
 const ReportsPage = lazy(() => import('./reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
 const AnalyticsPage = lazy(() => import('./analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
 const FinancePage = lazy(() => import('./finance/FinancePage').then(module => ({ default: module.FinancePage })));

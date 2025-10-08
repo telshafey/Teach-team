@@ -1,5 +1,4 @@
 import React, { useState, lazy } from 'react';
-// FIX: Corrected import paths
 import { SiteSettingsPage } from './settings/SiteSettingsPage';
 import { RoleManagementPage } from './settings/RoleManagementPage';
 import { View } from './dashboard/Dashboard';

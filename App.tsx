@@ -1,14 +1,12 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
-// FIX: Corrected import path
 import { DataProvider } from './contexts/DataContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { TimeTrackingProvider } from './contexts/TimeTrackingContext';
-// FIX: Corrected import path for Dashboard
 import { Dashboard } from './components/dashboard/Dashboard';
 import { SupabaseProvider, useSupabase } from './contexts/SupabaseContext';
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useCallback, Suspense, lazy, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
@@ -35,20 +35,67 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
+const parseHash = (): { view: View; props: any } => {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    if (!hash) return { view: 'dashboard', props: {} };
+
+    const parts = hash.split('/');
+    const view = parts[0] as View;
+    const props: any = {};
+
+    switch (view) {
+        case 'projectDetail':
+            props.projectId = parts[1];
+            if(parts[2] === 'task' && parts[3]) {
+                props.initialTaskIdToOpen = parts[3];
+            }
+            break;
+        case 'teamDetail':
+            props.memberId = parts[1];
+            break;
+        case 'settings':
+        case 'roles':
+        case 'database':
+            props.initialRoleId = parts[1];
+            break;
+        // Add other views with props here
+    }
+
+    return { view, props };
+};
+
+
 export const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { showLogModalFor, closeLogModal } = useTimeTracking();
   const { handleAddDailyLog } = useAppDataContext();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
-  const [navigation, setNavigation] = useState<{ view: View; props: any }>({
-    view: 'dashboard',
-    props: {},
-  });
+  const [navigation, setNavigation] = useState<{ view: View; props: any }>(parseHash());
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setNavigation(parseHash());
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
 
   const handleNavigate = useCallback((view: View, props: any = {}) => {
-    setNavigation({ view, props });
-    setIsSidebarOpen(false); // Close sidebar on navigation
+    let hash = `/${view}`;
+    if (view === 'projectDetail' && props.projectId) {
+        hash += `/${props.projectId}`;
+        if(props.initialTaskIdToOpen) {
+            hash += `/task/${props.initialTaskIdToOpen}`;
+        }
+    } else if (view === 'teamDetail' && props.memberId) {
+        hash += `/${props.memberId}`;
+    }
+    window.location.hash = hash;
+    setIsSidebarOpen(false);
   }, []);
 
   const handleSaveTimerLog = async (logData: DailyLogFormData) => {
@@ -97,13 +144,16 @@ export const Dashboard: React.FC = () => {
       case 'profile':
         return <Suspense fallback={<LoadingFallback />}><ProfilePage /></Suspense>;
       default:
+        // Fallback to dashboard if view is unknown
+        if (view !== 'dashboard') {
+            handleNavigate('dashboard');
+        }
         return <GeneralManagerDashboard onNavigate={handleNavigate} />;
     }
   };
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden" dir="rtl">
-      {/* FIX: Corrected typo from `setIsOpen` to `setIsSidebarOpen` to pass the state setter function correctly. */}
       <Sidebar currentView={navigation.view} onNavigate={handleNavigate} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onNavigate={handleNavigate} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />

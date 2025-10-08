@@ -3,7 +3,6 @@ import { GlobalSearch } from './GlobalSearch';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Bars3Icon } from '../ui/Icons';
-// FIX: Corrected import path
 import { View } from '../dashboard/Dashboard';
 
 interface HeaderProps {
