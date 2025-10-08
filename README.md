@@ -30,6 +30,52 @@
 2.  **إعداد قاعدة البيانات**: التطبيق مهيأ للاتصال بـ Supabase. يمكن تعديل تفاصيل الاتصال من داخل إعدادات التطبيق (صفحة إعدادات قاعدة البيانات) بواسطة مسؤول النظام.
 3.  **المصادقة (Authentication)**: يستخدم التطبيق Supabase Auth. يمكن للمستخدمين تسجيل الدخول للوصول إلى لوحات التحكم المخصصة لهم.
 
+## 🔒 أمان قاعدة البيانات (هام)
+
+لضمان أمان البيانات الحساسة، يجب تفعيل Row Level Security (RLS) على جداول معينة. تم تحديد ثغرة أمنية حيث أن جدول `contract_change_requests` لا يحتوي على RLS مفعل.
+
+### جدول `contract_change_requests`
+
+هذا الجدول يحتوي على معلومات الرواتب الحساسة. قم بتنفيذ الاستعلامات التالية في محرر SQL الخاص بـ Supabase لتأمين الجدول:
+
+```sql
+-- الخطوة 1: تفعيل أمان مستوى الصف للجدول
+ALTER TABLE public.contract_change_requests ENABLE ROW LEVEL SECURITY;
+
+-- الخطوة 2: إنشاء دوال مساعدة للحصول على معلومات المستخدم الحالي
+-- (قد تكون هذه الدوال موجودة بالفعل، ولكن يتم تضمينها هنا للاكتمال)
+CREATE OR REPLACE FUNCTION get_my_team_member_id()
+RETURNS INT LANGUAGE sql STABLE AS $$
+  SELECT id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT LANGUAGE sql STABLE AS $$
+  SELECT role_id FROM public.team_members WHERE auth_user_id = auth.uid()
+$$;
+
+-- الخطوة 3: إنشاء سياسات الأمان
+-- السياسة 3.1: السماح للمستخدمين بعرض طلباتهم الخاصة
+CREATE POLICY "Allow users to view their own requests"
+ON public.contract_change_requests FOR SELECT
+USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
+
+-- السياسة 3.2: السماح للمستخدمين بإنشاء طلبات لأنفسهم
+CREATE POLICY "Allow users to create their own requests"
+ON public.contract_change_requests FOR INSERT
+WITH CHECK (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
+
+-- السياسة 3.3: السماح للمديرين بعرض وتحديث طلبات فرقهم
+CREATE POLICY "Allow managers to manage their team's requests"
+ON public.contract_change_requests FOR SELECT, UPDATE
+USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
+
+-- السياسة 3.4: منح المدير العام صلاحية الوصول الكامل
+CREATE POLICY "Allow GM full access"
+ON public.contract_change_requests FOR ALL
+USING (get_my_role() = 'gm');
+```
+
 ## 📁 هيكل المشروع
 
 - `components/`: يحتوي على جميع مكونات React، منظمة حسب الميزات (لوحة التحكم، المشاريع، الفريق، إلخ) والعناصر العامة لواجهة المستخدم.

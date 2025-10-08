@@ -47,7 +47,7 @@ export const DatabaseSettingsPage: React.FC = () => {
         <>
             <div className="space-y-6">
                 <Card>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="p-4 space-y-6">
                         <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border-r-4 border-amber-400 rounded-md">
                             <div className="flex">
                                 <div className="flex-shrink-0">
@@ -61,3 +61,56 @@ export const DatabaseSettingsPage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label htmlFor="supabaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Supabase URL
+                                </label>
+                                <input
+                                    type="text"
+                                    id="supabaseUrl"
+                                    name="supabaseUrl"
+                                    value={dbSettings.supabaseUrl}
+                                    onChange={(e) => setDbSettings(prev => ({...prev, supabaseUrl: e.target.value}))}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="supabaseAnonKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    Supabase Anon Key
+                                </label>
+                                <input
+                                    type="text"
+                                    id="supabaseAnonKey"
+                                    name="supabaseAnonKey"
+                                    value={dbSettings.supabaseAnonKey}
+                                    onChange={(e) => setDbSettings(prev => ({...prev, supabaseAnonKey: e.target.value}))}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <button
+                                type="submit"
+                                disabled={isSaving}
+                                className="px-6 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400"
+                            >
+                                {isSaving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
+                            </button>
+                        </div>
+                    </form>
+                </Card>
+            </div>
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmSave}
+                title="تأكيد حفظ الإعدادات"
+                message="تغيير هذه الإعدادات يتطلب إعادة تحميل الصفحة لتطبيقها. هل تريد المتابعة؟"
+                confirmText="نعم، احفظ"
+            />
+        </>
+    );
+};
