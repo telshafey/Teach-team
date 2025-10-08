@@ -1,26 +1,58 @@
-import React, { useState, lazy } from 'react';
+import React, { useState, lazy, useMemo, Suspense } from 'react';
 import { SiteSettingsPage } from './SiteSettingsPage';
 import { RoleManagementPage } from './RoleManagementPage';
 import { View } from '../dashboard/Dashboard';
 import { useAuth } from '../../contexts/AuthContext';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { Card } from '../ui/Card';
+import { LockClosedIcon } from '../ui/Icons';
 
 const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
 
-
 interface SettingsPageProps {
     initialView?: View;
+    initialProps?: any;
     onNavigate: (view: View, state?: any) => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavigate }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initialProps, onNavigate }) => {
     const { hasPermission } = useAuth();
 
+    const canManageSite = hasPermission('manage_site_settings');
+    const canManageRoles = hasPermission('manage_roles');
+    const canManageDb = hasPermission('manage_db_settings');
+
+    const availableTabs = useMemo(() => {
+        const tabs: string[] = [];
+        if (canManageSite) tabs.push('site');
+        if (canManageRoles) tabs.push('roles');
+        if (canManageDb) tabs.push('database');
+        return tabs;
+    }, [canManageSite, canManageRoles, canManageDb]);
+
     const getInitialTab = () => {
-        if (initialView === 'roles') return 'roles';
-        if (initialView === 'database') return 'database';
-        return 'site';
+        const initialTab = initialView === 'roles' ? 'roles' : initialView === 'database' ? 'database' : 'site';
+        if (availableTabs.includes(initialTab)) {
+            return initialTab;
+        }
+        return availableTabs[0] || '';
     };
+
     const [activeTab, setActiveTab] = useState(getInitialTab());
+
+    if (availableTabs.length === 0) {
+        return (
+            <div className="p-6">
+                 <Card>
+                    <div className="p-8 text-center">
+                        <LockClosedIcon className="w-12 h-12 mx-auto text-red-500"/>
+                        <h2 className="mt-4 text-xl font-bold text-slate-800 dark:text-slate-100">وصول مرفوض</h2>
+                        <p className="mt-2 text-md text-slate-500 dark:text-slate-400">ليس لديك الصلاحية للوصول إلى أي من أقسام الإعدادات.</p>
+                    </div>
+                 </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">
@@ -29,19 +61,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavig
                 <p className="text-md text-slate-500 dark:text-slate-400">إدارة إعدادات النظام والأدوار.</p>
             </div>
             <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
-                <button
-                    onClick={() => setActiveTab('site')}
-                    className={`px-4 py-2 text-sm font-medium ${activeTab === 'site' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    إعدادات الموقع
-                </button>
-                <button
-                    onClick={() => setActiveTab('roles')}
-                    className={`px-4 py-2 text-sm font-medium ${activeTab === 'roles' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    الأدوار والصلاحيات
-                </button>
-                {hasPermission('manage_db_settings') && (
+                {canManageSite && (
+                    <button
+                        onClick={() => setActiveTab('site')}
+                        className={`px-4 py-2 text-sm font-medium ${activeTab === 'site' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        إعدادات الموقع
+                    </button>
+                )}
+                {canManageRoles && (
+                    <button
+                        onClick={() => setActiveTab('roles')}
+                        className={`px-4 py-2 text-sm font-medium ${activeTab === 'roles' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        الأدوار والصلاحيات
+                    </button>
+                )}
+                {canManageDb && (
                      <button
                         onClick={() => setActiveTab('database')}
                         className={`px-4 py-2 text-sm font-medium ${activeTab === 'database' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -50,10 +86,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavig
                     </button>
                 )}
             </div>
-
-            {activeTab === 'site' && <SiteSettingsPage />}
-            {activeTab === 'roles' && <RoleManagementPage onNavigate={onNavigate} />}
-            {activeTab === 'database' && hasPermission('manage_db_settings') && <DatabaseSettingsPage />}
+            
+            <Suspense fallback={<div className="flex justify-center p-8"><LoadingSpinner /></div>}>
+                {activeTab === 'site' && canManageSite && <SiteSettingsPage />}
+                {activeTab === 'roles' && canManageRoles && <RoleManagementPage onNavigate={onNavigate} initialRoleId={initialProps?.initialRoleId} />}
+                {activeTab === 'database' && canManageDb && <DatabaseSettingsPage />}
+            </Suspense>
         </div>
     );
 };

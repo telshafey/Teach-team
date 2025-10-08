@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
@@ -20,7 +20,18 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({ onJoinMeeting }) => 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
 
-    const myMeetings = meetings.filter(m => m.participants.includes(currentUser?.id ?? -1));
+    const myMeetings = useMemo(() => {
+        if (!currentUser) return [];
+        // General Manager can see all meetings
+        if (currentUser.roleId === 'gm') {
+            return meetings.sort((a,b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime());
+        }
+        // Others see only meetings they are part of
+        return meetings
+            .filter(m => m.members.includes(currentUser.id))
+            .sort((a,b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime());
+    }, [meetings, currentUser]);
+
 
     const confirmDelete = async () => {
         if (meetingToDelete) {
@@ -46,7 +57,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({ onJoinMeeting }) => 
                 {myMeetings.length > 0 ? (
                     <div className="divide-y divide-slate-200 dark:divide-slate-700">
                         {myMeetings.map(meeting => {
-                             const participants = meeting.participants.map(id => teamMembers.find(m => m.id === id)?.name).filter(Boolean);
+                             const participants = meeting.members.map(id => teamMembers.find(m => m.id === id)?.name).filter(Boolean);
                             return (
                                 <div key={meeting.id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                     <div>

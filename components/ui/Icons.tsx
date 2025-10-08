@@ -275,3 +275,10 @@ export const ArrowPathIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) =>
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.664 0l3.181-3.183m-11.664 0l4.992-4.993m-4.993 0l-3.181 3.183a8.25 8.25 0 000 11.664l3.181 3.183" />
     </svg>
 );
+
+export const BriefcaseIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.075c0 1.313-.964 2.411-2.175 2.585-1.211.174-2.427-.24-3.32-1.135l-1.635-1.635-1.635 1.635c-.9.9-2.11.13-3.32 1.135-1.21.174-2.175-1.272-2.175-2.585v-4.075a2.25 2.25 0 0 1 2.25-2.25h10.5a2.25 2.25 0 0 1 2.25 2.25Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 4.875c0-.593.237-1.157.659-1.579.422-.422.986-.659 1.579-.659h1.513c.593 0 1.157.237 1.579.659.422.422.659.986.659 1.579v4.075c0 .593-.237 1.157-.659 1.579-.422-.422-.986.659-1.579.659H11.99c-.593 0-1.157-.237-1.579-.659-.422-.422-.659-.986-.659-1.579V4.875Z" />
+    </svg>
+);

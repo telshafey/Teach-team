@@ -54,7 +54,11 @@ export const SiteSettingsPage: React.FC = () => {
         setIsConfirmOpen(false);
         setIsSaving(true);
         try {
-            await handleUpdateSiteSettings(settings);
+            const settingsToSave = {
+                ...settings,
+                overtimeRateMultiplier: Number(settings.overtimeRateMultiplier) || 1.5,
+            };
+            await handleUpdateSiteSettings(settingsToSave);
             addToast('تم تحديث الإعدادات. قد تحتاج بعض التغييرات لإعادة تحميل الصفحة.', 'success');
         } catch (error) {
             // Error toast is already displayed by the context.
@@ -120,6 +124,21 @@ export const SiteSettingsPage: React.FC = () => {
                                 className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
                                 placeholder="e.g., EGP"
                             />
+                        </div>
+                         <div>
+                            <label htmlFor="overtimeRateMultiplier" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                معامل حساب الساعة الإضافية
+                            </label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                id="overtimeRateMultiplier"
+                                name="overtimeRateMultiplier"
+                                value={settings.overtimeRateMultiplier || 1.5}
+                                onChange={handleChange}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                            />
+                             <p className="text-xs text-slate-500 mt-1">مثال: 1.5 يعني أن الساعة الإضافية تعادل ساعة ونصف من الأجر العادي.</p>
                         </div>
                     </div>
                     <div>

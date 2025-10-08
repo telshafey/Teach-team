@@ -1,34 +1,35 @@
 import React, { useState, useCallback, Suspense, lazy } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { Sidebar } from '../shared/Sidebar';
-import { Header } from '../shared/Header';
-import { GeneralManagerDashboard } from './GeneralManagerDashboard';
-import { ManagerDashboard } from './ManagerDashboard';
-import { PersonalDashboard } from './PersonalDashboard';
-import { TeamManagementPage } from '../team/TeamManagementPage';
-import { ProjectDetailPage } from '../project/ProjectDetailPage';
-import { ProjectsPage } from '../project/ProjectsPage';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { LogFormModal } from '../modals/LogFormModal';
-import { useTimeTracking } from '../../contexts/TimeTrackingContext';
-import { ActiveTimerBar } from '../shared/ActiveTimerBar';
-import { useAppDataContext } from '../../contexts/DataContext';
-import { DailyLogFormData, Meeting } from '../../types';
+// FIX: Corrected import paths
+import { useAuth } from '../contexts/AuthContext';
+import { Sidebar } from './shared/Sidebar';
+import { Header } from './shared/Header';
+import { GeneralManagerDashboard } from './dashboard/GeneralManagerDashboard';
+import { ManagerDashboard } from './dashboard/ManagerDashboard';
+import { PersonalDashboard } from './dashboard/PersonalDashboard';
+import { TeamManagementPage } from './team/TeamManagementPage';
+import { ProjectDetailPage } from './project/ProjectDetailPage';
+import { ProjectsPage } from './project/ProjectsPage';
+import { LoadingSpinner } from './ui/LoadingSpinner';
+import { LogFormModal } from './modals/LogFormModal';
+import { useTimeTracking } from '../contexts/TimeTrackingContext';
+import { ActiveTimerBar } from './shared/ActiveTimerBar';
+import { useAppDataContext } from '../contexts/DataContext';
+import { DailyLogFormData, Meeting } from '../types';
 import { format } from 'date-fns';
-import { BottomNavBar } from './BottomNavBar';
-
-// FIX: Directly import components that were causing prop-type errors with React.lazy.
-import { SettingsPage } from '../settings/SettingsPage';
-import { MeetingsPage } from '../meetings/MeetingsPage';
-import { MeetingRoom } from '../meetings/MeetingRoom';
+import { BottomNavBar } from './dashboard/BottomNavBar';
+import { SettingsPage } from './settings/SettingsPage';
+import { MeetingsPage } from './meetings/MeetingsPage';
+import { MeetingRoom } from './meetings/MeetingRoom';
 
 // Lazy loading for less frequently accessed pages
-const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
-const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
-const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
-const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
+// FIX: Corrected import paths
+const ReportsPage = lazy(() => import('./reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const AnalyticsPage = lazy(() => import('./analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
+const FinancePage = lazy(() => import('./finance/FinancePage').then(module => ({ default: module.FinancePage })));
+const ProfilePage = lazy(() => import('./profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const TimeSheetPage = lazy(() => import('./timesheet/TimeSheetPage').then(module => ({ default: module.TimeSheetPage })));
 
-export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database';
+export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database' | 'timesheet';
 
 const LoadingFallback: React.FC = () => (
   <div className="flex-1 flex items-center justify-center">
@@ -77,6 +78,8 @@ export const Dashboard: React.FC = () => {
       case 'team':
       case 'teamDetail':
         return <TeamManagementPage initialView={view} initialProps={props} onNavigate={handleNavigate} />;
+      case 'timesheet':
+        return <Suspense fallback={<LoadingFallback />}><TimeSheetPage /></Suspense>;
       case 'reports':
         return <Suspense fallback={<LoadingFallback />}><ReportsPage /></Suspense>;
       case 'analytics':
@@ -84,15 +87,12 @@ export const Dashboard: React.FC = () => {
       case 'settings':
       case 'roles':
       case 'database':
-        // FIX: Removed Suspense wrapper for directly imported component.
         return <SettingsPage initialView={view} onNavigate={handleNavigate} />;
       case 'finance':
         return <Suspense fallback={<LoadingFallback />}><FinancePage /></Suspense>;
       case 'meetings':
-        // FIX: Removed Suspense wrapper for directly imported component.
         return <MeetingsPage onJoinMeeting={(meeting: Meeting) => handleNavigate('meetingRoom', { meeting })} />;
       case 'meetingRoom':
-        // FIX: Removed Suspense wrapper for directly imported component.
         return <MeetingRoom meeting={props.meeting} onLeave={() => handleNavigate('meetings')} />;
       case 'profile':
         return <Suspense fallback={<LoadingFallback />}><ProfilePage /></Suspense>;

@@ -1,16 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 import { Notification } from '../../types';
 import { BellIcon } from '../ui/Icons';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useAuth } from '../../contexts/AuthContext';
+import { View } from '../dashboard/Dashboard';
 
 interface NotificationBellProps {
-  onSelect: (notification: Notification) => void;
+  onNavigate: (view: View, props?: any) => void;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ onSelect }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
   const { notifications, markNotificationAsRead } = useAppDataContext();
   const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +20,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onSelect }) 
   
   const userNotifications = useMemo(() => {
       if (!currentUser) return [];
-      return notifications.filter(n => n.recipientId === currentUser.id);
+      return notifications.filter(n => n.recipientId === currentUser.id)
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [notifications, currentUser]);
 
   const unreadCount = useMemo(() => {
@@ -39,7 +42,20 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onSelect }) 
     if (!notification.read) {
         markNotificationAsRead(notification.id);
     }
-    onSelect(notification);
+    
+    // Navigation logic
+    if (notification.type === 'meeting_scheduled') {
+        onNavigate('meetings');
+    }
+    else if (notification.projectId && notification.taskId) {
+      onNavigate('projectDetail', {
+        projectId: notification.projectId,
+        initialTaskIdToOpen: notification.taskId,
+      });
+    } else if (notification.projectId) {
+      onNavigate('projectDetail', { projectId: notification.projectId });
+    }
+    
     setIsOpen(false);
   };
 
@@ -50,11 +66,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onSelect }) 
         case 'task_approval':
             return `مهمة "${notification.taskTitle}" التي أسندتها إلى ${notification.assigneeName} بانتظار موافقتك.`;
         case 'budget_alert':
-            return notification.taskTitle;
+            return notification.message;
         case 'freelancer_assigned':
              return `${notification.taskTitle} بواسطة ${notification.assignerName}.`;
         case 'comment_mention':
             return `${notification.commentAuthorName} ذكرك في تعليق على مهمة: "${notification.taskTitle}"`;
+        case 'meeting_scheduled':
+            return `تمت دعوتك لاجتماع: "${notification.taskTitle}" بواسطة ${notification.assignerName}.`;
+        case 'profile_update':
+            return notification.message;
         default:
             return 'إشعار جديد.';
     }

@@ -30,8 +30,9 @@ const TaskColumn: React.FC<{
     onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
     onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
     draggingTaskId: string | null;
-    canManage: boolean;
-}> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canManage }) => {
+    canEditTasks: boolean;
+    canDeleteTasks: boolean;
+}> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canEditTasks, canDeleteTasks }) => {
   const [isOver, setIsOver] = useState(false);
   
   const placeholder = useMemo(() => {
@@ -58,7 +59,8 @@ const TaskColumn: React.FC<{
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                     isDragging={draggingTaskId === task.id}
-                    canManage={canManage}
+                    canEdit={canEditTasks}
+                    canDelete={canDeleteTasks}
                 />
             ))}
             {isOver && placeholder}
@@ -110,7 +112,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         );
     }
 
-    const canManage = hasPermission('manage_projects');
+    const canEditProject = hasPermission('edit_projects');
+    const canCreateTasks = hasPermission('create_tasks');
+    const canEditTasks = hasPermission('edit_tasks');
+    const canDeleteTasks = hasPermission('delete_tasks');
     const canPropose = currentUser?.roleId === 'freelancer' && !project.freelancerContract;
 
     const handleSaveProposal = async (proposalData: BillingProposalFormData) => {
@@ -165,7 +170,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     <button onClick={onBack} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
                     <div className="flex items-center space-x-3 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
-                         {canManage && (
+                         {canEditProject && (
                             <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
                          )}
                     </div>
@@ -180,7 +185,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                             <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
                         </button>
                     </div>
-                    {canManage && (
+                    {canCreateTasks && (
                         <button onClick={() => openTaskModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                             <PlusIcon className="w-5 h-5"/><span>إضافة مهمة</span>
                         </button>
@@ -206,7 +211,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canManage={canManage}
+                        canEditTasks={canEditTasks}
+                        canDeleteTasks={canDeleteTasks}
                     />
                     <TaskColumn 
                         title="قيد التنفيذ" 
@@ -219,7 +225,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canManage={canManage}
+                        canEditTasks={canEditTasks}
+                        canDeleteTasks={canDeleteTasks}
                     />
                     <TaskColumn 
                         title="مكتملة" 
@@ -232,7 +239,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canManage={canManage}
+                        canEditTasks={canEditTasks}
+                        canDeleteTasks={canDeleteTasks}
                     />
                 </div>
             ) : (

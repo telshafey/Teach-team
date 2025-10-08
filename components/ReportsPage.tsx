@@ -125,14 +125,16 @@ export const ReportsPage: React.FC = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">المشاريع</label>
-                             <select multiple value={selectedProjects} onChange={e => setSelectedProjects(Array.from(e.target.selectedOptions, option => option.value))} className="w-full p-2 h-32 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
+                             {/* FIX: Explicitly type 'option' as HTMLOptionElement to resolve type inference issue. */}
+                             <select multiple value={selectedProjects} onChange={e => setSelectedProjects(Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value))} className="w-full p-2 h-32 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
                                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                              </select>
                              <p className="text-xs text-slate-500 mt-1">اترك الحقل فارغًا لتحديد الكل.</p>
                         </div>
                          <div>
                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">أعضاء الفريق</label>
-                             <select multiple value={selectedMembers.map(String)} onChange={e => setSelectedMembers(Array.from(e.target.selectedOptions, option => Number(option.value)))} className="w-full p-2 h-32 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
+                             {/* FIX: Explicitly type 'option' as HTMLOptionElement to resolve type inference issue. */}
+                             <select multiple value={selectedMembers.map(String)} onChange={e => setSelectedMembers(Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => Number(option.value)))} className="w-full p-2 h-32 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
                                 {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                              </select>
                              <p className="text-xs text-slate-500 mt-1">اترك الحقل فارغًا لتحديد الكل.</p>

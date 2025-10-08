@@ -12,7 +12,8 @@ interface TaskCardProps {
   onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
-  canManage: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: string }> = ({ status, notes }) => {
@@ -56,7 +57,7 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
     );
 };
 
-export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canManage }) => {
+export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canEdit, canDelete }) => {
   const { teamMembers, dailyLogs } = useAppDataContext();
   const { activeTimer, startTimer, stopTimer } = useTimeTracking();
   
@@ -94,20 +95,24 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onD
     >
       <div className="flex justify-between items-start">
         <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm pr-2">{task.title}</p>
-        {canManage && (
+        {(canEdit || canDelete) && (
             <div className="flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
-                    className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400" 
-                    aria-label="تعديل المهمة">
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(task); }} 
-                    className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400" 
-                    aria-label="حذف المهمة">
-                  <TrashIcon className="w-4 h-4" />
-                </button>
+                {canEdit && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
+                        className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400" 
+                        aria-label="تعديل المهمة">
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                )}
+                 {canDelete && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete(task); }} 
+                        className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400" 
+                        aria-label="حذف المهمة">
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                 )}
             </div>
         )}
       </div>

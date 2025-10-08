@@ -1,10 +1,11 @@
 import { SiteSettings } from '../types';
 
 const SITE_SETTINGS: SiteSettings = {
-    appName: 'Tech Bokra team',
+    appName: 'Bokra Team',
     logoUrl: '/logo.svg',
     themeColor: '#0ea5e9',
     currency: 'EGP',
+    overtimeRateMultiplier: 1.5,
     isFinanceModuleEnabled: true,
     isMeetingsModuleEnabled: true,
     isAnalyticsModuleEnabled: true,

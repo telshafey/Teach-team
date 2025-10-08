@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 
 interface ActiveTimer {
   taskId: string;
@@ -23,9 +23,29 @@ interface TimeTrackingContextType {
 
 const TimeTrackingContext = createContext<TimeTrackingContextType | undefined>(undefined);
 
+const ACTIVE_TIMER_KEY = 'activeTimer';
+
 export const TimeTrackingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [showLogModalFor, setShowLogModalFor] = useState<LogToCreate | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedTimer = localStorage.getItem(ACTIVE_TIMER_KEY);
+      if (savedTimer) {
+        const parsedTimer: ActiveTimer = JSON.parse(savedTimer);
+        // Prevent restoring very old timers
+        if (Date.now() - parsedTimer.startTime < 24 * 60 * 60 * 1000) {
+            setActiveTimer(parsedTimer);
+        } else {
+            localStorage.removeItem(ACTIVE_TIMER_KEY);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load active timer from storage:", error);
+      localStorage.removeItem(ACTIVE_TIMER_KEY);
+    }
+  }, []);
 
   const startTimer = useCallback((taskId: string, taskTitle: string, projectId: string) => {
     if (activeTimer) {
@@ -34,12 +54,14 @@ export const TimeTrackingProvider: React.FC<{ children: ReactNode }> = ({ childr
         return;
       }
     }
-    setActiveTimer({
+    const newTimer = {
       taskId,
       taskTitle,
       projectId,
       startTime: Date.now(),
-    });
+    };
+    setActiveTimer(newTimer);
+    localStorage.setItem(ACTIVE_TIMER_KEY, JSON.stringify(newTimer));
   }, [activeTimer]);
 
   const stopTimer = useCallback(() => {
@@ -59,6 +81,7 @@ export const TimeTrackingProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
 
     setActiveTimer(null);
+    localStorage.removeItem(ACTIVE_TIMER_KEY);
   }, [activeTimer]);
   
   const closeLogModal = useCallback(() => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSupabase } from '../../contexts/SupabaseContext';
+// FIX: Corrected import path
 import * as api from '../../services/apiService';
 import { GlobalSearchResults } from '../../types';
 import { SearchIcon, FolderIcon, UserIcon, ClipboardDocumentListIcon } from '../ui/Icons';

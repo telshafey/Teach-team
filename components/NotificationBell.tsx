@@ -50,11 +50,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onSelect }) 
         case 'task_approval':
             return `مهمة "${notification.taskTitle}" التي أسندتها إلى ${notification.assigneeName} بانتظار موافقتك.`;
         case 'budget_alert':
-            return notification.taskTitle;
+            return notification.message;
         case 'freelancer_assigned':
              return `${notification.taskTitle} بواسطة ${notification.assignerName}.`;
         case 'comment_mention':
             return `${notification.commentAuthorName} ذكرك في تعليق على مهمة: "${notification.taskTitle}"`;
+        case 'profile_update':
+            return notification.message;
         default:
             return 'إشعار جديد.';
     }

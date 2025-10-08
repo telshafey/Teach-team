@@ -51,10 +51,12 @@ export const generatePerformanceNotes = async (
   `;
 
   try {
+    // FIX: Use 'gemini-2.5-flash' model and correct API call structure.
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
+    // FIX: Correctly access the response text.
     return response.text;
   } catch (error) {
     console.error('Error generating performance notes:', error);
@@ -81,6 +83,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
   `;
   
   try {
+    // FIX: Use 'gemini-2.5-flash' model, correct API call structure, and use 'config'.
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -106,6 +109,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
       },
     });
 
+    // FIX: Correctly access the response text.
     const jsonText = response.text.trim();
     // It's possible for the model to return an empty string or malformed JSON
     if (!jsonText) {

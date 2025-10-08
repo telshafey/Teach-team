@@ -68,9 +68,9 @@ export const Calendar: React.FC<CalendarProps> = ({ events, onDateClick, highlig
                 ? 'text-slate-300 dark:text-slate-600' 
                 : isSelectable 
                     ? 'text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700'
-                    : 'text-slate-400 dark:text-slate-500 cursor-pointer'
+                    : 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
           } ${isSameDay(day, new Date()) ? 'font-bold' : ''} ${highlightedDate && isSameDay(day, highlightedDate) ? 'bg-sky-100 dark:bg-sky-900/50 rounded-lg' : ''}`}
-          onClick={() => onDateClick(day)}
+          onClick={() => isSelectable && onDateClick(day)}
         >
           <span>{format(day, 'd')}</span>
           {event?.hasLog && <div className="absolute bottom-2 w-1.5 h-1.5 bg-green-500 rounded-full"></div>}

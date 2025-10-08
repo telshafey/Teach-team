@@ -2,11 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
-import { TeamMember, ExpenseClaim, Project } from '../../types';
+import { TeamMember, ExpenseClaim, Project, ExpenseClaimStatus } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { SalaryEditModal } from '../modals/SalaryEditModal';
 import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
-import { CurrencyDollarIcon, PlusIcon, PencilIcon, CheckIcon, NoSymbolIcon } from '../ui/Icons';
+import { CurrencyDollarIcon, PlusIcon, PencilIcon, CheckIcon, NoSymbolIcon, SearchIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { BarChart, PieChart, PieChartData } from '../ui/Charts';
@@ -15,7 +15,7 @@ import { DecisionDetailModal } from '../modals/DecisionDetailModal';
 import { calculateProjectCostBreakdown } from '../../utils/costs';
 
 const FinanceOverview: React.FC = () => {
-    const { teamMembers, dailyLogs, expenseClaims, currency } = useAppDataContext();
+    const { teamMembers, dailyLogs, expenseClaims, currency, overtimeRequests, siteSettings } = useAppDataContext();
     const { projects } = useProjectContext();
 
     const totalSalaries = useMemo(() => {
@@ -32,10 +32,10 @@ const FinanceOverview: React.FC = () => {
 
     const projectCosts = useMemo(() => {
         return projects.map(project => {
-            const { totalCost } = calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims);
+            const { totalCost } = calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims, overtimeRequests, siteSettings);
             return { label: project.name, value: totalCost };
         });
-    }, [projects, dailyLogs, teamMembers, expenseClaims]);
+    }, [projects, dailyLogs, teamMembers, expenseClaims, overtimeRequests, siteSettings]);
 
     const top5CostlyProjects = useMemo(() => {
         return projectCosts.sort((a, b) => b.value - a.value).slice(0, 5);
@@ -57,11 +57,11 @@ const FinanceOverview: React.FC = () => {
     );
 };
 
-const ProjectFinancials: React.FC<{ project: Project }> = ({ project }) => {
-    const { teamMembers, dailyLogs, expenseClaims, currency } = useAppDataContext();
-    const { employeeCost, freelancerCost, expenseCost, totalCost } = useMemo(() =>
-        calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims),
-        [project, teamMembers, dailyLogs, expenseClaims]
+const ProjectFinancialsCard: React.FC<{ project: Project }> = ({ project }) => {
+    const { teamMembers, dailyLogs, expenseClaims, currency, overtimeRequests, siteSettings } = useAppDataContext();
+    const { employeeCost, freelancerCost, expenseCost, overtimeCost, totalCost } = useMemo(() =>
+        calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims, overtimeRequests, siteSettings),
+        [project, teamMembers, dailyLogs, expenseClaims, overtimeRequests, siteSettings]
     );
 
     const budget = project.budgetAmount || 0;
@@ -71,6 +71,7 @@ const ProjectFinancials: React.FC<{ project: Project }> = ({ project }) => {
     const costBreakdownData: PieChartData[] = [
         { label: 'تكلفة الموظفين', value: employeeCost, color: '#38bdf8' }, // sky
         { label: 'تكلفة المستقلين', value: freelancerCost, color: '#6366f1' }, // indigo
+        { label: 'تكاليف إضافية', value: overtimeCost, color: '#a855f7' }, // purple
         { label: 'مصروفات أخرى', value: expenseCost, color: '#f59e0b' }, // amber
     ].filter(d => d.value > 0);
 
@@ -102,10 +103,16 @@ const ProjectFinancials: React.FC<{ project: Project }> = ({ project }) => {
 };
 
 
-const ExpenseClaimsTab: React.FC = () => {
+const ExpenseClaimsTab: React.FC<{onNewClaim: () => void}> = ({ onNewClaim }) => {
     const { expenseClaims, teamMembers, handleUpdateExpenseClaimStatus } = useAppDataContext();
     const { projects } = useProjectContext();
     const { hasPermission } = useAuth();
+    const [statusFilter, setStatusFilter] = useState<'all' | ExpenseClaimStatus>('all');
+
+    const filteredClaims = useMemo(() => {
+        if (statusFilter === 'all') return expenseClaims;
+        return expenseClaims.filter(c => c.status === statusFilter);
+    }, [expenseClaims, statusFilter]);
     
     const getStatusBadge = (status: ExpenseClaim['status']) => {
         const styles = {
@@ -117,8 +124,27 @@ const ExpenseClaimsTab: React.FC = () => {
         return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
     };
 
+    const filterOptions: {label: string, value: 'all' | ExpenseClaimStatus}[] = [
+        {label: 'الكل', value: 'all'},
+        {label: 'قيد المراجعة', value: 'pending'},
+        {label: 'معتمدة', value: 'approved'},
+        {label: 'مرفوضة', value: 'rejected'},
+    ];
+
     return (
         <Card>
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    {filterOptions.map(opt => (
+                        <button key={opt.value} onClick={() => setStatusFilter(opt.value)} className={`px-3 py-1.5 text-sm rounded-full ${statusFilter === opt.value ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>{opt.label}</button>
+                    ))}
+                </div>
+                {hasPermission('submit_expenses') && (
+                    <button onClick={onNewClaim} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full sm:w-auto">
+                        <PlusIcon className="w-4 h-4"/><span>طلب صرف جديد</span>
+                    </button>
+                )}
+            </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-right">
                     <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
@@ -129,11 +155,11 @@ const ExpenseClaimsTab: React.FC = () => {
                             <th className="px-4 py-2">التاريخ</th>
                             <th className="px-4 py-2">الوصف</th>
                             <th className="px-4 py-2">الحالة</th>
-                            {hasPermission('approve_submissions') && <th className="px-4 py-2">الإجراء</th>}
+                            {hasPermission('approve_expense_claims') && <th className="px-4 py-2">الإجراء</th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {expenseClaims.map(claim => {
+                        {filteredClaims.map(claim => {
                             const member = teamMembers.find(m => m.id === claim.teamMemberId);
                             const project = projects.find(p => p.id === claim.projectId);
                             return (
@@ -144,7 +170,7 @@ const ExpenseClaimsTab: React.FC = () => {
                                     <td className="px-4 py-2">{format(parseISO(claim.date), 'd MMM yyyy', { locale: arSA })}</td>
                                     <td className="px-4 py-2">{claim.description}</td>
                                     <td className="px-4 py-2">{getStatusBadge(claim.status)}</td>
-                                    {hasPermission('approve_submissions') && (
+                                    {hasPermission('approve_expense_claims') && (
                                         <td className="px-4 py-2">
                                             {claim.status === 'pending' && (
                                                 <div className="flex space-x-2 rtl:space-x-reverse">
@@ -159,6 +185,7 @@ const ExpenseClaimsTab: React.FC = () => {
                         })}
                     </tbody>
                 </table>
+                 {filteredClaims.length === 0 && <p className="text-center text-slate-500 py-8">لا توجد طلبات صرف تطابق هذه الفئة.</p>}
             </div>
         </Card>
     );
@@ -185,7 +212,7 @@ const SalariesTab: React.FC<{ onEdit: (member: TeamMember) => void }> = ({ onEdi
                                 <td className="px-4 py-2 font-medium">{member.name}</td>
                                 <td className="px-4 py-2">{member.salary || member.hourlyRate || 'N/A'}</td>
                                 <td className="px-4 py-2 text-left">
-                                    {hasPermission('manage_team') && (
+                                    {hasPermission('edit_team_members') && (
                                         <button onClick={() => onEdit(member)} className="p-2 text-slate-500 hover:text-sky-600"><PencilIcon className="w-4 h-4" /></button>
                                     )}
                                 </td>
@@ -284,7 +311,7 @@ const FreelancerContractsTab: React.FC<{ onReview: (project: Project) => void }>
                                     <td className="px-4 py-2">{contract.amount || contract.hourlyRate || '-'}</td>
                                     <td className="px-4 py-2">{getStatusBadge(contract.status)}</td>
                                     <td className="px-4 py-2">
-                                        {contract.status === 'pending' && <button onClick={() => onReview(p)} className="text-sm font-semibold text-sky-600">مراجعة</button>}
+                                        {contract.status === 'pending' && hasPermission('approve_freelancer_contracts') && <button onClick={() => onReview(p)} className="text-sm font-semibold text-sky-600">مراجعة</button>}
                                     </td>
                                 </tr>
                             )
@@ -304,6 +331,11 @@ export const FinancePage: React.FC = () => {
     const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [reviewingItem, setReviewingItem] = useState<Project | null>(null);
+    const [projectSearchTerm, setProjectSearchTerm] = useState('');
+
+    const filteredProjects = useMemo(() => {
+        return projects.filter(p => p.name.toLowerCase().includes(projectSearchTerm.toLowerCase()));
+    }, [projects, projectSearchTerm]);
     
     const handleSaveRate = async (memberId: number, data: { salary?: number; hourlyRate?: number }) => {
         await handleUpdateMember(memberId, data);
@@ -317,11 +349,6 @@ export const FinancePage: React.FC = () => {
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">المالية</h2>
                     <p className="text-md text-slate-500 dark:text-slate-400">نظرة عامة على التكاليف والمصروفات.</p>
                 </div>
-                {hasPermission('submit_expenses') && (
-                    <button onClick={() => setIsExpenseModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
-                        <PlusIcon className="w-5 h-5"/><span>تقديم طلب صرف</span>
-                    </button>
-                )}
             </div>
 
             <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
@@ -342,21 +369,38 @@ export const FinancePage: React.FC = () => {
                     <button onClick={() => setActiveTab('expenses')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'expenses' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
                         طلبات الصرف
                     </button>
-                    <button onClick={() => setActiveTab('salaries')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'salaries' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-                        الرواتب
-                    </button>
+                    {hasPermission('view_all_salaries') && (
+                        <button onClick={() => setActiveTab('salaries')} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'salaries' ? 'border-sky-500 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
+                            الرواتب
+                        </button>
+                    )}
                 </nav>
             </div>
 
-            {activeTab === 'overview' && <FinanceOverview />}
-            {activeTab === 'project_financials' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {projects.map(p => <ProjectFinancials key={p.id} project={p} />)}
+            {activeTab === 'overview' && hasPermission('view_finances') && <FinanceOverview />}
+            {activeTab === 'project_financials' && hasPermission('view_finances') && (
+                <div className="space-y-6">
+                    <div className="relative">
+                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <SearchIcon className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="ابحث عن مشروع..."
+                            value={projectSearchTerm}
+                            onChange={e => setProjectSearchTerm(e.target.value)}
+                            className="w-full p-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {filteredProjects.map(p => <ProjectFinancialsCard key={p.id} project={p} />)}
+                         {filteredProjects.length === 0 && <p className="text-slate-500 dark:text-slate-400">لا توجد مشاريع تطابق بحثك.</p>}
+                    </div>
                 </div>
             )}
             {activeTab === 'freelancer' && <FreelancerContractsTab onReview={setReviewingItem} />}
-            {activeTab === 'expenses' && <ExpenseClaimsTab />}
-            {activeTab === 'salaries' && <SalariesTab onEdit={setEditingMember} />}
+            {activeTab === 'expenses' && <ExpenseClaimsTab onNewClaim={() => setIsExpenseModalOpen(true)} />}
+            {activeTab === 'salaries' && hasPermission('view_all_salaries') && <SalariesTab onEdit={setEditingMember} />}
 
             {editingMember && (
                 <SalaryEditModal

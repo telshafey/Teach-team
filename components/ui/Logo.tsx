@@ -1,4 +1,5 @@
 import React from 'react';
+// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 
 export const Logo: React.FC = () => {
@@ -6,7 +7,7 @@ export const Logo: React.FC = () => {
 
     return (
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            {siteSettings?.logoUrl ? (
+            {siteSettings?.logoUrl && !siteSettings.logoUrl.includes('<svg') ? (
                 <img src={siteSettings.logoUrl} alt={`${siteSettings.appName} Logo`} className="h-10 w-auto" />
             ) : (
                 <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--theme-color-500)] text-white">

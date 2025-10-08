@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { initialData } from '../App.initialData';
+import { initialData } from '../data/initialData';
 import { DatabaseSettings } from '../types';
 
 const SUPABASE_SETTINGS_KEY = 'supabase_settings';

@@ -1,6 +1,8 @@
 import React, { useState, FormEvent } from 'react';
 import { MeetingFormData } from '../../types';
+// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MeetingFormModalProps {
   isOpen: boolean;
@@ -10,9 +12,10 @@ interface MeetingFormModalProps {
 
 export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onClose, onSave }) => {
     const { teamMembers } = useAppDataContext();
+    const { addToast } = useToast();
     const [title, setTitle] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
-    const [participants, setParticipants] = useState<number[]>([]);
+    const [members, setMembers] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     if (!isOpen) return null;
@@ -21,17 +24,19 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
         e.preventDefault();
         setIsSaving(true);
         try {
-            await onSave({ title, scheduledTime: new Date(scheduledTime).toISOString(), participants });
+            await onSave({ title, scheduledTime: new Date(scheduledTime).toISOString(), members });
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save meeting", error);
+            // Toast is now handled by the context, but we still need to show a generic message if that fails for some reason.
+            addToast(error.message || 'فشل جدولة الاجتماع. يرجى المحاولة مرة أخرى.', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleParticipantChange = (memberId: number) => {
-        setParticipants(prev =>
+        setMembers(prev =>
             prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]
         );
     };
@@ -54,7 +59,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
                         <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-md p-2 space-y-2">
                             {teamMembers.map(member => (
                                 <label key={member.id} className="flex items-center space-x-3 rtl:space-x-reverse">
-                                    <input type="checkbox" checked={participants.includes(member.id)} onChange={() => handleParticipantChange(member.id)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
+                                    <input type="checkbox" checked={members.includes(member.id)} onChange={() => handleParticipantChange(member.id)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
                                     <span className="text-sm text-slate-700 dark:text-slate-200">{member.name}</span>
                                 </label>
                             ))}

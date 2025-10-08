@@ -1,8 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-// FIX: Import specific types to be used with the generic fetchAll function.
-import { DailyLog, ExpenseClaim, GlobalSearchResults, Meeting, Notification, Project, Role, Task, TeamMember } from '../types';
+import { GlobalSearchResults, LeaveRequest, Project, Role, Task, TeamMember } from '../types';
 
-// Utility to convert snake_case to camelCase
+// Case conversion helpers
 export const snakeToCamel = (obj: any): any => {
     if (Array.isArray(obj)) {
         return obj.map(v => snakeToCamel(v));
@@ -13,12 +12,11 @@ export const snakeToCamel = (obj: any): any => {
             );
             acc[camelKey] = snakeToCamel(obj[key]);
             return acc;
-        }, {} as any);
+        }, {} as { [key: string]: any });
     }
     return obj;
 };
 
-// Utility to convert camelCase to snake_case
 export const camelToSnake = (obj: any): any => {
     if (Array.isArray(obj)) {
         return obj.map(v => camelToSnake(v));
@@ -27,80 +25,83 @@ export const camelToSnake = (obj: any): any => {
             const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
             acc[snakeKey] = camelToSnake(obj[key]);
             return acc;
-        }, {} as any);
+        }, {} as { [key: string]: any });
     }
     return obj;
 };
 
-// Generic fetch all from a table
+// Generic fetch all
 export const fetchAll = async <T>(client: SupabaseClient, table: string): Promise<T[]> => {
     const { data, error } = await client.from(table).select('*');
-    if (error) throw error;
+    
+    if (error) {
+        // PostgreSQL error code for "undefined_table"
+        if (error.code === '42P01') {
+            console.warn(`Table "${table}" not found. Returning empty array. This may be expected if a feature module is not enabled.`);
+            return []; // Gracefully handle missing tables by returning an empty array
+        }
+        // For other errors, we still want to know about them.
+        throw error;
+    }
+    
     return snakeToCamel(data) as T[];
 };
 
-// FIX: Add specific types to generic fetchAll calls to ensure type safety.
-export const fetchRoles = (client: SupabaseClient) => fetchAll<Role>(client, 'roles');
-export const fetchTeamMembers = (client: SupabaseClient) => fetchAll<TeamMember>(client, 'team_members');
-export const fetchProjects = (client: SupabaseClient) => fetchAll<Project>(client, 'projects');
-export const fetchTasks = (client: SupabaseClient) => fetchAll<Task>(client, 'tasks');
-export const fetchDailyLogs = (client: SupabaseClient) => fetchAll<DailyLog>(client, 'daily_logs');
-export const fetchExpenseClaims = (client: SupabaseClient) => fetchAll<ExpenseClaim>(client, 'expense_claims');
-export const fetchNotifications = (client: SupabaseClient) => fetchAll<Notification>(client, 'notifications');
-export const fetchMeetings = (client: SupabaseClient) => fetchAll<Meeting>(client, 'meetings');
-
 // Generic insert
-export const insert = async <T>(client: SupabaseClient, table: string, row: object): Promise<T> => {
-    const { data, error } = await client.from(table).insert(camelToSnake(row)).select().single();
+export const insert = async <T>(client: SupabaseClient, table: string, record: Partial<T>): Promise<T> => {
+    const { data, error } = await client.from(table).insert([camelToSnake(record)]).select().single();
     if (error) throw error;
     return snakeToCamel(data) as T;
 };
 
 // Generic insert many
-export const insertMany = async <T>(client: SupabaseClient, table: string, rows: object[]): Promise<T[]> => {
-    // The .select() is removed because it can cause failures with RLS policies
-    // where the user may have INSERT permission but not SELECT permission on the newly created rows,
-    // causing the entire transaction to fail.
-    const { data, error } = await client.from(table).insert(rows.map(camelToSnake));
+export const insertMany = async <T>(client: SupabaseClient, table: string, records: Partial<T>[]): Promise<T[]> => {
+    const { data, error } = await client.from(table).insert(records.map(camelToSnake)).select();
     if (error) throw error;
-    // We return an empty array because data is null without .select(), and the type requires a T[].
-    // Callers should not depend on the return value of this function.
-    return (data || []) as T[];
+    return snakeToCamel(data) as T[];
 };
 
+
 // Generic update
-export const update = async <T>(client: SupabaseClient, table: string, id: string | number, updates: object): Promise<T> => {
+export const update = async <T extends { id: any }>(client: SupabaseClient, table: string, id: T['id'], updates: Partial<T>): Promise<T> => {
     const { data, error } = await client.from(table).update(camelToSnake(updates)).eq('id', id).select().single();
     if (error) throw error;
     return snakeToCamel(data) as T;
 };
 
 // Generic delete
-export const deleteById = async (client: SupabaseClient, table: string, id: string | number) => {
+export const deleteById = async (client: SupabaseClient, table: string, id: string | number): Promise<void> => {
     const { error } = await client.from(table).delete().eq('id', id);
     if (error) throw error;
 };
 
-// Specific: fetch site settings
-export const fetchSiteSettings = async (client: SupabaseClient) => {
-    const { data, error } = await client.from('site_settings').select('settings').eq('id', 1).single();
-    if (error) throw error;
-    return data.settings;
-};
+// Specific fetch functions
+export const fetchProjects = (client: SupabaseClient): Promise<Project[]> => fetchAll<Project>(client, 'projects');
+export const fetchTasks = (client: SupabaseClient): Promise<Task[]> => fetchAll<Task>(client, 'tasks');
+export const fetchTeamMembers = (client: SupabaseClient): Promise<TeamMember[]> => fetchAll<TeamMember>(client, 'team_members');
+export const fetchRoles = (client: SupabaseClient): Promise<Role[]> => fetchAll<Role>(client, 'roles');
+export const fetchLeaveRequests = (client: SupabaseClient): Promise<LeaveRequest[]> => fetchAll<LeaveRequest>(client, 'leave_requests');
 
-// Specific: update site settings
-export const updateSiteSettings = async (client: SupabaseClient, settings: object) => {
-    const { error } = await client.from('site_settings').update({ settings }).eq('id', 1);
-    if (error) throw error;
-};
 
-// Specific: global search
-export const performGlobalSearch = async (client: SupabaseClient, term: string): Promise<GlobalSearchResults> => {
-    const { data, error } = await client.rpc('perform_global_search', { search_term: term });
-    if (error) throw error;
+// Global search function
+export const performGlobalSearch = async (client: SupabaseClient, searchTerm: string): Promise<GlobalSearchResults> => {
+    if (!searchTerm) {
+        return { projects: [], tasks: [], teamMembers: [] };
+    }
+
+    const [projectRes, taskRes, memberRes] = await Promise.all([
+        client.from('projects').select('id, name').ilike('name', `%${searchTerm}%`).limit(5),
+        client.from('tasks').select('id, title, project_id').ilike('title', `%${searchTerm}%`).limit(5),
+        client.from('team_members').select('id, name').ilike('name', `%${searchTerm}%`).limit(5),
+    ]);
+    
+    if (projectRes.error) throw projectRes.error;
+    if (taskRes.error) throw taskRes.error;
+    if (memberRes.error) throw memberRes.error;
+
     return {
-        projects: snakeToCamel(data.projects),
-        tasks: snakeToCamel(data.tasks),
-        teamMembers: snakeToCamel(data.team_members)
+        projects: snakeToCamel(projectRes.data),
+        tasks: snakeToCamel(taskRes.data),
+        teamMembers: snakeToCamel(memberRes.data),
     };
 };

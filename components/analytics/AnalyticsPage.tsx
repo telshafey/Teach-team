@@ -1,30 +1,44 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, LineChart } from '../ui/Charts';
 import { FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
-import { format, subDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval } from 'date-fns';
 
 export const AnalyticsPage: React.FC = () => {
     const { teamMembers, dailyLogs } = useAppDataContext();
     const { projects, tasks } = useProjectContext();
+    
+    const [dateRange, setDateRange] = useState({ from: '', to: '' });
+
+    const filteredDailyLogs = useMemo(() => {
+        if (!dateRange.from && !dateRange.to) return dailyLogs;
+        return dailyLogs.filter(log => {
+            const logDate = new Date(log.date);
+            const isAfterFrom = !dateRange.from || logDate >= new Date(dateRange.from);
+            const isBeforeTo = !dateRange.to || logDate <= new Date(dateRange.to);
+            return isAfterFrom && isBeforeTo;
+        });
+    }, [dailyLogs, dateRange]);
+
 
     const projectHoursData = useMemo(() => {
         return projects.map(project => ({
             label: project.name,
-            value: dailyLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + l.hours, 0)
+            value: filteredDailyLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + l.hours, 0)
         })).filter(item => item.value > 0);
-    }, [projects, dailyLogs]);
+    }, [projects, filteredDailyLogs]);
 
     const memberHoursData = useMemo(() => {
         return teamMembers.map(member => ({
             label: member.name,
-            value: dailyLogs.filter(l => l.teamMemberId === member.id).reduce((sum, l) => sum + l.hours, 0)
+            value: filteredDailyLogs.filter(l => l.teamMemberId === member.id).reduce((sum, l) => sum + l.hours, 0)
         })).filter(item => item.value > 0);
-    }, [teamMembers, dailyLogs]);
+    }, [teamMembers, filteredDailyLogs]);
 
     const taskStatusData = useMemo(() => {
+        // Note: Task status is not date-filtered as tasks don't have creation/completion timestamps in this model
         const statusCounts = tasks.reduce((acc, task) => {
             acc[task.status] = (acc[task.status] || 0) + 1;
             return acc;
@@ -38,21 +52,35 @@ export const AnalyticsPage: React.FC = () => {
     }, [tasks]);
 
     const dailyProductivityData = useMemo(() => {
-        const last30Days: Record<string, number> = {};
-        for (let i = 29; i >= 0; i--) {
-            const date = subDays(new Date(), i);
-            last30Days[format(date, 'yyyy-MM-dd')] = 0;
-        }
-        dailyLogs.forEach(log => {
-            if (last30Days.hasOwnProperty(log.date)) {
-                last30Days[log.date] += log.hours;
+        const hasDateFilter = dateRange.from || dateRange.to;
+        const endDate = dateRange.to ? new Date(dateRange.to) : new Date();
+        const startDate = dateRange.from ? new Date(dateRange.from) : subDays(endDate, 29);
+
+        const rangeDays = eachDayOfInterval({ start: startDate, end: endDate });
+        const productivityMap: Record<string, number> = {};
+
+        rangeDays.forEach(day => {
+            productivityMap[format(day, 'yyyy-MM-dd')] = 0;
+        });
+        
+        const logsToProcess = hasDateFilter ? filteredDailyLogs : dailyLogs;
+
+        logsToProcess.forEach(log => {
+            if (productivityMap.hasOwnProperty(log.date)) {
+                productivityMap[log.date] += log.hours;
             }
         });
-        return Object.entries(last30Days).map(([date, hours]) => ({
+
+        // FIX: Explicitly type the destructured array from Object.entries to resolve a potential type inference issue.
+        return Object.entries(productivityMap).map(([date, hours]: [string, number]) => ({
             label: format(new Date(date), 'd MMM'),
             value: hours
         }));
-    }, [dailyLogs]);
+    }, [dailyLogs, filteredDailyLogs, dateRange]);
+    
+    const handleReset = () => {
+        setDateRange({ from: '', to: '' });
+    };
 
 
     return (
@@ -62,6 +90,20 @@ export const AnalyticsPage: React.FC = () => {
                 <p className="text-md text-slate-500">نظرة عميقة على بيانات الأداء والإنتاجية.</p>
             </div>
             
+            <Card className="mb-6">
+                <div className="p-4 flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex-1">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">من تاريخ</label>
+                        <input type="date" value={dateRange.from} onChange={e => setDateRange(prev => ({...prev, from: e.target.value}))} className="w-full mt-1 p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"/>
+                    </div>
+                     <div className="flex-1">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">إلى تاريخ</label>
+                        <input type="date" value={dateRange.to} onChange={e => setDateRange(prev => ({...prev, to: e.target.value}))} className="w-full mt-1 p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"/>
+                    </div>
+                    <button onClick={handleReset} className="mt-6 px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-md hover:bg-slate-300">إعادة تعيين</button>
+                </div>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="توزيع ساعات العمل على المشاريع" icon={<FolderIcon className="w-5 h-5"/>}>
                     <BarChart title="" data={projectHoursData} />
@@ -72,7 +114,7 @@ export const AnalyticsPage: React.FC = () => {
                  <Card title="حالة المهام" icon={<FolderIcon className="w-5 h-5"/>}>
                     <PieChart data={taskStatusData} />
                 </Card>
-                <Card title="إجمالي الساعات المسجلة (آخر 30 يوم)" icon={<ClockIcon className="w-5 h-5"/>}>
+                <Card title="إجمالي الساعات المسجلة" icon={<ClockIcon className="w-5 h-5"/>}>
                     <LineChart data={dailyProductivityData} />
                 </Card>
             </div>

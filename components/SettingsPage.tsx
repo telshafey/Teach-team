@@ -1,10 +1,11 @@
 import React, { useState, lazy } from 'react';
-import { SiteSettingsPage } from './SiteSettingsPage';
-import { RoleManagementPage } from './RoleManagementPage';
-import { View } from '../dashboard/Dashboard';
-import { useAuth } from '../../contexts/AuthContext';
+// FIX: Corrected import paths
+import { SiteSettingsPage } from './settings/SiteSettingsPage';
+import { RoleManagementPage } from './settings/RoleManagementPage';
+import { View } from './dashboard/Dashboard';
+import { useAuth } from '../contexts/AuthContext';
 
-const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
+const DatabaseSettingsPage = lazy(() => import('./settings/DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
 
 
 interface SettingsPageProps {
@@ -53,7 +54,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, onNavig
 
             {activeTab === 'site' && <SiteSettingsPage />}
             {activeTab === 'roles' && <RoleManagementPage onNavigate={onNavigate} />}
-            {activeTab === 'database' && hasPermission('manage_db_settings') && <DatabaseSettingsPage />}
+            {activeTab === 'database' && hasPermission('manage_db_settings') && <React.Suspense fallback={<div>Loading...</div>}><DatabaseSettingsPage /></React.Suspense>}
         </div>
     );
 };

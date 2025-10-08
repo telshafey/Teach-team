@@ -1,123 +1,8 @@
-// This file contains type definitions used throughout the application.
-
-export type RoleId = 'gm' | 'admin' | 'pm' | 'marketing_manager' | 'engineer' | 'employee' | 'freelancer' | string;
-
-export type Permission =
-  | 'view_dashboard_gm'
-  | 'view_dashboard_manager'
-  | 'view_dashboard_personal'
-  | 'view_projects_all'
-  | 'view_projects_assigned'
-  | 'manage_projects'
-  | 'view_team_all'
-  | 'manage_team'
-  | 'generate_performance_notes'
-  | 'view_finances'
-  | 'view_own_financials'
-  | 'submit_expenses'
-  | 'manage_freelancer_contracts'
-  | 'view_analytics'
-  | 'view_reports_all'
-  | 'view_reports_own'
-  | 'manage_meetings'
-  | 'manage_roles'
-  | 'approve_submissions'
-  | 'manage_db_settings';
-
-export interface Role {
-  id: RoleId;
-  name: string;
-  permissions: Permission[];
-}
-
-export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
-
-export interface WeeklyPlan {
-  status: PlanStatus;
-  hours: { [day: string]: number };
-}
-
-export interface TeamMember {
-  id: number;
-  // FIX: Changed auth_user_id to authUserId to follow camelCase convention used throughout the app.
-  authUserId?: string;
-  name: string;
-  email: string;
-  roleId: RoleId;
-  reportsTo?: number;
-  avatarUrl: string;
-  salary?: number;
-  hourlyRate?: number;
-  weeklyPlan: WeeklyPlan;
-}
-
-export interface TeamMemberFormData extends Omit<Partial<TeamMember>, 'id' | 'weeklyPlan' | 'authUserId'> {
-    password?: string;
-}
-
-export interface DailyLog {
-  id: string;
-  teamMemberId: number;
-  date: string; // YYYY-MM-DD
-  hours: number;
-  description: string;
-  projectId?: string;
-  taskId?: string;
-}
-
-export type DailyLogFormData = Omit<DailyLog, 'id' | 'teamMemberId' | 'date'>;
-
-
-export type NotificationType =
-  | 'task_assigned'
-  | 'task_approval'
-  | 'budget_alert'
-  | 'freelancer_assigned'
-  | 'comment_mention';
-
-export interface Notification {
-  id: string;
-  recipientId: number;
-  type: NotificationType;
-  message: string;
-  read: boolean;
-  timestamp: string; // ISO string
-  projectId?: string;
-  taskId?: string;
-  taskTitle?: string;
-  assignerName?: string;
-  assigneeName?: string;
-  commentAuthorName?: string;
-}
-
-export interface Meeting {
-  id: string;
-  title: string;
-  scheduledTime: string; // ISO string
-  participants: number[];
-  jitsiRoomName: string;
-}
-
-export type MeetingFormData = Omit<Meeting, 'id' | 'jitsiRoomName'>;
-
-export type ExpenseClaimStatus = 'pending' | 'approved' | 'rejected';
-
-export interface ExpenseClaim {
-  id: string;
-  teamMemberId: number;
-  amount: number;
-  description: string;
-  date: string; // YYYY-MM-DD
-  status: ExpenseClaimStatus;
-  projectId?: string;
-}
-
-export type ExpenseClaimFormData = Omit<ExpenseClaim, 'id' | 'status' | 'teamMemberId'>;
-
+// --- SETTINGS & CONFIG ---
 
 export interface DatabaseSettings {
-    supabaseUrl: string;
-    supabaseAnonKey: string;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
 }
 
 export interface SiteSettings {
@@ -125,6 +10,7 @@ export interface SiteSettings {
   logoUrl: string;
   themeColor: string;
   currency: string;
+  overtimeRateMultiplier?: number;
   isFinanceModuleEnabled: boolean;
   isMeetingsModuleEnabled: boolean;
   isAnalyticsModuleEnabled: boolean;
@@ -132,16 +18,89 @@ export interface SiteSettings {
   databaseSettings: DatabaseSettings;
 }
 
+// --- TEAM & ROLES ---
+
+export type Permission =
+  | 'manage_projects'
+  | 'edit_projects'
+  | 'create_tasks'
+  | 'edit_tasks'
+  | 'delete_tasks'
+  | 'manage_team'
+  | 'edit_team_members'
+  | 'view_all_salaries'
+  | 'approve_weekly_plans'
+  | 'approve_task_submissions'
+  | 'approve_freelancer_contracts'
+  | 'approve_overtime'
+  | 'approve_leave_requests'
+  | 'submit_expenses'
+  | 'approve_expense_claims'
+  | 'manage_meetings'
+  | 'manage_roles'
+  | 'manage_site_settings'
+  | 'manage_db_settings'
+  | 'view_reports'
+  | 'view_analytics'
+  | 'view_finances'
+  | 'generate_performance_notes'
+  | 'approve_work_contract_changes';
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: Permission[];
+}
+
+export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
+
+export interface TeamMember {
+  id: number;
+  auth_user_id?: string;
+  name: string;
+  email: string;
+  avatarUrl: string;
+  roleId: string;
+  reportsTo?: number;
+  salary?: number;
+  hourlyRate?: number;
+  weeklyHoursRequirement?: number;
+  daysOff?: number[];
+  weeklyPlan: {
+    status: PlanStatus;
+    hours: { [key: string]: number };
+  };
+}
+
+export interface TeamMemberFormData {
+  name?: string;
+  email?: string;
+  password?: string;
+  roleId?: string;
+  reportsTo?: number;
+  avatarUrl?: string;
+  salary?: number;
+  hourlyRate?: number;
+  weeklyHoursRequirement?: number;
+  daysOff?: number[];
+}
+
+// --- PROJECTS & TASKS ---
+
 export type ProjectStatus = 'نشط' | 'مكتمل' | 'معلق';
+export type TaskStatus = 'todo' | 'inprogress' | 'done';
+export type ApprovalStatus = 'approved' | 'pending' | 'rejected' | 'needs-adjustment';
+
 export type ContractStatus = 'pending' | 'approved' | 'rejected';
+export type BillingType = 'fixed' | 'hourly' | 'per-task';
 
 export interface FreelancerContract {
-    freelancerId: number;
-    type: 'fixed' | 'hourly' | 'per-task';
-    amount?: number;
-    hourlyRate?: number;
-    status: ContractStatus;
-    notes?: string;
+  freelancerId: number;
+  type: BillingType;
+  amount?: number;
+  hourlyRate?: number;
+  status: ContractStatus;
+  notes?: string;
 }
 
 export interface Project {
@@ -151,22 +110,18 @@ export interface Project {
   status: ProjectStatus;
   budgetHours?: number;
   budgetAmount?: number;
-  deadline?: string; // YYYY-MM-DD
+  deadline?: string;
   budgetNotificationSent?: number;
   freelancerContract?: FreelancerContract;
 }
 
-export type ProjectFormData = Omit<Project, 'id' | 'budgetNotificationSent' | 'freelancerContract'>;
-
-
-export type TaskStatus = 'todo' | 'inprogress' | 'done';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
-
-export interface TaskComment {
-    id: string;
-    authorId: number;
-    text: string;
-    timestamp: string;
+export interface ProjectFormData {
+  name: string;
+  description: string;
+  status: ProjectStatus;
+  budgetHours?: number;
+  budgetAmount?: number;
+  deadline?: string;
 }
 
 export interface TaskAttachment {
@@ -177,35 +132,193 @@ export interface TaskAttachment {
     timestamp: string;
 }
 
+export interface TaskComment {
+    id: string;
+    authorId: number;
+    text: string;
+    timestamp: string;
+}
 
 export interface Task {
   id: string;
   title: string;
   projectId: string;
   assignedTo?: number;
-  dueDate?: string; // YYYY-MM-DD
   status: TaskStatus;
+  dueDate?: string;
   approvalStatus: ApprovalStatus;
   approvalNotes?: string;
-  // FIX: Made comments and attachments optional, as tasks may not have them upon creation or when fetched.
-  comments?: TaskComment[];
   attachments?: TaskAttachment[];
+  comments?: TaskComment[];
 }
 
-export type TaskFormData = Omit<Task, 'id' | 'approvalStatus' | 'approvalNotes' | 'comments' | 'attachments'>;
-
+export interface TaskFormData {
+  title: string;
+  projectId: string;
+  status: TaskStatus;
+  assignedTo?: number;
+  dueDate?: string;
+}
 
 export interface SuggestedTask {
-    title: string;
-    suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
+  title: string;
+  suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
 }
 
 export interface BillingProposalFormData {
-    type: 'fixed' | 'hourly' | 'per-task';
+    type: BillingType;
     amount?: number;
     hourlyRate?: number;
 }
 
+// --- TIME & LOGS ---
+
+export interface DailyLog {
+  id: string;
+  date: string;
+  hours: number;
+  description: string;
+  teamMemberId: number;
+  projectId?: string;
+  taskId?: string;
+}
+
+export interface DailyLogFormData {
+  hours: number;
+  description: string;
+  projectId?: string;
+  taskId?: string;
+}
+
+// --- REQUESTS (LEAVE, OVERTIME, EXPENSE) ---
+
+export type LeaveType = 'regular' | 'emergency';
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveRequest {
+    id: string;
+    teamMemberId: number;
+    type: LeaveType;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    status: LeaveStatus;
+    managerNotes?: string;
+    createdAt: string;
+}
+
+export interface LeaveRequestFormData {
+    type: LeaveType;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    createdAt: string;
+}
+
+export type OvertimeStatus = 'pending' | 'approved' | 'rejected';
+
+export interface OvertimeRequest {
+    id: string;
+    teamMemberId: number;
+    weekStartDate: string;
+    requestedHours: number;
+    status: OvertimeStatus;
+    managerNotes?: string;
+    projectId?: string;
+}
+
+export interface OvertimeRequestFormData {
+    weekStartDate: string;
+    requestedHours: number;
+    projectId?: string;
+}
+
+export type ExpenseClaimStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ExpenseClaim {
+  id: string;
+  teamMemberId: number;
+  projectId?: string;
+  amount: number;
+  description: string;
+  date: string;
+  status: ExpenseClaimStatus;
+}
+
+export interface ExpenseClaimFormData {
+  teamMemberId: number;
+  projectId?: string;
+  amount: number;
+  description: string;
+  date: string;
+}
+
+export type WorkContractChangeStatus = 'pending' | 'approved' | 'rejected';
+
+export interface WorkContractChangeRequest {
+  id: string;
+  teamMemberId: number;
+  currentWeeklyHours?: number;
+  requestedWeeklyHours: number;
+  currentSalary?: number;
+  requestedSalary: number;
+  reason: string;
+  status: WorkContractChangeStatus;
+  managerNotes?: string;
+  createdAt: string;
+  // These are set when a manager approves with different values
+  approvedWeeklyHours?: number;
+  approvedSalary?: number;
+}
+
+export interface WorkContractChangeRequestFormData {
+  requestedWeeklyHours: number;
+  requestedSalary: number;
+  reason: string;
+}
+
+
+// --- MEETINGS & NOTIFICATIONS ---
+
+export type NotificationType = 
+    | 'task_assigned' 
+    | 'task_approval' 
+    | 'budget_alert' 
+    | 'freelancer_assigned' 
+    | 'comment_mention'
+    | 'meeting_scheduled'
+    | 'profile_update';
+
+export interface Notification {
+  id: string;
+  recipientId: number;
+  type: NotificationType;
+  message?: string;
+  taskTitle?: string;
+  assignerName?: string;
+  assigneeName?: string;
+  commentAuthorName?: string;
+  projectId?: string;
+  taskId?: string;
+  read: boolean;
+  timestamp: string;
+}
+
+export interface Meeting {
+  id: string;
+  title: string;
+  scheduledTime: string;
+  members: number[];
+  jitsiRoomName: string;
+}
+
+export interface MeetingFormData {
+  title: string;
+  scheduledTime: string;
+  members: number[];
+}
+
+// --- MISC ---
 
 export interface GlobalSearchResults {
   projects: Pick<Project, 'id' | 'name'>[];

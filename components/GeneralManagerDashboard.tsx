@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { Card } from '../ui/Card';
-import { BarChart, PieChart, PieChartData } from '../ui/Charts';
-import { UsersIcon, FolderIcon, ClockIcon } from '../ui/Icons';
-import { ProjectStatus } from '../../types';
+// FIX: Corrected import paths
+import { useAppDataContext } from '../contexts/DataContext';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { Card } from './ui/Card';
+import { BarChart, PieChart, PieChartData } from './ui/Charts';
+import { UsersIcon, FolderIcon, ClockIcon } from './ui/Icons';
+import { ProjectStatus } from '../types';
 
 interface GeneralManagerDashboardProps {
     onNavigate: (view: string, state?: any) => void;

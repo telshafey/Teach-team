@@ -1,6 +1,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { DailyLog, DailyLogFormData } from '../../types';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { DailyLog, DailyLogFormData } from '../types';
+import { useProjectContext } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface LogFormModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface LogFormModalProps {
 
 export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onSave, log, date, memberId, initialData }) => {
   const { tasks, projects } = useProjectContext();
+  const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     hours: '',
@@ -59,8 +61,9 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
             taskId: formData.taskId || undefined,
         });
         onClose();
-    } catch (error) {
-        console.error("Failed to save log", error);
+    } catch (error: any) {
+        console.error("Failed to save log:", error);
+        addToast(error.message || 'فشل حفظ السجل. يرجى المحاولة مرة أخرى.', 'error');
     } finally {
         setIsSaving(false);
     }
@@ -80,7 +83,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
           </div>
           <div>
             <label htmlFor="project" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع</label>
-            <select id="project" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, taskId: ''})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70" required disabled={isFromTimer}>
+            <select id="project" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, taskId: ''})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70" disabled={isFromTimer}>
               <option value="">عمل آخر / غير مرتبط بمشروع</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>

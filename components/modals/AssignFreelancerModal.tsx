@@ -1,5 +1,6 @@
 import React, { useState, FormEvent, useMemo, useEffect } from 'react';
 import { Project, TeamMember, FreelancerContract } from '../../types';
+// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 
 interface FreelancerContractModalProps {

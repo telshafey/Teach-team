@@ -1,9 +1,8 @@
 import React from 'react';
-import { HomeIcon, FolderIcon, VideoCameraIcon, UsersIcon } from '../ui/Icons';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { HomeIcon, FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
+// FIX: Corrected import path
+import { View } from './Dashboard';
 
-// Fix: Add 'database' to the View type to match the definition in Dashboard.tsx
-type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database';
 
 interface BottomNavItemProps {
   icon: React.ReactNode;
@@ -34,20 +33,16 @@ interface BottomNavBarProps {
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, onNavigate }) => {
-  const { siteSettings } = useAppDataContext();
-  
   const allNavItems = [
-    { id: 'dashboard', label: 'الرئيسية', icon: <HomeIcon className="w-6 h-6" />, enabled: true },
-    { id: 'projects', label: 'المشاريع', icon: <FolderIcon className="w-6 h-6" />, enabled: true },
-    { id: 'meetings', label: 'الاجتماعات', icon: <VideoCameraIcon className="w-6 h-6" />, enabled: siteSettings?.isMeetingsModuleEnabled },
-    { id: 'team', label: 'الفريق', icon: <UsersIcon className="w-6 h-6" />, enabled: true },
+    { id: 'dashboard', label: 'الرئيسية', icon: <HomeIcon className="w-6 h-6" /> },
+    { id: 'projects', label: 'المشاريع', icon: <FolderIcon className="w-6 h-6" /> },
+    { id: 'timesheet', label: 'أوقاتي', icon: <ClockIcon className="w-6 h-6" /> },
+    { id: 'team', label: 'الفريق', icon: <UsersIcon className="w-6 h-6" /> },
   ];
   
-  const navItems = allNavItems.filter(item => item.enabled);
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 flex justify-around bg-white border-t border-slate-200 dark:bg-slate-800 dark:border-slate-700 lg:hidden">
-      {navItems.map((item) => (
+      {allNavItems.map((item) => (
         <BottomNavItem
           key={item.id}
           icon={item.icon}

@@ -1,42 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus } from '../../types';
+import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus } from '../../types';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { DAYS_OF_WEEK } from '../../constants';
+import { useAuth } from '../../contexts/AuthContext';
+import { format, parseISO } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
 interface DecisionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: TeamMember | Task | Project | null;
+  item: TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | null;
 }
 
 // Type guards
-function isTask(item: unknown): item is Task {
-  const task = item as Task;
-  return task && typeof task.title === 'string' && typeof task.projectId === 'string';
+function isTask(item: any): item is Task {
+  return item && typeof item.title === 'string' && typeof item.projectId === 'string';
 }
-
-function isTeamMember(item: unknown): item is TeamMember {
-  const member = item as TeamMember;
-  return member && typeof member.name === 'string' && typeof member.roleId === 'string' && !isTask(item) && !isProject(item);
+function isProject(item: any): item is Project {
+    return item && typeof item.name === 'string' && 'freelancerContract' in item;
 }
-
-function isProject(item: unknown): item is Project {
-    const project = item as Project;
-    return project && typeof project.name === 'string' && typeof project.status === 'string' && !isTask(item) && !isTeamMember(item);
+function isOvertimeRequest(item: any): item is OvertimeRequest {
+    return item && typeof item.requestedHours === 'number' && typeof item.weekStartDate === 'string';
+}
+function isLeaveRequest(item: any): item is LeaveRequest {
+    return item && typeof item.reason === 'string' && typeof item.startDate === 'string';
+}
+function isWorkContractChangeRequest(item: any): item is WorkContractChangeRequest {
+    return item && typeof item.requestedWeeklyHours === 'number' && typeof item.requestedSalary === 'number' && 'reason' in item;
+}
+function isTeamMember(item: any): item is TeamMember {
+    const member = item as TeamMember;
+    return member && typeof member.name === 'string' && typeof member.roleId === 'string' && 'weeklyPlan' in member && !isTask(item) && !isProject(item) && !isOvertimeRequest(item) && !isLeaveRequest(item) && !isWorkContractChangeRequest(item);
 }
 
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen, onClose, item }) => {
-  const { handleUpdatePlanStatus, teamMembers } = useAppDataContext();
+  const { handleUpdatePlanStatus, teamMembers, handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, currency } = useAppDataContext();
   const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
+  const { hasPermission } = useAuth();
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
+  const [modifiedValues, setModifiedValues] = useState<{ hours: string, salary: string }>({ hours: '', salary: '' });
+
   
   useEffect(() => {
-    if (item && (isTask(item) || isProject(item))) {
-        setNotes((item as any).approvalNotes || (item as any).freelancerContract?.notes || '');
+    if (item) {
+        setNotes((item as any).approvalNotes || (item as any).freelancerContract?.notes || (item as any).managerNotes || '');
+        if (isWorkContractChangeRequest(item)) {
+            setModifiedValues({
+                hours: item.requestedWeeklyHours.toString(),
+                salary: item.requestedSalary.toString(),
+            });
+        }
     } else {
         setNotes('');
     }
@@ -48,10 +65,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
     return null;
   }
   
-  const handleDecision = async (status: PlanStatus | ApprovalStatus | ContractStatus) => {
+  const handleDecision = async (status: PlanStatus | ApprovalStatus | ContractStatus | OvertimeStatus | LeaveStatus | WorkContractChangeStatus) => {
     const requiresNotes = status === 'rejected' || status === 'needs-adjustment';
     
-    if ((isTask(item) || isProject(item)) && requiresNotes && !notes.trim()) {
+    if (requiresNotes && !notes.trim() && !isTeamMember(item)) {
         setError('حقل الملاحظات إلزامي عند الرفض أو طلب التعديل.');
         return;
     }
@@ -66,6 +83,23 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
                 const updatedContract = { ...projectToUpdate.freelancerContract, status: status as ContractStatus, notes };
                 await handleUpdateProject({ ...projectToUpdate, freelancerContract: updatedContract });
             }
+        } else if (isOvertimeRequest(item)) {
+            await handleUpdateOvertimeStatus(item.id, status as OvertimeStatus, notes);
+        } else if (isLeaveRequest(item)) {
+            await handleUpdateLeaveStatus(item.id, status as LeaveStatus, notes);
+        } else if (isWorkContractChangeRequest(item)) {
+            const mods = {
+                hours: parseFloat(modifiedValues.hours),
+                salary: parseFloat(modifiedValues.salary)
+            };
+            const isModified = mods.hours !== item.requestedWeeklyHours || mods.salary !== item.requestedSalary;
+            
+            await handleUpdateWorkContractChangeRequestStatus(
+                item.id,
+                status as WorkContractChangeStatus,
+                notes,
+                status === 'approved' && isModified ? mods : undefined
+            );
         } else if (isTeamMember(item)) {
             await handleUpdatePlanStatus(item.id, status as PlanStatus);
         }
@@ -77,37 +111,99 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
     }
   };
 
-  const renderBillingDetails = (project: Project) => {
-    const contract = project.freelancerContract;
-    if (!contract) return <p>لا توجد تفاصيل عقد.</p>;
-    const freelancer = teamMembers.find(m => m.id === contract.freelancerId);
-    let details = '';
-    switch(contract.type) {
-        case 'fixed': details = `مبلغ ثابت: ${contract.amount} ريال`; break;
-        case 'hourly': details = `بالساعة: ${contract.hourlyRate} ريال/ساعة`; break;
-        case 'per-task': details = `بالقطعة (لكل مهمة)`; break;
-    }
-    return (
-        <div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">اقتراح عقد لمشروع: {project.name}</h3>
-            <div className="space-y-1 text-sm text-slate-600">
-                <p><strong>المستقل:</strong> {freelancer?.name || 'غير معروف'}</p>
-                <p><strong>طريقة الدفع المقترحة:</strong> {details}</p>
-            </div>
-        </div>
-    );
-  };
+  const getPermission = () => {
+      if (isTask(item)) return 'approve_task_submissions';
+      if (isProject(item)) return 'approve_freelancer_contracts';
+      if (isOvertimeRequest(item)) return 'approve_overtime';
+      if (isLeaveRequest(item)) return 'approve_leave_requests';
+      if (isWorkContractChangeRequest(item)) return 'approve_work_contract_changes';
+      if (isTeamMember(item)) return 'approve_weekly_plans';
+      return null;
+  }
   
+  const canDecide = getPermission() ? hasPermission(getPermission()!) : false;
+
   const renderContent = () => {
+    const member = teamMembers.find(m => m.id === (item as any).teamMemberId);
+    if (isWorkContractChangeRequest(item)) {
+        return (
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 truncate">طلب تعديل عقد عمل: {member?.name}</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 border-b pb-2"><strong>السبب:</strong> {item.reason}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+                        <p className="font-semibold text-slate-500 dark:text-slate-300">الوضع الحالي</p>
+                        <p><strong>الساعات:</strong> {item.currentWeeklyHours || 'N/A'}</p>
+                        <p><strong>الراتب:</strong> {(item.currentSalary || 0).toLocaleString()} {currency}</p>
+                    </div>
+                     <div className="space-y-2 p-3 bg-sky-50 dark:bg-sky-900/50 rounded-md">
+                        <p className="font-semibold text-sky-800 dark:text-sky-300">الوضع المطلوب</p>
+                        <p><strong>الساعات:</strong> {item.requestedWeeklyHours}</p>
+                        <p><strong>الراتب:</strong> {item.requestedSalary.toLocaleString()} {currency}</p>
+                    </div>
+                </div>
+                 <div className="mt-4 space-y-2 border-t pt-4">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">تعديل والموافقة (اختياري)</label>
+                     <div className="grid grid-cols-2 gap-4">
+                        <input type="number" value={modifiedValues.hours} onChange={e => setModifiedValues(prev => ({...prev, hours: e.target.value}))} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" placeholder="الساعات المعتمدة" />
+                        <input type="number" value={modifiedValues.salary} onChange={e => setModifiedValues(prev => ({...prev, salary: e.target.value}))} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" placeholder="الراتب المعتمد" />
+                    </div>
+                 </div>
+            </div>
+        )
+    }
+    if (isLeaveRequest(item)) {
+        return (
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 truncate">طلب إجازة</h3>
+                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                    <p><strong>الموظف:</strong> {member?.name}</p>
+                    <p><strong>النوع:</strong> {item.type === 'regular' ? 'عادية' : 'طارئة'}</p>
+                    <p><strong>من:</strong> {format(parseISO(item.startDate), 'd MMM yyyy', { locale: arSA })}</p>
+                    <p><strong>إلى:</strong> {format(parseISO(item.endDate), 'd MMM yyyy', { locale: arSA })}</p>
+                    <p><strong>السبب:</strong> {item.reason}</p>
+                </div>
+            </div>
+        );
+    }
     if (isProject(item) && item.freelancerContract) {
-        return renderBillingDetails(item);
+        const contract = item.freelancerContract;
+        const freelancer = teamMembers.find(m => m.id === contract.freelancerId);
+        let details = '';
+        switch(contract.type) {
+            case 'fixed': details = `مبلغ ثابت: ${contract.amount} ريال`; break;
+            case 'hourly': details = `بالساعة: ${contract.hourlyRate} ريال/ساعة`; break;
+            case 'per-task': details = `بالقطعة (لكل مهمة)`; break;
+        }
+        return (
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 truncate">اقتراح عقد لمشروع: {item.name}</h3>
+                <div className="space-y-1 text-sm text-slate-600">
+                    <p><strong>المستقل:</strong> {freelancer?.name || 'غير معروف'}</p>
+                    <p><strong>طريقة الدفع المقترحة:</strong> {details}</p>
+                </div>
+            </div>
+        );
+    }
+    if (isOvertimeRequest(item)) {
+        const weekDate = format(parseISO(item.weekStartDate), 'd MMMM yyyy', { locale: arSA });
+        return (
+             <div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 truncate">طلب ساعات إضافية</h3>
+                <div className="space-y-1 text-sm text-slate-600">
+                    <p><strong>الموظف:</strong> {member?.name}</p>
+                    <p><strong>الأسبوع الذي يبدأ في:</strong> {weekDate}</p>
+                    <p><strong>عدد الساعات المطلوبة:</strong> {item.requestedHours.toFixed(1)} ساعة</p>
+                </div>
+            </div>
+        );
     }
     if (isTask(item)) {
         const project = projects.find(p => p.id === item.projectId);
         const assignedMember = teamMembers.find(m => m.id === item.assignedTo);
         return (
             <div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">{item.title}</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 truncate">{item.title}</h3>
                 <div className="space-y-1 text-sm text-slate-600">
                     <p><strong>المشروع:</strong> {project?.name || 'غير محدد'}</p>
                     <p><strong>مسندة إلى:</strong> {assignedMember?.name || 'غير مسندة'}</p>
@@ -115,16 +211,16 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
                 </div>
             </div>
         );
-    } 
+    }
     if (isTeamMember(item)) {
         return (
              <div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">خطة العمل الأسبوعية لـ {item.name}</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 truncate">خطة العمل الأسبوعية لـ {item.name}</h3>
                 <div className="grid grid-cols-4 gap-2 text-center">
                    {DAYS_OF_WEEK.map(day => (
-                       <div key={day} className="p-2 bg-slate-100 rounded">
+                       <div key={day} className="p-2 bg-slate-100 dark:bg-slate-700 rounded">
                            <p className="text-xs text-slate-500">{day}</p>
-                           <p className="font-semibold text-slate-700">{item.weeklyPlan.hours[day] || 0}</p>
+                           <p className="font-semibold text-slate-700 dark:text-slate-200">{item.weeklyPlan.hours[day] || 0}</p>
                        </div>
                    ))}
                 </div>
@@ -134,33 +230,32 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
     return null;
   };
 
-  const showNotesField = isTask(item) || isProject(item);
-  const showNeedsAdjustment = isTask(item) || isTeamMember(item);
+  const showNotesField = !isTeamMember(item);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-xl">
-        <h2 className="text-xl font-bold mb-4 border-b pb-3 text-slate-800">مراجعة واتخاذ قرار</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl">
+        <h2 className="text-xl font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 text-slate-800 dark:text-slate-200">مراجعة واتخاذ قرار</h2>
         <div className="space-y-4">
             {renderContent()}
             {showNotesField && (
               <div>
-                   <label htmlFor="notes" className="block text-sm font-medium text-slate-600 mb-1">الملاحظات (إلزامية عند الرفض)</label>
+                   <label htmlFor="notes" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الملاحظات (إلزامية عند الرفض)</label>
                    <textarea 
                       id="notes" 
                       value={notes} 
                       onChange={e => {setNotes(e.target.value); setError('');}}
-                      rows={3} 
-                      className={`w-full p-2 border rounded-md text-sm ${error ? 'border-red-500' : 'border-slate-300'}`}
+                      rows={2} 
+                      className={`w-full p-2 border rounded-md text-sm ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
                    ></textarea>
                    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
               </div>
             )}
         </div>
-        <div className="flex justify-end space-x-2 rtl:space-x-reverse pt-4 mt-4 border-t border-slate-200">
-          <button onClick={() => handleDecision('approved')} disabled={isDeciding} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-slate-400">موافقة</button>
-          {showNeedsAdjustment && <button onClick={() => handleDecision('needs-adjustment')} disabled={isDeciding} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-slate-400">طلب تعديل</button>}
-          <button onClick={() => handleDecision('rejected')} disabled={isDeciding} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-slate-400">رفض</button>
+        <div className="flex justify-end space-x-2 rtl:space-x-reverse pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+          <button onClick={() => handleDecision('approved')} disabled={isDeciding || !canDecide} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-slate-400">موافقة</button>
+          {isTask(item) && <button onClick={() => handleDecision('needs-adjustment')} disabled={isDeciding || !canDecide} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-slate-400">طلب تعديل</button>}
+          <button onClick={() => handleDecision('rejected')} disabled={isDeciding || !canDecide} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-slate-400">رفض</button>
           <button type="button" onClick={onClose} disabled={isDeciding} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">إلغاء</button>
         </div>
       </div>

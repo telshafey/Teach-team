@@ -5,6 +5,7 @@ import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
 import { Project, Task, ProjectFormData, TaskFormData, SuggestedTask, ApprovalStatus, BillingProposalFormData, ContractStatus, TaskStatus, TaskComment, TeamMember } from '../types';
 import { parseMentions } from '../utils/mentions';
+import { useAppDataContext } from './DataContext';
 
 interface ProjectContextType {
   projects: Project[];
@@ -20,6 +21,8 @@ interface ProjectContextType {
   handleUpdateTaskApproval: (taskId: string, status: ApprovalStatus, notes: string) => Promise<void>;
   handleFreelancerProposal: (projectId: string, proposalData: BillingProposalFormData) => Promise<void>;
   handleAddTaskComment: (taskId: string, commentText: string, allTeamMembers: TeamMember[]) => Promise<void>;
+  handleUpdateTaskComment: (taskId: string, comment: TaskComment) => Promise<void>;
+  handleDeleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -28,6 +31,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     const { currentUser } = useAuth();
     const { supabaseClient } = useSupabase();
     const { addToast } = useToast();
+    const { handleCreateNotification } = useAppDataContext();
     
     const [projects, setProjects] = useState<Project[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -44,7 +48,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 api.fetchProjects(supabaseClient),
                 api.fetchTasks(supabaseClient),
             ]);
-            // FIX: api calls now return strongly-typed arrays, resolving type errors.
             setProjects(projectsData);
             setTasks(tasksData);
         } catch (error: any) {
@@ -120,6 +123,19 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             });
             setTasks(prev => [...prev, newTask]);
             addToast(`تمت إضافة مهمة "${newTask.title}".`, 'success');
+
+            // Create notification if assigned
+            if (newTask.assignedTo) {
+                handleCreateNotification({
+                    recipientId: newTask.assignedTo,
+                    type: 'task_assigned',
+                    taskTitle: newTask.title,
+                    projectId: newTask.projectId,
+                    taskId: newTask.id,
+                    assignerName: currentUser.name,
+                });
+            }
+
         } catch (error) {
             addToast('فشل إضافة المهمة.', 'error');
             throw error;
@@ -127,9 +143,23 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     const handleUpdateTask = async (task: Task) => {
-        if (!supabaseClient) return;
+        if (!supabaseClient || !currentUser) return;
+        
+        const originalTask = tasks.find(t => t.id === task.id);
         const originalTasks = [...tasks];
         setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+
+        // Create notification if assignment changed
+        if (task.assignedTo && task.assignedTo !== originalTask?.assignedTo) {
+             handleCreateNotification({
+                recipientId: task.assignedTo,
+                type: 'task_assigned',
+                taskTitle: task.title,
+                projectId: task.projectId,
+                taskId: task.id,
+                assignerName: currentUser.name,
+            });
+        }
 
         try {
             await api.update(supabaseClient, 'tasks', task.id, task);
@@ -190,8 +220,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 authorId: currentUser.id,
                 text: commentText,
             };
-            // FIX: Cast the result to 'unknown' first to resolve the strict type conversion error.
-            // The API returns a 'TaskComment' shape, but TypeScript infers the return type from the argument shape, which is different.
             const newComment = await api.insert(supabaseClient, 'task_comments', newCommentData) as unknown as TaskComment;
             setTasks(prev => prev.map(t => {
                 if (t.id === taskId) {
@@ -201,14 +229,62 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             }));
             addToast('تم إضافة التعليق.', 'success');
 
-            // Handle mentions (assume DB trigger will handle notifications)
             const mentionedUsers = parseMentions(commentText, allTeamMembers);
-            // In a real app, you might fire off an explicit notification event here if not using triggers.
+            mentionedUsers.forEach(user => {
+                if (user.id !== currentUser.id) {
+                     handleCreateNotification({
+                        recipientId: user.id,
+                        type: 'comment_mention',
+                        taskTitle: tasks.find(t=> t.id === taskId)?.title,
+                        projectId: tasks.find(t=> t.id === taskId)?.projectId,
+                        taskId: taskId,
+                        commentAuthorName: currentUser.name,
+                    });
+                }
+            });
+
         } catch (error) {
             addToast('فشل إضافة التعليق.', 'error');
             throw error;
         }
     };
+    
+    const handleUpdateTaskComment = async (taskId: string, comment: TaskComment) => {
+        if (!supabaseClient || !currentUser) return;
+        try {
+            const updatedComment = await api.update<TaskComment>(supabaseClient, 'task_comments', comment.id, { text: comment.text });
+            setTasks(prev => prev.map(t => {
+                if (t.id === taskId) {
+                    const updatedComments = (t.comments || []).map(c => c.id === comment.id ? updatedComment : c);
+                    return { ...t, comments: updatedComments };
+                }
+                return t;
+            }));
+            addToast('تم تعديل التعليق.', 'success');
+        } catch(e) {
+            addToast('فشل تعديل التعليق.', 'error');
+            throw e;
+        }
+    };
+    
+    const handleDeleteTaskComment = async (taskId: string, commentId: string) => {
+        if (!supabaseClient) return;
+        try {
+            await api.deleteById(supabaseClient, 'task_comments', commentId);
+             setTasks(prev => prev.map(t => {
+                if (t.id === taskId) {
+                    const updatedComments = (t.comments || []).filter(c => c.id !== commentId);
+                    return { ...t, comments: updatedComments };
+                }
+                return t;
+            }));
+            addToast('تم حذف التعليق.', 'success');
+        } catch(e) {
+            addToast('فشل حذف التعليق.', 'error');
+            throw e;
+        }
+    };
+
 
     const value = {
         projects,
@@ -224,6 +300,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         handleUpdateTaskApproval,
         handleFreelancerProposal,
         handleAddTaskComment,
+        handleUpdateTaskComment,
+        handleDeleteTaskComment,
     };
     
     return (

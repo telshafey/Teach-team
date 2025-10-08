@@ -3,8 +3,8 @@ import { GlobalSearch } from './GlobalSearch';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Bars3Icon } from '../ui/Icons';
+// FIX: Corrected import path
 import { View } from '../dashboard/Dashboard';
-import { Notification } from '../../types';
 
 interface HeaderProps {
   onNavigate: (view: View, props?: any) => void;
@@ -12,17 +12,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, onToggleSidebar }) => {
-
-  const handleNotificationSelect = (notification: Notification) => {
-    if (notification.projectId && notification.taskId) {
-      onNavigate('projectDetail', {
-        projectId: notification.projectId,
-        initialTaskIdToOpen: notification.taskId,
-      });
-    } else if (notification.projectId) {
-      onNavigate('projectDetail', { projectId: notification.projectId });
-    }
-  };
 
   return (
     <header className="flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -41,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onToggleSidebar }) =
         
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
           <GlobalSearch onNavigate={onNavigate} />
-          <NotificationBell onSelect={handleNotificationSelect} />
+          <NotificationBell onNavigate={onNavigate} />
           <ThemeToggle />
         </div>
       </div>

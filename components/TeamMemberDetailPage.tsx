@@ -4,7 +4,7 @@ import { useAppDataContext } from '../../contexts/DataContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { UserIcon, ClockIcon } from '../ui/Icons';
+import { UserIcon, ClockIcon, SparklesIcon } from '../ui/Icons';
 import { BarChart } from '../ui/Charts';
 import { generatePerformanceNotes } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -51,10 +51,11 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
     setIsGeneratingNotes(true);
     setPerformanceNotes('');
     try {
+        const recentLogs = memberLogs.slice(-20); // Get most recent 20 logs
         const notes = await generatePerformanceNotes(
           member.name,
           memberTasks.map(t => ({ title: t.title, status: t.status })),
-          memberLogs.map(l => ({ hours: l.hours, description: l.description }))
+          recentLogs.map(l => ({ hours: l.hours, description: l.description }))
         );
         setPerformanceNotes(notes);
     } catch (error) {
@@ -88,7 +89,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
             </div>
           </Card>
            {hasPermission('generate_performance_notes') && (
-            <Card title="ملاحظات الأداء (AI)" icon={<UserIcon className="w-5 h-5"/>}>
+            <Card title="ملاحظات الأداء (AI)" icon={<SparklesIcon className="w-5 h-5"/>}>
               <div className="space-y-3">
                 <button 
                   onClick={handleGenerateNotes} 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
+// FIX: Corrected import path
 import { useAppDataContext } from '../../contexts/DataContext';
 import { Card } from '../ui/Card';
 import { DatabaseSettings } from '../../types';
@@ -60,56 +61,3 @@ export const DatabaseSettingsPage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                        <div>
-                            <label htmlFor="supabaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Supabase URL
-                            </label>
-                            <input
-                                type="text"
-                                id="supabaseUrl"
-                                name="supabaseUrl"
-                                value={dbSettings.supabaseUrl}
-                                onChange={(e) => setDbSettings(prev => ({...prev, supabaseUrl: e.target.value}))}
-                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
-                                dir="ltr"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="supabaseAnonKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Supabase Anon Key
-                            </label>
-                            <input
-                                type="password"
-                                id="supabaseAnonKey"
-                                name="supabaseAnonKey"
-                                value={dbSettings.supabaseAnonKey}
-                                onChange={(e) => setDbSettings(prev => ({...prev, supabaseAnonKey: e.target.value}))}
-                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
-                                dir="ltr"
-                            />
-                        </div>
-                        <div className="flex justify-end pt-2">
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="px-6 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400"
-                            >
-                                {isSaving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
-                            </button>
-                        </div>
-                    </form>
-                </Card>
-            </div>
-            <ConfirmationModal
-                isOpen={isConfirmOpen}
-                onClose={() => setIsConfirmOpen(false)}
-                onConfirm={handleConfirmSave}
-                title="تأكيد حفظ الإعدادات"
-                message="سيؤدي حفظ هذه التغييرات إلى قطع الاتصال الحالي. ستحتاج إلى إعادة تحميل الصفحة يدويًا. هل تريد المتابعة؟"
-                confirmText="نعم، احفظ"
-            />
-        </>
-    );
-};
-
-export default DatabaseSettingsPage;

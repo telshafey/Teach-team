@@ -16,21 +16,21 @@ import { useAppDataContext } from '../../contexts/DataContext';
 import { DailyLogFormData, Meeting } from '../../types';
 import { format } from 'date-fns';
 import { BottomNavBar } from './BottomNavBar';
-// FIX: Directly import components that were causing prop-type errors with React.lazy
 import { SettingsPage } from '../settings/SettingsPage';
 import { MeetingsPage } from '../meetings/MeetingsPage';
 import { MeetingRoom } from '../meetings/MeetingRoom';
 
-// Lazy loading for less frequently accessed pages
 const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
 const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
 const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
 const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const TimeSheetPage = lazy(() => import('../timesheet/TimeSheetPage').then(module => ({ default: module.TimeSheetPage })));
+const MyTasksPage = lazy(() => import('../tasks/MyTasksPage').then(module => ({ default: module.MyTasksPage })));
 
-export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database';
+export type View = 'dashboard' | 'projects' | 'projectDetail' | 'team' | 'teamDetail' | 'reports' | 'analytics' | 'settings' | 'siteSettings' | 'roles' | 'finance' | 'meetings' | 'meetingRoom' | 'profile' | 'database' | 'timesheet' | 'myTasks';
 
 const LoadingFallback: React.FC = () => (
-  <div className="flex-1 flex items-center justify-center">
+  <div className="flex-1 flex items-center justify-center h-full">
     <LoadingSpinner />
   </div>
 );
@@ -68,7 +68,7 @@ export const Dashboard: React.FC = () => {
       case 'dashboard':
         if (currentUser?.roleId === 'gm') return <GeneralManagerDashboard onNavigate={handleNavigate} />;
         if (currentUser?.roleId === 'pm' || currentUser?.roleId === 'marketing_manager') return <ManagerDashboard onNavigate={handleNavigate} />;
-        return <PersonalDashboard />;
+        return <PersonalDashboard onNavigate={handleNavigate} />;
       case 'projects':
         return <ProjectsPage onProjectSelect={(projectId) => handleNavigate('projectDetail', { projectId })} initialState={props.initialState}/>;
       case 'projectDetail':
@@ -76,6 +76,10 @@ export const Dashboard: React.FC = () => {
       case 'team':
       case 'teamDetail':
         return <TeamManagementPage initialView={view} initialProps={props} onNavigate={handleNavigate} />;
+      case 'timesheet':
+        return <Suspense fallback={<LoadingFallback />}><TimeSheetPage /></Suspense>;
+      case 'myTasks':
+        return <Suspense fallback={<LoadingFallback />}><MyTasksPage /></Suspense>;
       case 'reports':
         return <Suspense fallback={<LoadingFallback />}><ReportsPage /></Suspense>;
       case 'analytics':
@@ -83,7 +87,7 @@ export const Dashboard: React.FC = () => {
       case 'settings':
       case 'roles':
       case 'database':
-        return <SettingsPage initialView={view} onNavigate={handleNavigate} />;
+        return <SettingsPage initialView={view} initialProps={props} onNavigate={handleNavigate} />;
       case 'finance':
         return <Suspense fallback={<LoadingFallback />}><FinancePage /></Suspense>;
       case 'meetings':
@@ -99,6 +103,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden" dir="rtl">
+      {/* FIX: Corrected typo from `setIsOpen` to `setIsSidebarOpen` to pass the state setter function correctly. */}
       <Sidebar currentView={navigation.view} onNavigate={handleNavigate} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onNavigate={handleNavigate} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />

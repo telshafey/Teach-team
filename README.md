@@ -1,38 +1,39 @@
-# Tech Team - أداة إدارة الفريق
+# أداة إدارة الفريق - Bokra Team
 
-This is a comprehensive web application designed to help tech teams manage their projects, track time, and streamline workflows. Built with React, TypeScript, and Supabase, it provides a powerful yet intuitive interface for managers and team members alike.
+منصة ويب متكاملة ومتقدمة مصممة لتمكين فرق العمل التقنية من إدارة المشاريع، تتبع الوقت، وتنظيم سير العمل بكفاءة. تم بناء التطبيق باستخدام أحدث التقنيات مثل React، TypeScript، و Supabase، ويوفر واجهة مستخدم قوية وبديهية للمديرين وأعضاء الفريق على حد سواء.
 
-## ✨ Features
+## ✨ الميزات الرئيسية
 
-- **Dashboards per Role**: Customized dashboards for General Managers, Project Managers, and individual team members, providing relevant information at a glance.
-- **Project Management**: Create and manage projects, define budgets (in hours and currency), and track progress.
-- **Task Management**: A Kanban-style board for each project to manage tasks through different stages (To Do, In Progress, Done).
-- **Daily Logging**: Team members can log their daily hours and activities, linking them to specific projects and tasks.
-- **Team Hierarchy**: A clear tree view of the team structure, showing reporting lines.
-- **Performance Insights**: AI-powered performance summaries for team members based on their tasks and logs.
-- **Financial Tracking**: Manage salaries, employee expense claims, and freelancer contracts.
-- **Real-time Meetings**: Integrated video conferencing using Jitsi for seamless team collaboration.
-- **Customizable Roles & Permissions**: Fine-grained control over what each user can see and do.
-- **Reporting & Analytics**: Visualize data with charts to understand project costs, team productivity, and more.
-- **Dark Mode**: A sleek dark theme for comfortable viewing in low-light environments.
+- **لوحات تحكم مخصصة للأدوار**: واجهات مخصصة للمدير العام، مديري المشاريع، والأعضاء الأفراد، تعرض المعلومات الأكثر أهمية لكل دور.
+- **إدارة المشاريع**: إنشاء وإدارة المشاريع، تحديد الميزانيات (بالساعات والقيمة المالية)، وتتبع التقدم المحرز.
+- **إدارة المهام (Kanban)**: لوحة Kanban لكل مشروع لتنظيم المهام وتتبعها عبر مراحلها المختلفة (قائمة المهام، قيد التنفيذ، مكتملة).
+- **تسجيل الدخول اليومي**: يمكن لأعضاء الفريق تسجيل ساعات عملهم وأنشطتهم اليومية، وربطها بمشاريع ومهام محددة.
+- **هيكل الفريق التنظيمي**: عرض شجري واضح لهيكل الفريق يوضح التسلسل الإداري والعلاقات بين الأعضاء.
+- **رؤى الأداء الذكية (AI)**: ملخصات أداء مدعومة بالذكاء الاصطناعي لأعضاء الفريق، بناءً على مهامهم وسجلاتهم اليومية باستخدام Google Gemini API.
+- **اقتراح خطط العمل (AI)**: عند إنشاء مشروع جديد، يمكن للذكاء الاصطناعي اقتراح قائمة بالمهام الرئيسية بناءً على وصف المشروع.
+- **التتبع المالي**: إدارة الرواتب، طلبات صرف المصروفات للموظفين، ومراجعة واعتماد عقود المستقلين (Freelancers).
+- **اجتماعات عبر الإنترنت**: دمج كامل مع خدمة الاجتماعات المرئية Jitsi لعقد اجتماعات الفريق بسلاسة.
+- **أدوار وصلاحيات قابلة للتخصيص**: تحكم دقيق ومفصل في الصلاحيات لتحديد ما يمكن لكل مستخدم رؤيته أو القيام به.
+- **التقارير والتحليلات**: تصور البيانات عبر رسوم بيانية لفهم تكاليف المشاريع، إنتاجية الفريق، وتوزيع ساعات العمل، مع إمكانية تصدير التقارير كملفات CSV.
+- **الوضع الليلي (Dark Mode)**: تصميم أنيق ومريح للعين للعمل في بيئات الإضاءة المنخفضة.
 
-## 🛠️ Tech Stack
+## 🛠️ التقنيات المستخدمة
 
-- **Frontend**: React, TypeScript, Tailwind CSS
-- **Backend & Database**: Supabase (PostgreSQL, Auth, Realtime)
-- **AI Integration**: Google Gemini API for generating performance notes and task plans.
-- **Video Conferencing**: Jitsi Meet
+- **الواجهة الأمامية (Frontend)**: React, TypeScript, Tailwind CSS
+- **الخلفية وقاعدة البيانات (Backend & Database)**: Supabase (PostgreSQL, Auth, Realtime)
+- **التكامل مع الذكاء الاصطناعي (AI)**: Google Gemini API
+- **الاجتماعات المرئية (Video Conferencing)**: Jitsi Meet
 
-## 🚀 Getting Started
+## 🚀 بدء التشغيل
 
-1.  **Environment Variables**: Ensure you have a `.env` file with your `API_KEY` for the Google Gemini API.
-2.  **Database Setup**: The application is configured to connect to a Supabase backend. The connection details can be configured in the app's settings.
-3.  **Authentication**: The app uses Supabase Auth. Users can log in to access their personalized dashboard.
+1.  **إعداد متغيرات البيئة**: تأكد من وجود ملف `.env` يحتوي على `API_KEY` الخاص بـ Google Gemini API. بدون هذا المفتاح، سيتم تعطيل الميزات المعتمدة على الذكاء الاصطناعي.
+2.  **إعداد قاعدة البيانات**: التطبيق مهيأ للاتصال بـ Supabase. يمكن تعديل تفاصيل الاتصال من داخل إعدادات التطبيق (صفحة إعدادات قاعدة البيانات) بواسطة مسؤول النظام.
+3.  **المصادقة (Authentication)**: يستخدم التطبيق Supabase Auth. يمكن للمستخدمين تسجيل الدخول للوصول إلى لوحات التحكم المخصصة لهم.
 
-## 📁 Project Structure
+## 📁 هيكل المشروع
 
-- `components/`: Contains all React components, organized by feature (dashboard, project, team, etc.) and UI elements.
-- `contexts/`: React Context providers for managing global state (Auth, Data, Projects, etc.).
-- `services/`: Modules for interacting with external APIs (Supabase, Gemini).
-- `types.ts`: Centralized TypeScript type definitions for the entire application.
-- `utils/`: Helper functions for various tasks like date formatting, cost calculation, etc.
+- `components/`: يحتوي على جميع مكونات React، منظمة حسب الميزات (لوحة التحكم، المشاريع، الفريق، إلخ) والعناصر العامة لواجهة المستخدم.
+- `contexts/`: يوفر React Context لإدارة الحالة العامة للتطبيق (المصادقة، البيانات، المشاريع، إلخ).
+- `services/`: وحدات للتفاعل مع واجهات برمجة التطبيقات الخارجية (Supabase, Gemini).
+- `types.ts`: ملف مركزي لتعريفات TypeScript المستخدمة في جميع أنحاء التطبيق.
+- `utils/`: دوال مساعدة لمهام مختلفة مثل تنسيق التواريخ، حساب التكاليف، وغيرها.
