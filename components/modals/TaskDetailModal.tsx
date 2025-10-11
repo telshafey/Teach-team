@@ -7,9 +7,7 @@ import { PaperClipIcon, ChatBubbleLeftEllipsisIcon, ArrowUpTrayIcon, XCircleIcon
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { fileToBase64 } from '../../utils/files';
-import { ConfirmationModal } from './ConfirmationModal';
+import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { useToast } from '../../contexts/ToastContext';
 
 
@@ -21,28 +19,26 @@ interface TaskDetailModalProps {
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClose, task }) => {
   const { teamMembers, isStorageConfigured } = useAppDataContext();
-  const { projects, handleUpdateTask, handleAddTaskComment, handleUpdateTaskComment, handleDeleteTaskComment } = useProjectContext();
+  const { projects, taskAttachments, taskComments, handleAddTaskComment, handleDeleteTaskComment, handleAddTaskAttachment, handleDeleteTaskAttachment } = useProjectContext();
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
   
-  // States for comments and attachments
   const [newComment, setNewComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [showStorageErrorModal, setShowStorageErrorModal] = useState(false);
   
-  // States for comment editing/deleting
-  const [editingComment, setEditingComment] = useState<TaskComment | null>(null);
-  const [editedText, setEditedText] = useState('');
   const [commentToDelete, setCommentToDelete] = useState<TaskComment | null>(null);
 
-  // States for @mention feature
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const project = useMemo(() => projects.find(p => p.id === task?.projectId), [projects, task]);
   const assignedMember = useMemo(() => teamMembers.find(m => m.id === task?.assignedTo), [teamMembers, task]);
+
+  const attachmentsForThisTask = useMemo(() => taskAttachments.filter(a => a.taskId === task?.id), [taskAttachments, task]);
+  const commentsForThisTask = useMemo(() => taskComments.filter(c => c.taskId === task?.id).sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), [taskComments, task]);
   
   const mentionSuggestions = useMemo(() => {
     if (!mentionQuery) return [];
@@ -55,14 +51,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   const handleAddCommentSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    await handleAddTaskComment(task.id, newComment, teamMembers);
+    await handleAddTaskComment(task.id, newComment);
     setNewComment('');
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isStorageConfigured) {
         setShowStorageErrorModal(true);
-        e.target.value = ''; // Clear file input
+        e.target.value = '';
         return;
     }
     
@@ -79,56 +75,36 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
         const { data: { publicUrl } } = supabaseClient.storage.from('task_attachments').getPublicUrl(filePath);
 
         const newAttachment: Omit<TaskAttachment, 'id'> = {
+            taskId: task.id,
             fileName: file.name,
             fileUrl: publicUrl,
             uploaderId: currentUser.id,
             timestamp: new Date().toISOString(),
         };
         
-        const createdAttachment = await api.insert(supabaseClient, 'task_attachments', { ...newAttachment, task_id: task.id }) as unknown as TaskAttachment;
-
-        const updatedTask = { ...task, attachments: [...(task.attachments || []), createdAttachment] };
-        await handleUpdateTask(updatedTask);
+        await handleAddTaskAttachment(newAttachment);
         addToast('تم رفع المرفق بنجاح.', 'success');
 
       } catch (error: any) {
         console.error("Error uploading file:", error);
-        let toastMessage: string;
-        if (error.message.toLowerCase().includes('rls')) {
-            toastMessage = 'فشل رفع الملف. ليس لديك الصلاحية للرفع.';
-        } else {
-            toastMessage = 'حدث خطأ غير متوقع أثناء رفع الملف. يرجى المحاولة مرة أخرى.';
-        }
-        addToast(toastMessage, 'error');
+        addToast(error.message.includes('rls') ? 'فشل رفع الملف. ليس لديك الصلاحية.' : 'حدث خطأ أثناء رفع الملف.', 'error');
       } finally {
         setIsUploading(false);
       }
     }
   };
 
-  const handleRemoveAttachment = async (attachmentId: string) => {
-      if (!task.attachments) return;
-
-      const attachment = task.attachments.find(a => a.id === attachmentId);
-      if (!attachment) return;
-
+  const handleRemoveAttachment = async (attachment: TaskAttachment) => {
       try {
-        // First, delete the database record. This is the source of truth for the UI.
-        await api.deleteById(supabaseClient, 'task_attachments', attachmentId);
-
-        // Then update the task's JSONB column to keep it in sync.
-        const updatedAttachments = task.attachments.filter(a => a.id !== attachmentId);
-        const updatedTask = { ...task, attachments: updatedAttachments };
-        await handleUpdateTask(updatedTask);
+        // Delete from DB first
+        await handleDeleteTaskAttachment(attachment.id);
         addToast('تم حذف المرفق بنجاح.', 'success');
         
-        // Finally, attempt to delete the file from storage.
-        // If this fails, we have an orphaned file, but the app state is consistent.
+        // Then delete from storage
         const filePath = new URL(attachment.fileUrl).pathname.split(`/public/task_attachments/`)[1];
         if (filePath) {
             const { error: storageError } = await supabaseClient.storage.from('task_attachments').remove([filePath]);
             if (storageError && storageError.message !== 'The resource was not found') {
-                // Log this for maintenance, but don't bother the user.
                 console.warn(`Failed to delete orphaned file from storage: ${filePath}`, storageError);
             }
         }
@@ -136,24 +112,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
         console.error("Error removing attachment:", error);
         addToast(`فشل حذف المرفق: ${error.message}`, 'error');
       }
-  };
-  
-  const handleStartEdit = (comment: TaskComment) => {
-    setEditingComment(comment);
-    setEditedText(comment.text);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingComment || !editedText.trim()) return;
-    await handleUpdateTaskComment(task.id, { ...editingComment, text: editedText });
-    setEditingComment(null);
-    setEditedText('');
-  };
-
-  const confirmDelete = async () => {
-    if (!commentToDelete) return;
-    await handleDeleteTaskComment(task.id, commentToDelete.id);
-    setCommentToDelete(null);
   };
   
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -176,9 +134,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
     if (!commentTextareaRef.current) return;
     const text = newComment;
     const cursorPos = commentTextareaRef.current.selectionStart;
-    const textBeforeCursor = text.substring(0, cursorPos);
     const textAfterCursor = text.substring(cursorPos);
     
+    // FIX: Define textBeforeCursor to resolve scope issue. It was used without being defined in this function.
+    const textBeforeCursor = text.substring(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     if(mentionMatch) {
         const startIndex = mentionMatch.index || 0;
@@ -205,7 +164,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
                     </div>
                      {comment && currentUser.id === authorId && (
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleStartEdit(comment)} className="p-1 text-slate-400 hover:text-sky-500"><PencilIcon className="w-4 h-4" /></button>
+                            {/* Edit button can be implemented later if needed */}
+                            {/* <button onClick={() => {}} className="p-1 text-slate-400 hover:text-sky-500"><PencilIcon className="w-4 h-4" /></button> */}
                             <button onClick={() => setCommentToDelete(comment)} className="p-1 text-slate-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                         </div>
                      )}
@@ -237,11 +197,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
             <div>
                 <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center"><PaperClipIcon className="w-5 h-5 ml-2"/> المرفقات</h3>
                 <div className="space-y-2">
-                    {(task.attachments || []).map(att => (
+                    {attachmentsForThisTask.map(att => (
                         <div key={att.id} className="group flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-700 rounded-md">
                             <a href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-sky-600 dark:text-sky-400 hover:underline">{att.fileName}</a>
                             {att.uploaderId === currentUser.id && (
-                                <button onClick={() => handleRemoveAttachment(att.id)} className="p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleRemoveAttachment(att)} className="p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <XCircleIcon className="w-4 h-4" />
                                 </button>
                             )}
@@ -258,20 +218,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
             <div>
                 <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center"><ChatBubbleLeftEllipsisIcon className="w-5 h-5 ml-2"/> التعليقات</h3>
                  <div className="space-y-4">
-                    {(task.comments || []).map(comment => (
-                        editingComment?.id === comment.id ? (
-                             <div key={comment.id} className="space-y-2">
-                                <textarea value={editedText} onChange={(e) => setEditedText(e.target.value)} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" />
-                                <div className="flex space-x-2 rtl:space-x-reverse">
-                                    <button onClick={handleSaveEdit} className="px-3 py-1 text-xs font-semibold text-white bg-sky-600 rounded-md">حفظ</button>
-                                    <button onClick={() => setEditingComment(null)} className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-200 rounded-md">إلغاء</button>
-                                </div>
-                             </div>
-                        ) : (
-                            renderItem(comment.authorId, comment.timestamp, 
-                                <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 p-2 rounded-md mt-1 whitespace-pre-wrap">{comment.text}</p>,
-                                comment
-                            )
+                    {commentsForThisTask.map(comment => (
+                        renderItem(comment.authorId, comment.timestamp, 
+                            <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 p-2 rounded-md mt-1 whitespace-pre-wrap">{comment.text}</p>,
+                            comment
                         )
                     ))}
                  </div>
@@ -310,7 +260,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
         <ConfirmationModal 
             isOpen={!!commentToDelete}
             onClose={() => setCommentToDelete(null)}
-            onConfirm={confirmDelete}
+            onConfirm={async () => {
+                await handleDeleteTaskComment(commentToDelete.id);
+                setCommentToDelete(null);
+            }}
             title="تأكيد حذف التعليق"
             message="هل أنت متأكد من رغبتك في حذف هذا التعليق؟ لا يمكن التراجع عن هذا الإجراء."
             isDestructive

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useMeetingContext } from '../../contexts/MeetingContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
 import { PlusIcon, VideoCameraIcon, TrashIcon } from '../ui/Icons';
@@ -9,13 +10,12 @@ import { arSA } from 'date-fns/locale';
 import { MeetingFormModal } from '../modals/MeetingFormModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { EmptyState } from '../ui/EmptyState';
+import { useNavigation } from '../../contexts/NavigationContext';
 
-interface MeetingsPageProps {
-  onJoinMeeting: (meeting: Meeting) => void;
-}
-
-export const MeetingsPage: React.FC<MeetingsPageProps> = ({ onJoinMeeting }) => {
-    const { meetings, teamMembers, handleAddMeeting, handleDeleteMeeting } = useAppDataContext();
+export const MeetingsPage: React.FC = () => {
+    const { onNavigate } = useNavigation();
+    const { meetings, handleAddMeeting, handleDeleteMeeting } = useMeetingContext();
+    const { teamMembers } = useTeamContext();
     const { currentUser, hasPermission } = useAuth();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
@@ -68,7 +68,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({ onJoinMeeting }) => 
                                         <p className="text-xs text-slate-400 mt-2">المشاركون: {participants.join(', ')}</p>
                                     </div>
                                     <div className="flex items-center space-x-2 rtl:space-x-reverse flex-shrink-0">
-                                        <button onClick={() => onJoinMeeting(meeting)} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center space-x-2 rtl:space-x-reverse">
+                                        <button onClick={() => onNavigate('meetingRoom', { meeting })} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center space-x-2 rtl:space-x-reverse">
                                             <VideoCameraIcon className="w-5 h-5"/><span>انضمام</span>
                                         </button>
                                         {hasPermission('manage_meetings') && (

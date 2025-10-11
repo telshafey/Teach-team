@@ -13,7 +13,7 @@ interface LogToCreate {
   projectId: string;
 }
 
-interface TimeTrackingContextType {
+export interface TimeTrackingContextType {
   activeTimer: ActiveTimer | null;
   showLogModalFor: LogToCreate | null;
   startTimer: (taskId: string, taskTitle: string, projectId: string) => void;

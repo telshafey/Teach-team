@@ -5,12 +5,10 @@ import { GlobalSearchResults } from '../../types';
 import { SearchIcon, FolderIcon, UserIcon, ClipboardDocumentListIcon } from '../ui/Icons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { View } from '../dashboard/Dashboard';
+import { useNavigation } from '../../contexts/NavigationContext';
 
-interface GlobalSearchProps {
-  onNavigate: (view: View, props?: any) => void;
-}
-
-export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onNavigate }) => {
+export const GlobalSearch: React.FC = () => {
+  const { onNavigate } = useNavigation();
   const { supabaseClient } = useSupabase();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

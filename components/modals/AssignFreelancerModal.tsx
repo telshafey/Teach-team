@@ -1,7 +1,7 @@
 import React, { useState, FormEvent, useMemo, useEffect } from 'react';
 import { Project, TeamMember, FreelancerContract } from '../../types';
-// FIX: Corrected import path
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 interface FreelancerContractModalProps {
   isOpen: boolean;
@@ -10,10 +10,11 @@ interface FreelancerContractModalProps {
   project: Project;
 }
 
-type BillingType = 'fixed' | 'hourly';
+type BillingType = 'fixed' | 'hourly' | 'per-task';
 
 export const FreelancerContractModal: React.FC<FreelancerContractModalProps> = ({ isOpen, onClose, onSave, project }) => {
-  const { teamMembers, currency } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
+  const { currency } = useSettingsContext();
   const [isSaving, setIsSaving] = useState(false);
   
   const [freelancerId, setFreelancerId] = useState('');
@@ -33,7 +34,6 @@ export const FreelancerContractModal: React.FC<FreelancerContractModalProps> = (
         setAmount(contract.amount?.toString() || '');
         setHourlyRate(contract.hourlyRate?.toString() || '');
     } else {
-        // Reset for new contract
         setFreelancerId('');
         setBillingType('hourly');
         setAmount('');
@@ -111,6 +111,10 @@ export const FreelancerContractModal: React.FC<FreelancerContractModalProps> = (
                  <label className="flex items-center space-x-2 rtl:space-x-reverse">
                     <input type="radio" name="billingType" value="fixed" checked={billingType === 'fixed'} onChange={() => setBillingType('fixed')} className="h-4 w-4 text-sky-600 focus:ring-sky-500" />
                     <span>مبلغ ثابت</span>
+                </label>
+                <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                    <input type="radio" name="billingType" value="per-task" checked={billingType === 'per-task'} onChange={() => setBillingType('per-task')} className="h-4 w-4 text-sky-600 focus:ring-sky-500" />
+                    <span>بالقطعة</span>
                 </label>
             </div>
           </div>

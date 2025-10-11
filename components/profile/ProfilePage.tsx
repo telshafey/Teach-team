@@ -7,6 +7,8 @@ import { OvertimeRequestFormModal } from '../modals/OvertimeRequestFormModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { WorkContractChangeRequestModal } from '../modals/WorkContractChangeRequestModal';
 import { useAppDataContext } from '../../contexts/DataContext';
+import { AppealPenaltyModal } from '../modals/AppealPenaltyModal';
+import { Penalty } from '../../types';
 
 // Import newly created sub-components
 import { ProfileSidebar } from './ProfileSidebar';
@@ -24,6 +26,7 @@ export const ProfilePage: React.FC = () => {
         handleSubmitExpenseClaim,
         submitOvertimeRequest, cancelOvertimeRequest,
         submitWorkContractChangeRequest,
+        handleAppealPenalty,
     } = useAppDataContext();
     
     // State for UI
@@ -34,6 +37,7 @@ export const ProfilePage: React.FC = () => {
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
     const [isWorkContractModalOpen, setIsWorkContractModalOpen] = useState(false);
+    const [appealingPenalty, setAppealingPenalty] = useState<Penalty | null>(null);
     const [requestToCancel, setRequestToCancel] = useState<{id: string, type: 'leave' | 'overtime'} | null>(null);
 
     if (!currentUser) return null;
@@ -62,7 +66,7 @@ export const ProfilePage: React.FC = () => {
             case 'salary':
                 return <ProfileSalaryReport />;
             case 'penalties':
-                return <ProfilePenalties />;
+                return <ProfilePenalties onAppeal={setAppealingPenalty} />;
             case 'performance':
                 return <ProfilePerformance />;
             case 'settings':
@@ -96,6 +100,16 @@ export const ProfilePage: React.FC = () => {
             {isExpenseModalOpen && <ExpenseClaimFormModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleSubmitExpenseClaim} />}
             {isOvertimeModalOpen && <OvertimeRequestFormModal isOpen={isOvertimeModalOpen} onClose={() => setIsOvertimeModalOpen(false)} onSave={submitOvertimeRequest} />}
             {isWorkContractModalOpen && <WorkContractChangeRequestModal isOpen={isWorkContractModalOpen} onClose={() => setIsWorkContractModalOpen(false)} onSave={submitWorkContractChangeRequest} />}
+            {appealingPenalty && (
+                <AppealPenaltyModal
+                    isOpen={!!appealingPenalty}
+                    onClose={() => setAppealingPenalty(null)}
+                    onSave={async (reason) => {
+                        await handleAppealPenalty(appealingPenalty.id, reason);
+                        setAppealingPenalty(null);
+                    }}
+                />
+            )}
             {requestToCancel && (
                  <ConfirmationModal isOpen={!!requestToCancel} onClose={() => setRequestToCancel(null)} onConfirm={async () => {
                         if (requestToCancel.type === 'leave') await cancelLeaveRequest(requestToCancel.id);

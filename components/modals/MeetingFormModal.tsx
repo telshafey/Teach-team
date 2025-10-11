@@ -1,7 +1,6 @@
 import React, { useState, FormEvent } from 'react';
 import { MeetingFormData } from '../../types';
-// FIX: Corrected import path
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useToast } from '../../contexts/ToastContext';
 
 interface MeetingFormModalProps {
@@ -11,7 +10,7 @@ interface MeetingFormModalProps {
 }
 
 export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onClose, onSave }) => {
-    const { teamMembers } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
     const { addToast } = useToast();
     const [title, setTitle] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
@@ -27,8 +26,6 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
             await onSave({ title, scheduledTime: new Date(scheduledTime).toISOString(), members });
             onClose();
         } catch (error: any) {
-            console.error("Failed to save meeting", error);
-            // Toast is now handled by the context, but we still need to show a generic message if that fails for some reason.
             addToast(error.message || 'فشل جدولة الاجتماع. يرجى المحاولة مرة أخرى.', 'error');
         } finally {
             setIsSaving(false);

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, FormEvent } from 'react';
-import { DailyLog, DailyLogFormData } from '../../types';
+import React, { useState, useEffect, FormEvent, useMemo } from 'react';
+import { DailyLog, DailyLogFormData, Task } from '../../types';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useAppDataContext } from '../../contexts/DataContext';
 
 interface LogFormModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface LogFormModalProps {
 
 export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onSave, log, date, memberId, initialData }) => {
   const { tasks, projects } = useProjectContext();
+  const { teamMembers } = useAppDataContext();
   const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -69,7 +71,51 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
     }
   };
 
-  const availableTasks = formData.projectId ? tasks.filter(t => t.projectId === formData.projectId) : [];
+  const availableTasks = useMemo(() => {
+    if (!formData.projectId) {
+      return [];
+    }
+    const projectTasks = tasks.filter(t => t.projectId === formData.projectId);
+
+    // Map tasks to include assignee info for sorting and display
+    const mappedTasks = projectTasks.map(task => {
+        const assignee = teamMembers.find(m => m.id === task.assignedTo);
+        return { 
+            ...task, 
+            assigneeName: assignee?.name 
+        };
+    });
+
+    // Sort the mapped tasks
+    mappedTasks.sort((a, b) => {
+      const aIsMine = a.assignedTo === memberId;
+      const bIsMine = b.assignedTo === memberId;
+      const aIsUnassigned = !a.assignedTo;
+      const bIsUnassigned = !b.assignedTo;
+
+      // Group 1: My tasks
+      if (aIsMine && !bIsMine) return -1;
+      if (!aIsMine && bIsMine) return 1;
+      if (aIsMine && bIsMine) return a.title.localeCompare(b.title);
+
+      // Group 2: Unassigned tasks
+      if (aIsUnassigned && !bIsUnassigned) return -1;
+      if (!aIsUnassigned && bIsUnassigned) return 1;
+      if (aIsUnassigned && bIsUnassigned) return a.title.localeCompare(b.title);
+
+      // Group 3: Others' tasks - sort by assignee name, then task title
+      const nameA = a.assigneeName || '';
+      const nameB = b.assigneeName || '';
+      if (nameA !== nameB) {
+        return nameA.localeCompare(nameB);
+      }
+      
+      return a.title.localeCompare(b.title);
+    });
+
+    return mappedTasks;
+  }, [formData.projectId, tasks, memberId, teamMembers]);
+  
   const isFromTimer = !!initialData;
 
   return (
@@ -88,12 +134,16 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
-           {formData.projectId && availableTasks.length > 0 && (
+           {formData.projectId && (
             <div>
               <label htmlFor="task" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المهمة (اختياري)</label>
               <select id="task" value={formData.taskId} onChange={e => setFormData({...formData, taskId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70" disabled={isFromTimer}>
-                <option value="">اختر مهمة</option>
-                {availableTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                <option value="">-- بدون تحديد مهمة --</option>
+                {availableTasks.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.title} {t.assigneeName && t.assignedTo !== memberId ? `(${t.assigneeName})` : ''}
+                  </option>
+                ))}
               </select>
             </div>
            )}

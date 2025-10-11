@@ -2,21 +2,20 @@ import React, { useState, useMemo } from 'react';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { TeamTreeView } from './TeamTreeView';
 import { TeamMemberDetailPage } from './TeamMemberDetailPage';
-import { View } from '../dashboard/Dashboard';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { TeamMember, TeamMemberFormData } from '../../types';
 import { TeamMemberFormModal } from '../modals/TeamMemberFormModal';
 import { Card } from '../ui/Card';
 import { UsersIcon } from '../ui/Icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 interface TeamManagementPageProps {
-    initialView?: View;
+    initialView?: 'teamDetail';
     initialProps?: any;
-    onNavigate: (view: View, props?: any) => void;
 }
 
-export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialView, initialProps, onNavigate }) => {
+export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialProps }) => {
     const { teamMembers, isLoading, handleAddMember, handleUpdateMember } = useAppDataContext();
     const { currentUser } = useAuth();
     const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialProps?.memberId || null);
@@ -106,7 +105,6 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialV
                             member={selectedMember}
                             onBack={() => setSelectedMemberId(null)}
                             onEdit={() => handleOpenForm(selectedMember)}
-                            onNavigate={onNavigate}
                         />
                     ) : (
                         <div className="flex h-full items-center justify-center p-6">

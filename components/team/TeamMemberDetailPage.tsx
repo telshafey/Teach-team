@@ -9,17 +9,17 @@ import { BarChart } from '../ui/Charts';
 import { generatePerformanceNotes } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
-import { View } from '../dashboard/Dashboard';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 interface TeamMemberDetailPageProps {
   member: TeamMember;
   onBack: () => void;
   onEdit: () => void;
-  onNavigate: (view: View, props?: any) => void;
 }
 
 export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onBack, onEdit }) => {
-  const { dailyLogs } = useAppDataContext();
+  const { onNavigate } = useNavigation();
+  const { dailyLogs, currency } = useAppDataContext();
   const { tasks, projects } = useProjectContext();
   const { rolesMap, hasPermission } = useAuth();
   const { addToast } = useToast();
@@ -95,6 +95,21 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
                 <div className="flex justify-between"><span>إجمالي الساعات المسجلة:</span> <span className="font-bold">{totalHoursLogged.toFixed(1)}</span></div>
                 <div className="flex justify-between"><span>المهام المكتملة:</span> <span className="font-bold">{tasksCompleted}</span></div>
                 <div className="flex justify-between"><span>إجمالي المهام:</span> <span className="font-bold">{memberTasks.length}</span></div>
+                
+                {hasPermission('view_all_salaries') && (
+                    <>
+                        <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
+                        {member.salary != null && (
+                            <div className="flex justify-between"><span>الراتب الشهري:</span> <span className="font-bold text-green-600 dark:text-green-400">{member.salary.toLocaleString()} {currency}</span></div>
+                        )}
+                        {member.hourlyRate != null && (
+                            <div className="flex justify-between"><span>سعر الساعة:</span> <span className="font-bold text-indigo-600 dark:text-indigo-400">{member.hourlyRate.toLocaleString()} {currency}</span></div>
+                        )}
+                        {member.weeklyHoursRequirement != null && (
+                            <div className="flex justify-between"><span>ساعات العمل الأسبوعية:</span> <span className="font-bold">{member.weeklyHoursRequirement} ساعة</span></div>
+                        )}
+                    </>
+                )}
             </div>
           </Card>
            {hasPermission('generate_performance_notes') && (

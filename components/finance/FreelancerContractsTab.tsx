@@ -1,5 +1,7 @@
 import React from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { Project } from '../../types';
@@ -13,7 +15,9 @@ interface FreelancerContractsTabProps {
 }
 
 export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ onReview }) => {
-    const { teamMembers, dailyLogs, currency } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
+    const { currency } = useSettingsContext();
     const { projects } = useProjectContext();
     const { currentUser, hasPermission } = useAuth();
 

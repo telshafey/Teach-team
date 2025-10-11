@@ -6,6 +6,7 @@ const SITE_SETTINGS: SiteSettings = {
     themeColor: '#0ea5e9',
     currency: 'EGP',
     overtimeRateMultiplier: 1.5,
+    logEditingDaysLimit: 3,
     isFinanceModuleEnabled: true,
     isMeetingsModuleEnabled: true,
     isAnalyticsModuleEnabled: true,

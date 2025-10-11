@@ -71,7 +71,6 @@ export const AnalyticsPage: React.FC = () => {
             }
         });
 
-        // FIX: Explicitly type the destructured array from Object.entries to resolve a potential type inference issue.
         return Object.entries(productivityMap).map(([date, hours]: [string, number]) => ({
             label: format(new Date(date), 'd MMM'),
             value: hours

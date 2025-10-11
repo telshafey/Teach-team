@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Project, FreelancerContract, BillingProposalFormData } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { Project, BillingProposalFormData } from '../../types';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 interface FreelancerBillingModalProps {
   isOpen: boolean;
@@ -12,7 +12,7 @@ interface FreelancerBillingModalProps {
 type BillingType = 'fixed' | 'hourly' | 'per-task';
 
 export const FreelancerBillingModal: React.FC<FreelancerBillingModalProps> = ({ isOpen, onClose, onSave, project }) => {
-  const { currency } = useAppDataContext();
+  const { currency } = useSettingsContext();
   const [isSaving, setIsSaving] = useState(false);
   const [billingType, setBillingType] = useState<BillingType>('hourly');
   const [amount, setAmount] = useState('');
@@ -55,12 +55,12 @@ export const FreelancerBillingModal: React.FC<FreelancerBillingModalProps> = ({ 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-4 text-slate-800">اقتراح طريقة الدفع لمشروع: {project.name}</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg">
+        <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">اقتراح طريقة الدفع لمشروع: {project.name}</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-2">اختر طريقة الدفع</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">اختر طريقة الدفع</label>
             <div className="flex space-x-4 rtl:space-x-reverse">
                 <label className="flex items-center space-x-2 rtl:space-x-reverse">
                     <input type="radio" name="billingType" value="hourly" checked={billingType === 'hourly'} onChange={() => setBillingType('hourly')} className="h-4 w-4 text-sky-600 focus:ring-sky-500" />
@@ -79,20 +79,20 @@ export const FreelancerBillingModal: React.FC<FreelancerBillingModalProps> = ({ 
           
           {billingType === 'hourly' && (
              <div>
-                <label htmlFor="hourlyRate" className="block text-sm font-medium text-slate-600 mb-1">سعر الساعة ({currency})</label>
-                <input type="number" step="0.1" id="hourlyRate" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm" placeholder="مثال: 300" required />
+                <label htmlFor="hourlyRate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">سعر الساعة ({currency})</label>
+                <input type="number" step="0.1" id="hourlyRate" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" placeholder="مثال: 300" required />
              </div>
           )}
 
           {billingType === 'fixed' && (
              <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-slate-600 mb-1">المبلغ الإجمالي للمشروع ({currency})</label>
-                <input type="number" step="1" id="amount" value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md text-sm" placeholder="مثال: 15000" required />
+                <label htmlFor="amount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المبلغ الإجمالي للمشروع ({currency})</label>
+                <input type="number" step="1" id="amount" value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" placeholder="مثال: 15000" required />
              </div>
           )}
 
           {billingType === 'per-task' && (
-              <div className="p-3 bg-slate-100 rounded-md text-sm text-slate-600">
+              <div className="p-3 bg-slate-100 dark:bg-slate-700/50 rounded-md text-sm text-slate-600 dark:text-slate-300">
                   سيقوم المدير بتحديد تكلفة كل مهمة على حدة عند إسنادها لك.
               </div>
           )}

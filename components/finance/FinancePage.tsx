@@ -1,14 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import React, { useState } from 'react';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
 import { TeamMember, Project, Penalty } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { SalaryEditModal } from '../modals/SalaryEditModal';
 import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
 import { DecisionDetailModal } from '../modals/DecisionDetailModal';
 import { PenaltyFormModal } from '../modals/PenaltyFormModal';
-
-// Import newly created sub-components
 import { FinanceOverview } from './FinanceOverview';
 import { ProjectFinancials } from './ProjectFinancials';
 import { FreelancerContractsTab } from './FreelancerContractsTab';
@@ -17,19 +15,18 @@ import { SalariesTab } from './SalariesTab';
 import { PenaltiesTab } from './PenaltiesTab';
 
 export const FinancePage: React.FC = () => {
-    const { handleUpdateMember, handleSubmitExpenseClaim, penalties, handleIssuePenalty, teamMembers } = useAppDataContext();
+    const { handleUpdateMember } = useTeamContext();
+    const { penalties, handleIssuePenalty, handleSubmitExpenseClaim } = useRequestsContext();
     const { hasPermission, currentUser } = useAuth();
     
-    // Determine the default tab based on user role
     const getDefaultTab = () => {
         if (currentUser?.roleId === 'freelancer') return 'freelancer';
         if (hasPermission('view_finances')) return 'overview';
-        return 'expenses'; // Fallback for users who can only submit expenses
+        return 'expenses';
     };
 
     const [activeTab, setActiveTab] = useState(getDefaultTab());
     
-    // State for modals remains in the parent component
     const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [isPenaltyModalOpen, setIsPenaltyModalOpen] = useState(false);
@@ -39,22 +36,6 @@ export const FinancePage: React.FC = () => {
         await handleUpdateMember(memberId, data);
         setEditingMember(null);
     };
-
-    const myTeamIds = useMemo(() => {
-        if (!currentUser) return [];
-        if (currentUser.roleId === 'gm') return teamMembers.map(m => m.id);
-        const getTeamIds = (managerId: number): number[] => {
-            const team = [managerId];
-            const directReports = teamMembers.filter(m => m.reportsTo === managerId);
-            directReports.forEach(report => { team.push(...getTeamIds(report.id)); });
-            return team;
-        };
-        return Array.from(new Set(getTeamIds(currentUser.id)));
-    }, [currentUser, teamMembers]);
-
-    const visiblePenalties = useMemo(() => {
-        return penalties.filter(p => myTeamIds.includes(p.teamMemberId));
-    }, [penalties, myTeamIds]);
 
     const navItems = [
         { id: 'overview', label: 'نظرة عامة', permission: hasPermission('view_finances') },
@@ -92,10 +73,9 @@ export const FinancePage: React.FC = () => {
             {activeTab === 'project_financials' && <ProjectFinancials />}
             {activeTab === 'freelancer' && <FreelancerContractsTab onReview={setReviewingItem as (item: Project) => void} />}
             {activeTab === 'expenses' && <ExpenseClaimsTab onNewClaim={() => setIsExpenseModalOpen(true)} />}
-            {activeTab === 'penalties' && <PenaltiesTab penalties={visiblePenalties} onReview={setReviewingItem as (item: Penalty) => void} onNew={() => setIsPenaltyModalOpen(true)} />}
+            {activeTab === 'penalties' && <PenaltiesTab penalties={penalties} onReview={setReviewingItem as (item: Penalty) => void} onNew={() => setIsPenaltyModalOpen(true)} />}
             {activeTab === 'salaries' && <SalariesTab onEdit={setEditingMember} />}
             
-            {/* Modals remain here as they are controlled by the parent page state */}
             {editingMember && (
                 <SalaryEditModal
                     isOpen={!!editingMember}
@@ -129,4 +109,3 @@ export const FinancePage: React.FC = () => {
     );
 };
 
-export default FinancePage;

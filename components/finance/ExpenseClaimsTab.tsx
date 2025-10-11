@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { ExpenseClaim, ExpenseClaimStatus } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,15 +15,21 @@ interface ExpenseClaimsTabProps {
 }
 
 export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }) => {
-    const { expenseClaims, teamMembers, handleUpdateExpenseClaimStatus } = useAppDataContext();
+    const { expenseClaims, handleUpdateExpenseClaimStatus } = useRequestsContext();
+    const { teamMembers } = useTeamContext();
     const { projects } = useProjectContext();
-    const { hasPermission } = useAuth();
+    const { currency } = useSettingsContext();
+    const { currentUser, hasPermission } = useAuth();
     const [statusFilter, setStatusFilter] = useState<'all' | ExpenseClaimStatus>('all');
 
-    const filteredClaims = useMemo(() => {
-        if (statusFilter === 'all') return expenseClaims;
-        return expenseClaims.filter(c => c.status === statusFilter);
-    }, [expenseClaims, statusFilter]);
+    const claimsToDisplay = useMemo(() => {
+        let claims = expenseClaims;
+        if (!hasPermission('approve_expense_claims')) {
+            claims = claims.filter(c => c.teamMemberId === currentUser?.id);
+        }
+        if (statusFilter === 'all') return claims;
+        return claims.filter(c => c.status === statusFilter);
+    }, [expenseClaims, statusFilter, currentUser, hasPermission]);
     
     const getStatusBadge = (status: ExpenseClaim['status']) => {
         const styles = {
@@ -50,51 +58,50 @@ export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }
                 </div>
                 {hasPermission('submit_expenses') && (
                     <button onClick={onNewClaim} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full sm:w-auto">
-                        <PlusIcon className="w-4 h-4"/><span>طلب صرف جديد</span>
+                        <PlusIcon className="w-4 h-4"/><span>تقديم طلب صرف</span>
                     </button>
                 )}
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-right">
-                    <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
+                     <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
                         <tr>
                             <th className="px-4 py-2">الموظف</th>
-                            <th className="px-4 py-2">المشروع</th>
-                            <th className="px-4 py-2">المبلغ</th>
+                            <th className="px-4 py-2">المبلغ ({currency})</th>
                             <th className="px-4 py-2">التاريخ</th>
+                            <th className="px-4 py-2">المشروع</th>
                             <th className="px-4 py-2">الوصف</th>
                             <th className="px-4 py-2">الحالة</th>
                             {hasPermission('approve_expense_claims') && <th className="px-4 py-2">الإجراء</th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredClaims.map(claim => {
+                        {claimsToDisplay.map(claim => {
                             const member = teamMembers.find(m => m.id === claim.teamMemberId);
                             const project = projects.find(p => p.id === claim.projectId);
                             return (
-                                <tr key={claim.id} className="border-b dark:border-slate-700">
-                                    <td className="px-4 py-2 font-medium">{member?.name}</td>
-                                    <td className="px-4 py-2">{project?.name || '-'}</td>
-                                    <td className="px-4 py-2">{claim.amount}</td>
-                                    <td className="px-4 py-2">{format(parseISO(claim.date), 'd MMM yyyy', { locale: arSA })}</td>
-                                    <td className="px-4 py-2">{claim.description}</td>
-                                    <td className="px-4 py-2">{getStatusBadge(claim.status)}</td>
-                                    {hasPermission('approve_expense_claims') && (
-                                        <td className="px-4 py-2">
-                                            {claim.status === 'pending' && (
-                                                <div className="flex space-x-2 rtl:space-x-reverse">
-                                                    <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full" title="موافقة"><CheckIcon className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'rejected')} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full" title="رفض"><NoSymbolIcon className="w-4 h-4" /></button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    )}
-                                </tr>
-                            )
-                        })}
+                            <tr key={claim.id} className="border-b dark:border-slate-700">
+                                <td className="px-4 py-2 font-medium">{member?.name}</td>
+                                <td className="px-4 py-2">{claim.amount}</td>
+                                <td className="px-4 py-2">{format(parseISO(claim.date), 'd MMM yyyy', { locale: arSA })}</td>
+                                <td className="px-4 py-2">{project?.name || '-'}</td>
+                                <td className="px-4 py-2 truncate max-w-xs">{claim.description}</td>
+                                <td className="px-4 py-2">{getStatusBadge(claim.status)}</td>
+                                {hasPermission('approve_expense_claims') && (
+                                    <td className="px-4 py-2">
+                                        {claim.status === 'pending' && (
+                                            <div className="flex space-x-2 rtl:space-x-reverse">
+                                                <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'approved')} className="p-1.5 text-green-500 hover:bg-green-100 rounded-full"><CheckIcon className="w-4 h-4"/></button>
+                                                <button onClick={() => handleUpdateExpenseClaimStatus(claim.id, 'rejected')} className="p-1.5 text-red-500 hover:bg-red-100 rounded-full"><NoSymbolIcon className="w-4 h-4"/></button>
+                                            </div>
+                                        )}
+                                    </td>
+                                )}
+                            </tr>
+                        )})}
                     </tbody>
                 </table>
-                 {filteredClaims.length === 0 && <p className="text-center text-slate-500 py-8">لا توجد طلبات صرف تطابق هذه الفئة.</p>}
+                 {claimsToDisplay.length === 0 && <p className="text-center text-slate-500 py-8">لا توجد طلبات صرف تطابق هذه الفئة.</p>}
             </div>
         </Card>
     );

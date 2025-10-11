@@ -1,15 +1,21 @@
 import React, { useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { PenaltyStatus } from '../../types';
+import { Penalty, PenaltyStatus } from '../../types';
 
-export const ProfilePenalties: React.FC = () => {
+interface ProfilePenaltiesProps {
+    onAppeal: (penalty: Penalty) => void;
+}
+
+export const ProfilePenalties: React.FC<ProfilePenaltiesProps> = ({ onAppeal }) => {
     const { currentUser } = useAuth();
-    const { penalties, currency } = useAppDataContext();
+    const { penalties } = useRequestsContext();
+    const { currency } = useSettingsContext();
     
     const myPenalties = useMemo(() => {
         if (!currentUser) return [];
@@ -39,6 +45,7 @@ export const ProfilePenalties: React.FC = () => {
                             <th className="px-4 py-2">المبلغ ({currency})</th>
                             <th className="px-4 py-2">السبب</th>
                             <th className="px-4 py-2">الحالة</th>
+                            <th className="px-4 py-2">الإجراء</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,6 +55,13 @@ export const ProfilePenalties: React.FC = () => {
                                 <td className="px-4 py-2">{p.amount}</td>
                                 <td className="px-4 py-2">{p.reason}</td>
                                 <td className="px-4 py-2">{getStatusBadge(p.status)}</td>
+                                <td className="px-4 py-2">
+                                    {p.status === 'approved' && (
+                                        <button onClick={() => onAppeal(p)} className="text-xs font-semibold text-blue-600 hover:underline">
+                                        استئناف
+                                        </button>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

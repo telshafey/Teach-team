@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppDataContext } from '../../contexts/DataContext';
 import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 import { EmptyState } from '../ui/EmptyState';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 interface ProjectCardProps {
   project: Project;
@@ -72,11 +73,11 @@ const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, onSelect,
 });
 
 interface ProjectsPageProps {
-  onProjectSelect: (projectId: string) => void;
   initialState?: { statusFilter: ProjectStatus };
 }
 
-export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, initialState }) => {
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({ initialState }) => {
+    const { onNavigate } = useNavigation();
     const { projects, handleAddProject, isLoading } = useProjectContext();
     const { hasPermission } = useAuth();
     const { currency } = useAppDataContext();
@@ -96,6 +97,10 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
         if (!projectToUpdate) {
             await handleAddProject(projectData, suggestedTasks);
         }
+    };
+
+    const handleProjectSelect = (projectId: string) => {
+        onNavigate('projectDetail', { projectId });
     };
 
     const projectStatuses: ProjectStatus[] = ['نشط', 'مكتمل', 'معلق'];
@@ -142,7 +147,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectSelect, ini
             ) : filteredProjects.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} onSelect={onProjectSelect} currency={currency} />
+                        <ProjectCard key={project.id} project={project} onSelect={handleProjectSelect} currency={currency} />
                     ))}
                 </div>
             ) : (

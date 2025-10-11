@@ -75,7 +75,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchInitialData();
 
         const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-            setIsLoading(true);
             if (session?.user) {
                 const profile = await fetchUserProfile(session.user);
                 setCurrentUser(profile);
@@ -87,7 +86,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                  const apiRoles = await api.fetchAll<Role>(supabaseClient, 'roles');
                  setRoles(apiRoles);
             }
-            setIsLoading(false);
         });
 
         return () => subscription.unsubscribe();

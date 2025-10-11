@@ -6,16 +6,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { Card } from '../ui/Card';
 import { LockClosedIcon } from '../ui/Icons';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
 
 interface SettingsPageProps {
     initialView?: View;
     initialProps?: any;
-    onNavigate: (view: View, state?: any) => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initialProps, onNavigate }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initialProps }) => {
+    const { onNavigate } = useNavigation();
     const { hasPermission } = useAuth();
 
     const canManageSite = hasPermission('manage_site_settings');
@@ -89,7 +90,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initial
             
             <Suspense fallback={<div className="flex justify-center p-8"><LoadingSpinner /></div>}>
                 {activeTab === 'site' && canManageSite && <SiteSettingsPage />}
-                {activeTab === 'roles' && canManageRoles && <RoleManagementPage onNavigate={onNavigate} initialRoleId={initialProps?.initialRoleId} />}
+                {activeTab === 'roles' && canManageRoles && <RoleManagementPage initialRoleId={initialProps?.initialRoleId} />}
                 {activeTab === 'database' && canManageDb && <DatabaseSettingsPage />}
             </Suspense>
         </div>

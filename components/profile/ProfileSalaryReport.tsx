@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { CurrencyDollarIcon, ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
 import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths, subMonths, isSameMonth, isAfter } from 'date-fns';
@@ -8,7 +9,8 @@ import { arSA } from 'date-fns/locale';
 
 export const ProfileSalaryReport: React.FC = () => {
     const { currentUser } = useAuth();
-    const { overtimeRequests, expenseClaims, penalties, currency, siteSettings } = useAppDataContext();
+    const { overtimeRequests, expenseClaims, penalties } = useRequestsContext();
+    const { currency, siteSettings } = useSettingsContext();
     const [viewedMonth, setViewedMonth] = useState(new Date());
 
     const salaryReportData = useMemo(() => {

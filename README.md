@@ -70,39 +70,192 @@ RETURNS TEXT LANGUAGE sql STABLE AS $$
 $$;
 ```
 
-### جدول `contract_change_requests`
-هذا الجدول يحتوي على معلومات الرواتب الحساسة. قم بتنفيذ الاستعلامات التالية في محرر SQL الخاص بـ Supabase لتأمين الجدول:
+### جدول `tasks` (المهام)
+هذا الجدول هو محور إدارة المشاريع ويجب تأمينه بشكل صحيح.
 
 ```sql
 -- الخطوة 1: تفعيل أمان مستوى الصف للجدول
-ALTER TABLE public.contract_change_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
 -- الخطوة 2: حذف السياسات القديمة لجعل النص البرمجي قابلاً لإعادة التشغيل
-DROP POLICY IF EXISTS "Allow users to view their own requests" ON public.contract_change_requests;
-DROP POLICY IF EXISTS "Allow users to create their own requests" ON public.contract_change_requests;
-DROP POLICY IF EXISTS "Allow managers to view their team's requests" ON public.contract_change_requests;
-DROP POLICY IF EXISTS "Allow managers to update their team's requests" ON public.contract_change_requests;
-DROP POLICY IF EXISTS "Allow GM full access" ON public.contract_change_requests;
+DROP POLICY IF EXISTS "Enable read access for relevant users" ON public.tasks;
+DROP POLICY IF EXISTS "Enable insert for managers and GM" ON public.tasks;
+DROP POLICY IF EXISTS "Enable update for relevant users" ON public.tasks;
+DROP POLICY IF EXISTS "Enable delete for managers and GM" ON public.tasks;
 
--- الخطوة 3: إنشاء سياسات الأمان الصحيحة
+-- الخطوة 3: إنشاء سياسات الأمان
+-- سياسة العرض (SELECT): يمكنك رؤية المهمة إذا كنت المدير العام، أو مدير الشخص المسندة إليه، أو الشخص المسندة إليه، أو إذا كانت غير مسندة.
+CREATE POLICY "Enable read access for relevant users"
+ON public.tasks FOR SELECT
+USING (
+    get_my_role() = 'gm' OR
+    assigned_to = get_my_team_member_id() OR
+    (get_my_role() = 'manager' AND (SELECT reports_to FROM public.team_members WHERE id = assigned_to) = get_my_team_member_id()) OR
+    assigned_to IS NULL
+);
+
+-- سياسة الإضافة (INSERT): يمكنك إضافة مهمة إذا كنت مديراً أو مديراً عاماً.
+CREATE POLICY "Enable insert for managers and GM"
+ON public.tasks FOR INSERT
+WITH CHECK (get_my_role() IN ('manager', 'gm'));
+
+-- سياسة التعديل (UPDATE): يمكنك تعديل المهمة إذا كنت المدير العام، أو مدير الشخص المسندة إليه، أو الشخص المسندة إليه بنفسه، أو إذا كانت غير مسندة وكنت مديراً.
+CREATE POLICY "Enable update for relevant users"
+ON public.tasks FOR UPDATE
+USING (
+    get_my_role() = 'gm' OR
+    assigned_to = get_my_team_member_id() OR
+    (get_my_role() = 'manager' AND (SELECT reports_to FROM public.team_members WHERE id = assigned_to) = get_my_team_member_id()) OR
+    (get_my_role() = 'manager' AND assigned_to IS NULL)
+);
+
+-- سياسة الحذف (DELETE): يمكنك حذف المهمة إذا كنت المدير العام أو مدير الشخص المسندة إليه.
+CREATE POLICY "Enable delete for managers and GM"
+ON public.tasks FOR DELETE
+USING (
+    get_my_role() = 'gm' OR
+    (get_my_role() = 'manager' AND (SELECT reports_to FROM public.team_members WHERE id = assigned_to) = get_my_team_member_id()) OR
+    (get_my_role() = 'manager' AND assigned_to IS NULL)
+);
+
+```
+
+### جدول `task_attachments` (مرفقات المهام)
+لتخزين مرفقات المهام بشكل آمن.
+
+```sql
+-- الخطوة 1: إنشاء الجدول (إذا لم يكن موجودًا)
+CREATE TABLE IF NOT EXISTS public.task_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    uploader_id INT NOT NULL REFERENCES public.team_members(id),
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- الخطوة 2: تفعيل أمان مستوى الصف
+ALTER TABLE public.task_attachments ENABLE ROW LEVEL SECURITY;
+
+-- الخطوة 3: حذف السياسات القديمة
+DROP POLICY IF EXISTS "Allow users to view attachments of their tasks" ON public.task_attachments;
+DROP POLICY IF EXISTS "Allow users to insert attachments to their tasks" ON public.task_attachments;
+DROP POLICY IF EXISTS "Allow uploader to delete their attachments" ON public.task_attachments;
+
+-- الخطوة 4: إنشاء سياسات الأمان
+CREATE POLICY "Allow users to view attachments of their tasks"
+ON public.task_attachments FOR SELECT
+USING (
+  (SELECT assigned_to FROM public.tasks WHERE id = task_id) = get_my_team_member_id()
+  OR get_my_role() IN ('manager', 'gm')
+);
+
+CREATE POLICY "Allow users to insert attachments to their tasks"
+ON public.task_attachments FOR INSERT
+WITH CHECK (
+  (SELECT assigned_to FROM public.tasks WHERE id = task_id) = get_my_team_member_id()
+  OR get_my_role() IN ('manager', 'gm')
+);
+
+CREATE POLICY "Allow uploader to delete their attachments"
+ON public.task_attachments FOR DELETE
+USING (uploader_id = get_my_team_member_id());
+
+```
+
+### جدول `task_comments` (تعليقات المهام)
+لتخزين تعليقات المهام بشكل آمن.
+
+```sql
+-- الخطوة 1: إنشاء الجدول (إذا لم يكن موجودًا)
+CREATE TABLE IF NOT EXISTS public.task_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    author_id INT NOT NULL REFERENCES public.team_members(id),
+    text TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- الخطوة 2: تفعيل أمان مستوى الصف
+ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
+
+-- الخطوة 3: حذف السياسات القديمة
+DROP POLICY IF EXISTS "Allow users to view comments of their tasks" ON public.task_comments;
+DROP POLICY IF EXISTS "Allow users to insert comments on their tasks" ON public.task_comments;
+DROP POLICY IF EXISTS "Allow author to delete their comments" ON public.task_comments;
+DROP POLICY IF EXISTS "Allow author to edit their comments" ON public.task_comments;
+
+-- الخطوة 4: إنشاء سياسات الأمان
+CREATE POLICY "Allow users to view comments of their tasks"
+ON public.task_comments FOR SELECT
+USING (
+  (SELECT assigned_to FROM public.tasks WHERE id = task_id) = get_my_team_member_id()
+  OR get_my_role() IN ('manager', 'gm')
+);
+
+CREATE POLICY "Allow users to insert comments on their tasks"
+ON public.task_comments FOR INSERT
+WITH CHECK (author_id = get_my_team_member_id());
+
+CREATE POLICY "Allow author to delete their comments"
+ON public.task_comments FOR DELETE
+USING (author_id = get_my_team_member_id());
+
+CREATE POLICY "Allow author to edit their comments"
+ON public.task_comments FOR UPDATE
+USING (author_id = get_my_team_member_id());
+```
+
+
+### جدول `work_contract_change_requests`
+هذا الجدول يحتوي على معلومات الرواتب الحساسة. قم بتنفيذ الاستعلامات التالية في محرر SQL الخاص بـ Supabase لتأمين الجدول:
+
+```sql
+-- الخطوة 1: إنشاء الجدول (إذا لم يكن موجودًا)
+CREATE TABLE IF NOT EXISTS public.work_contract_change_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_member_id INT NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
+    current_weekly_hours NUMERIC,
+    requested_weekly_hours NUMERIC NOT NULL,
+    current_salary NUMERIC,
+    requested_salary NUMERIC NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    manager_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    approved_weekly_hours NUMERIC,
+    approved_salary NUMERIC
+);
+
+-- الخطوة 2: تفعيل أمان مستوى الصف للجدول
+ALTER TABLE public.work_contract_change_requests ENABLE ROW LEVEL SECURITY;
+
+-- الخطوة 3: حذف السياسات القديمة لجعل النص البرمجي قابلاً لإعادة التشغيل
+DROP POLICY IF EXISTS "Allow users to view their own requests" ON public.work_contract_change_requests;
+DROP POLICY IF EXISTS "Allow users to create their own requests" ON public.work_contract_change_requests;
+DROP POLICY IF EXISTS "Allow managers to view their team's requests" ON public.work_contract_change_requests;
+DROP POLICY IF EXISTS "Allow managers to update their team's requests" ON public.work_contract_change_requests;
+DROP POLICY IF EXISTS "Allow GM full access" ON public.work_contract_change_requests;
+
+-- الخطوة 4: إنشاء سياسات الأمان الصحيحة
 CREATE POLICY "Allow users to view their own requests"
-ON public.contract_change_requests FOR SELECT
+ON public.work_contract_change_requests FOR SELECT
 USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
 
 CREATE POLICY "Allow users to create their own requests"
-ON public.contract_change_requests FOR INSERT
+ON public.work_contract_change_requests FOR INSERT
 WITH CHECK (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id));
 
 CREATE POLICY "Allow managers to view their team's requests"
-ON public.contract_change_requests FOR SELECT
+ON public.work_contract_change_requests FOR SELECT
 USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
     
 CREATE POLICY "Allow managers to update their team's requests"
-ON public.contract_change_requests FOR UPDATE
+ON public.work_contract_change_requests FOR UPDATE
 USING ((SELECT reports_to FROM public.team_members WHERE id = team_member_id) = get_my_team_member_id());
 
 CREATE POLICY "Allow GM full access"
-ON public.contract_change_requests FOR ALL
+ON public.work_contract_change_requests FOR ALL
 USING (get_my_role() = 'gm');
 ```
 
@@ -151,6 +304,18 @@ CREATE POLICY "Allow users to appeal their penalties"
 ON public.penalties FOR UPDATE
 USING (auth.uid() = (SELECT auth_user_id FROM public.team_members WHERE id = team_member_id))
 WITH CHECK (status = 'appealed');
+```
+
+### جدول `notifications` (الإشعارات)
+لإصلاح الأخطاء المتعلقة بإنشاء الإشعارات، تأكد من أن جدول `notifications` مهيأ بشكل صحيح. قم بتشغيل الأكواد التالية في محرر SQL الخاص بـ Supabase.
+
+```sql
+-- إضافة عمود `message` إذا لم يكن موجودًا
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT;
+
+-- تعيين قيمة افتراضية لعمود `id` لمنع أخطاء "null value"
+-- هذا يفترض أن العمود `id` من نوع UUID
+ALTER TABLE public.notifications ALTER COLUMN id SET DEFAULT gen_random_uuid();
 ```
 
 ### إعداد Supabase Storage (هام)

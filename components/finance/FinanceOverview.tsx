@@ -1,12 +1,18 @@
 import React, { useMemo } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart } from '../ui/Charts';
 import { calculateProjectCostBreakdown } from '../../utils/costs';
 
 export const FinanceOverview: React.FC = () => {
-    const { teamMembers, dailyLogs, expenseClaims, currency, overtimeRequests, siteSettings } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
+    const { expenseClaims, overtimeRequests } = useRequestsContext();
+    const { currency, siteSettings } = useSettingsContext();
     const { projects } = useProjectContext();
 
     const totalSalaries = useMemo(() => {

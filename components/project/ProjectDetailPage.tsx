@@ -5,17 +5,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Project, Task, TaskStatus, TaskFormData, BillingProposalFormData } from '../../types';
 import { TaskCard } from './TaskCard';
 import { TaskFormModal } from '../modals/TaskFormModal';
-import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon } from '../ui/Icons';
+import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon } from '../ui/Icons';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { GanttChart } from './GanttChart';
 import { FreelancerBillingModal } from '../modals/FreelancerBillingModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
+import { useNavigation } from '../../contexts/NavigationContext';
+import { Card } from '../ui/Card';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { generateProjectSummary } from '../../services/geminiService';
+import { useToast } from '../../contexts/ToastContext';
 
 
 interface ProjectDetailPageProps {
   projectId: string;
-  onBack: () => void;
   initialTaskIdToOpen?: string;
 }
 
@@ -34,6 +38,7 @@ const TaskColumn: React.FC<{
     canDeleteTasks: boolean;
 }> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canEditTasks, canDeleteTasks }) => {
   const [isOver, setIsOver] = useState(false);
+  const { taskAttachments, taskComments } = useProjectContext();
   
   const placeholder = useMemo(() => {
     if (!draggingTaskId) return null;
@@ -53,6 +58,8 @@ const TaskColumn: React.FC<{
                 <TaskCard 
                     key={task.id} 
                     task={task} 
+                    attachmentCount={taskAttachments.filter(a => a.taskId === task.id).length}
+                    commentCount={taskComments.filter(c => c.taskId === task.id).length}
                     onEdit={onEdit} 
                     onDelete={onDelete}
                     onCardClick={onCardClick}
@@ -69,9 +76,10 @@ const TaskColumn: React.FC<{
   );
 };
 
-export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, onBack, initialTaskIdToOpen }) => {
+export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, initialTaskIdToOpen }) => {
+    const { onNavigate } = useNavigation();
     const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
-    const { teamMembers } = useAppDataContext();
+    const { teamMembers, dailyLogs } = useAppDataContext();
     const { currentUser, hasPermission } = useAuth();
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -83,8 +91,14 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
+    // New state for AI summary
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [projectSummary, setProjectSummary] = useState('');
+    const { addToast } = useToast();
+
     const project = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
     const projectTasks = useMemo(() => tasks.filter(t => t.projectId === projectId), [tasks, projectId]);
+    const projectLogs = useMemo(() => dailyLogs.filter(log => log.projectId === projectId), [dailyLogs, projectId]);
 
     useEffect(() => {
         if (initialTaskIdToOpen) {
@@ -103,10 +117,24 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         };
     }, [projectTasks]);
 
+    const handleGenerateSummary = async () => {
+        if (!project) return;
+        setIsGeneratingSummary(true);
+        setProjectSummary('');
+        try {
+            const summary = await generateProjectSummary(project, projectTasks, projectLogs, teamMembers);
+            setProjectSummary(summary);
+        } catch (error: any) {
+            addToast(error.message, 'error');
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    };
+
     if (!project) {
         return (
             <div className="p-6">
-                <button onClick={onBack} className="text-sm font-semibold text-sky-600 mb-4">&larr; العودة للمشاريع</button>
+                <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-4">&larr; العودة للمشاريع</button>
                 <p>لم يتم العثور على المشروع.</p>
             </div>
         );
@@ -167,7 +195,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         <div className="p-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <div>
-                    <button onClick={onBack} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
+                    <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
                     <div className="flex items-center space-x-3 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
                          {canEditProject && (
@@ -198,6 +226,25 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                 </div>
             </div>
             
+            <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
+                {projectSummary ? (
+                     <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
+                ) : isGeneratingSummary ? (
+                    <div className="flex justify-center items-center p-4">
+                        <LoadingSpinner className="text-sky-500 w-5 h-5" />
+                        <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
+                    </div>
+                ) : (
+                    <div className="text-center p-4">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
+                        <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                           <SparklesIcon className="w-5 h-5" />
+                           <span>إنشاء ملخص ذكي</span>
+                        </button>
+                    </div>
+                )}
+            </Card>
+
             {viewMode === 'kanban' ? (
                 <div className="flex flex-col md:flex-row gap-4">
                     <TaskColumn 
@@ -255,7 +302,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     task={editingTask}
                     projects={[project]}
                     defaultProjectId={project.id}
-                    members={teamMembers}
                 />
             )}
 
@@ -292,7 +338,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     onConfirm={confirmDelete}
                     title="تأكيد حذف المهمة"
                     message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`}
-                    confirmText="نعم، احذف"
                     isDestructive
                 />
             )}

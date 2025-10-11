@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -40,7 +41,8 @@ interface ProfileRequestsProps {
 
 export const ProfileRequests: React.FC<ProfileRequestsProps> = ({ onNewLeave, onNewExpense, onNewOvertime, onCancelRequest }) => {
     const { currentUser } = useAuth();
-    const { leaveRequests, expenseClaims, overtimeRequests, currency } = useAppDataContext();
+    const { leaveRequests, expenseClaims, overtimeRequests } = useRequestsContext();
+    const { currency } = useSettingsContext();
 
     const myData = useMemo(() => {
         if (!currentUser) return { leaves: [], expenses: [], overtimes: [] };

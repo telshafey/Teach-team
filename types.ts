@@ -11,6 +11,7 @@ export interface SiteSettings {
   themeColor: string;
   currency: string;
   overtimeRateMultiplier?: number;
+  logEditingDaysLimit?: number;
   isFinanceModuleEnabled: boolean;
   isMeetingsModuleEnabled: boolean;
   isAnalyticsModuleEnabled: boolean;
@@ -128,6 +129,7 @@ export interface ProjectFormData {
 
 export interface TaskAttachment {
     id: string;
+    taskId: string;
     fileName: string;
     fileUrl: string;
     uploaderId: number;
@@ -136,6 +138,7 @@ export interface TaskAttachment {
 
 export interface TaskComment {
     id: string;
+    taskId: string;
     authorId: number;
     text: string;
     timestamp: string;
@@ -150,8 +153,6 @@ export interface Task {
   dueDate?: string;
   approvalStatus: ApprovalStatus;
   approvalNotes?: string;
-  attachments?: TaskAttachment[];
-  comments?: TaskComment[];
 }
 
 export interface TaskFormData {
@@ -289,7 +290,9 @@ export type NotificationType =
     | 'freelancer_assigned' 
     | 'comment_mention'
     | 'meeting_scheduled'
-    | 'profile_update';
+    | 'profile_update'
+    | 'overtime_request_submitted'
+    | 'overtime_request_resolved';
 
 export interface Notification {
   id: string;

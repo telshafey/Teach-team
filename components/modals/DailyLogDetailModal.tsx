@@ -32,7 +32,7 @@ export const DailyLogDetailModal: React.FC<DailyLogDetailModalProps> = ({ isOpen
             <div>
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">سجلات يوم {formattedDate}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">إجمالي الساعات: {totalHours.toFixed(1)} ساعة</p>
-                 {!isEditable && <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">هذه السجلات للعرض فقط.</p>}
+                 {!isEditable && <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">انتهت الفترة المسموح بها لتعديل سجلات هذا اليوم.</p>}
             </div>
             {isEditable && (
                 <button onClick={onAdd} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">

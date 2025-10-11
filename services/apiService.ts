@@ -41,7 +41,7 @@ export const fetchAll = async <T>(client: SupabaseClient, table: string): Promis
             return []; // Gracefully handle missing tables by returning an empty array
         }
         // For other errors, we still want to know about them.
-        throw error;
+        throw new Error(error.message || `Failed to fetch from table "${table}".`);
     }
     
     return snakeToCamel(data) as T[];
@@ -50,14 +50,14 @@ export const fetchAll = async <T>(client: SupabaseClient, table: string): Promis
 // Generic insert
 export const insert = async <T>(client: SupabaseClient, table: string, record: Partial<T>): Promise<T> => {
     const { data, error } = await client.from(table).insert([camelToSnake(record)]).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || `Failed to insert into table "${table}".`);
     return snakeToCamel(data) as T;
 };
 
 // Generic insert many
 export const insertMany = async <T>(client: SupabaseClient, table: string, records: Partial<T>[]): Promise<T[]> => {
     const { data, error } = await client.from(table).insert(records.map(camelToSnake)).select();
-    if (error) throw error;
+    if (error) throw new Error(error.message || `Failed to insert multiple records into table "${table}".`);
     return snakeToCamel(data) as T[];
 };
 
@@ -65,14 +65,19 @@ export const insertMany = async <T>(client: SupabaseClient, table: string, recor
 // Generic update
 export const update = async <T extends { id: any }>(client: SupabaseClient, table: string, id: T['id'], updates: Partial<T>): Promise<T> => {
     const { data, error } = await client.from(table).update(camelToSnake(updates)).eq('id', id).select().single();
-    if (error) throw error;
+    if (error) {
+        throw new Error(error.message || `Failed to update record in table "${table}".`);
+    }
+    if (!data) {
+        throw new Error(`فشل عملية التحديث في جدول "${table}"، قد يكون السبب متعلقاً بصلاحيات الأمان (RLS).`);
+    }
     return snakeToCamel(data) as T;
 };
 
 // Generic delete
 export const deleteById = async (client: SupabaseClient, table: string, id: string | number): Promise<void> => {
     const { error } = await client.from(table).delete().eq('id', id);
-    if (error) throw error;
+    if (error) throw new Error(error.message || `Failed to delete record from table "${table}".`);
 };
 
 // Specific fetch functions
@@ -95,9 +100,9 @@ export const performGlobalSearch = async (client: SupabaseClient, searchTerm: st
         client.from('team_members').select('id, name').ilike('name', `%${searchTerm}%`).limit(5),
     ]);
     
-    if (projectRes.error) throw projectRes.error;
-    if (taskRes.error) throw taskRes.error;
-    if (memberRes.error) throw memberRes.error;
+    if (projectRes.error) throw new Error(projectRes.error.message || 'Failed to search projects.');
+    if (taskRes.error) throw new Error(taskRes.error.message || 'Failed to search tasks.');
+    if (memberRes.error) throw new Error(memberRes.error.message || 'Failed to search team members.');
 
     return {
         projects: snakeToCamel(projectRes.data),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { generateTaskPlan } from '../../services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon, TrashIcon } from '../ui/Icons';
@@ -15,7 +15,7 @@ interface ProjectFormModalProps {
 }
 
 export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onClose, onSave, project }) => {
-  const { currency } = useAppDataContext();
+  const { currency } = useSettingsContext();
   const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProjectFormData>({

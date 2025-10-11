@@ -1,7 +1,8 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { PenaltyFormData, TeamMember } from '../../types';
+import { PenaltyFormData } from '../../types';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { format } from 'date-fns';
 
 interface PenaltyFormModalProps {
@@ -11,7 +12,8 @@ interface PenaltyFormModalProps {
 }
 
 export const PenaltyFormModal: React.FC<PenaltyFormModalProps> = ({ isOpen, onClose, onSave }) => {
-  const { teamMembers, currency } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
+  const { currency } = useSettingsContext();
   const [formData, setFormData] = useState({
     teamMemberId: '',
     amount: '',

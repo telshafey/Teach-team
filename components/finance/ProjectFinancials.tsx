@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Project } from '../../types';
 import { calculateProjectCostBreakdown } from '../../utils/costs';
@@ -8,7 +11,11 @@ import { PieChart, PieChartData } from '../ui/Charts';
 import { SearchIcon } from '../ui/Icons';
 
 const ProjectFinancialsCard: React.FC<{ project: Project }> = ({ project }) => {
-    const { teamMembers, dailyLogs, expenseClaims, currency, overtimeRequests, siteSettings } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
+    const { expenseClaims, overtimeRequests } = useRequestsContext();
+    const { currency, siteSettings } = useSettingsContext();
+    
     const { employeeCost, freelancerCost, expenseCost, overtimeCost, totalCost } = useMemo(() =>
         calculateProjectCostBreakdown(project, teamMembers, dailyLogs, expenseClaims, overtimeRequests, siteSettings),
         [project, teamMembers, dailyLogs, expenseClaims, overtimeRequests, siteSettings]

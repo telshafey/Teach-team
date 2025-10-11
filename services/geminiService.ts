@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SuggestedTask } from '../types';
+import { SuggestedTask, Project, Task, DailyLog, TeamMember } from '../types';
 
 let ai: GoogleGenAI | null = null;
 
@@ -90,7 +90,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
                 description: "The suggested role for the task ('employee', 'manager', 'freelancer', 'any').",
               },
             },
-            required: ['title', 'suggestedRole'],
+            propertyOrdering: ['title', 'suggestedRole'],
           },
         },
       },
@@ -105,5 +105,51 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
   } catch (error) {
     console.error('Error generating task plan:', error);
     throw new Error('فشل إنشاء خطة المهام. قد تكون خدمة الذكاء الاصطناعي غير مهيأة بشكل صحيح.');
+  }
+};
+
+/**
+ * Generates a smart summary for a project's health using the Gemini API.
+ */
+export const generateProjectSummary = async (
+  project: Project,
+  tasks: Task[],
+  logs: DailyLog[],
+  teamMembers: TeamMember[]
+): Promise<string> => {
+  try {
+    const client = getAiClient();
+    
+    const taskSummary = tasks.map(t => {
+        const assignee = teamMembers.find(m => m.id === t.assignedTo);
+        return `- ${t.title} (Status: ${t.status}, Assigned to: ${assignee?.name || 'Unassigned'})`;
+    }).join('\n');
+    
+    const logSummary = logs.slice(-10).map(l => `- Logged ${l.hours.toFixed(1)}h for: ${l.description}`).join('\n');
+
+    const prompt = `
+      Please act as an expert project manager. Based on the following data for the project "${project.name}", generate a concise project health summary in Arabic.
+      The summary should be analytical, highlighting progress, potential risks or bottlenecks, and overall status. Be professional and constructive.
+
+      Project Description: ${project.description}
+
+      Tasks Summary (${tasks.length} total tasks):
+      ${taskSummary}
+
+      Recent Activity Logs (last 10):
+      ${logSummary}
+
+      Project Health Summary (in Arabic):
+    `;
+    
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    return response.text;
+  } catch (error) {
+    console.error('Error generating project summary:', error);
+    throw new Error('فشل إنشاء ملخص المشروع. قد تكون خدمة الذكاء الاصطناعي غير مهيأة بشكل صحيح.');
   }
 };

@@ -2,7 +2,7 @@ import React, { useState, FormEvent, useEffect } from 'react';
 import { WorkContractChangeRequestFormData } from '../../types';
 import { ConfirmationModal } from './ConfirmationModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 interface WorkContractChangeRequestModalProps {
   isOpen: boolean;
@@ -12,7 +12,7 @@ interface WorkContractChangeRequestModalProps {
 
 export const WorkContractChangeRequestModal: React.FC<WorkContractChangeRequestModalProps> = ({ isOpen, onClose, onSave }) => {
   const { currentUser } = useAuth();
-  const { currency } = useAppDataContext();
+  const { currency } = useSettingsContext();
   const [formData, setFormData] = useState<WorkContractChangeRequestFormData>({
     requestedWeeklyHours: 0,
     requestedSalary: 0,

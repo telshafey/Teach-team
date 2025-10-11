@@ -1,25 +1,28 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
-import { DataProvider } from './contexts/DataContext';
-import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
-import { TimeTrackingProvider } from './contexts/TimeTrackingContext';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { SupabaseProvider, useSupabase } from './contexts/SupabaseContext';
+import { AppProvider } from './contexts/AppProvider';
 
 const AppContent: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
 
   if (isLoading) {
-    // Use a static logo here to avoid context dependency issues during the initial auth loading phase.
     const StaticLogo = () => (
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
-                    <circle cx="50" cy="50" r="48" fill="transparent"/>
+                    <defs>
+                        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                           <stop offset="0%" stopColor="#38bdf8"/>
+                           <stop offset="100%" stopColor="#0ea5e9"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="48" fill="url(#g)"/>
                     <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                     <circle cx="50" cy="50" r="5" fill="white"/>
                 </svg>
@@ -48,7 +51,13 @@ const AppBootstrap: React.FC = () => {
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
-                    <circle cx="50" cy="50" r="48" fill="transparent"/>
+                    <defs>
+                        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                           <stop offset="0%" stopColor="#38bdf8"/>
+                           <stop offset="100%" stopColor="#0ea5e9"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="48" fill="url(#g)"/>
                     <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                     <circle cx="50" cy="50" r="5" fill="white"/>
                 </svg>
@@ -80,18 +89,14 @@ const AppBootstrap: React.FC = () => {
 
   // All good, render the app's providers and content
   return (
-    <ToastProvider>
+    <>
       <AuthProvider>
-        <DataProvider>
-          <ProjectProvider>
-            <TimeTrackingProvider>
-              <AppContent />
-              <ToastContainer />
-            </TimeTrackingProvider>
-          </ProjectProvider>
-        </DataProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
       </AuthProvider>
-    </ToastProvider>
+      <ToastContainer />
+    </>
   );
 };
 
@@ -99,9 +104,11 @@ const AppBootstrap: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <SupabaseProvider>
-        <AppBootstrap />
-      </SupabaseProvider>
+      <ToastProvider>
+        <SupabaseProvider>
+          <AppBootstrap />
+        </SupabaseProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 };

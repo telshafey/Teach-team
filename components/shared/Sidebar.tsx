@@ -3,7 +3,8 @@ import { Logo } from '../ui/Logo';
 import { useAuth } from '../../contexts/AuthContext';
 import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon } from '../ui/Icons';
 import { View } from '../dashboard/Dashboard';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 interface NavItemProps {
     view: View;
@@ -18,7 +19,7 @@ const NavItem: React.FC<NavItemProps> = ({ view, label, icon, currentView, onNav
     return (
         <li>
             <a
-                href="#"
+                href={`#/${view}`}
                 onClick={(e) => { e.preventDefault(); onNavigate(view); }}
                 className={`flex items-center p-2 text-base font-normal rounded-lg transition-colors ${isActive ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300' : 'text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700'}`}
             >
@@ -31,24 +32,27 @@ const NavItem: React.FC<NavItemProps> = ({ view, label, icon, currentView, onNav
 
 interface SidebarProps {
     currentView: View;
-    onNavigate: (view: View, props?: any) => void;
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen, setIsOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, isOpen, setIsOpen }) => {
+    const { onNavigate } = useNavigation();
     const { currentUser, handleLogout, hasPermission } = useAuth();
-    const { siteSettings } = useAppDataContext();
+    const { siteSettings } = useSettingsContext();
     
+    const canApprove = hasPermission('approve_task_submissions') || hasPermission('approve_weekly_plans') || hasPermission('approve_leave_requests') || hasPermission('approve_overtime') || hasPermission('approve_freelancer_contracts') || hasPermission('approve_expense_claims') || hasPermission('approve_work_contract_changes') || hasPermission('approve_penalties');
+
     const navItems = [
         { id: 'dashboard', label: 'الرئيسية', icon: <HomeIcon className="w-6 h-6" />, permission: true },
+        { id: 'approvals', label: 'الموافقات', icon: <ClipboardDocumentListIcon className="w-6 h-6" />, permission: canApprove },
         { id: 'projects', label: 'المشاريع', icon: <FolderIcon className="w-6 h-6" />, permission: true },
         { id: 'myTasks', label: 'مهامي', icon: <ClipboardDocumentListIcon className="w-6 h-6" />, permission: true },
         { id: 'team', label: 'الفريق', icon: <UsersIcon className="w-6 h-6" />, permission: true },
         { id: 'timesheet', label: 'أوقاتي', icon: <ClockIcon className="w-6 h-6" />, permission: true },
         { id: 'analytics', label: 'التحليلات', icon: <ChartBarIcon className="w-6 h-6" />, permission: hasPermission('view_analytics') && siteSettings?.isAnalyticsModuleEnabled },
         { id: 'reports', label: 'التقارير', icon: <DocumentTextIcon className="w-6 h-6" />, permission: hasPermission('view_reports') && siteSettings?.isReportsModuleEnabled },
-        { id: 'finance', label: 'المالية', icon: <CurrencyDollarIcon className="w-6 h-6" />, permission: hasPermission('view_finances') && siteSettings?.isFinanceModuleEnabled },
+        { id: 'finance', label: 'المالية', icon: <CurrencyDollarIcon className="w-6 h-6" />, permission: (hasPermission('view_finances') || hasPermission('submit_expenses')) && siteSettings?.isFinanceModuleEnabled },
         { id: 'meetings', label: 'الاجتماعات', icon: <VideoCameraIcon className="w-6 h-6" />, permission: siteSettings?.isMeetingsModuleEnabled },
         { id: 'settings', label: 'الإعدادات', icon: <Cog8ToothIcon className="w-6 h-6" />, permission: hasPermission('manage_site_settings') || hasPermission('manage_roles') || hasPermission('manage_db_settings') },
     ];

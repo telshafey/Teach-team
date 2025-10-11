@@ -57,6 +57,7 @@ export const SiteSettingsPage: React.FC = () => {
             const settingsToSave = {
                 ...settings,
                 overtimeRateMultiplier: Number(settings.overtimeRateMultiplier) || 1.5,
+                logEditingDaysLimit: Number(settings.logEditingDaysLimit) ?? 3,
             };
             await handleUpdateSiteSettings(settingsToSave);
             addToast('تم تحديث الإعدادات. قد تحتاج بعض التغييرات لإعادة تحميل الصفحة.', 'success');
@@ -139,6 +140,22 @@ export const SiteSettingsPage: React.FC = () => {
                                 className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
                             />
                              <p className="text-xs text-slate-500 mt-1">مثال: 1.5 يعني أن الساعة الإضافية تعادل ساعة ونصف من الأجر العادي.</p>
+                        </div>
+                        <div>
+                            <label htmlFor="logEditingDaysLimit" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                أيام تعديل السجلات المسموح بها (الماضية)
+                            </label>
+                            <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                id="logEditingDaysLimit"
+                                name="logEditingDaysLimit"
+                                value={settings.logEditingDaysLimit ?? 3}
+                                onChange={handleChange}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                            />
+                             <p className="text-xs text-slate-500 mt-1">عدد الأيام الماضية التي يمكن للمستخدم تعديل سجلاته فيها (0 لليوم الحالي فقط).</p>
                         </div>
                     </div>
                     <div>

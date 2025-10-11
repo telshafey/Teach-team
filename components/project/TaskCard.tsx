@@ -6,6 +6,8 @@ import { useTimeTracking } from '../../contexts/TimeTrackingContext';
 
 interface TaskCardProps {
   task: Task;
+  attachmentCount: number;
+  commentCount: number;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onCardClick: (task: Task) => void;
@@ -57,7 +59,7 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
     );
 };
 
-export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canEdit, canDelete }) => {
+export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, attachmentCount, commentCount, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canEdit, canDelete }) => {
   const { teamMembers, dailyLogs } = useAppDataContext();
   const { activeTimer, startTimer, stopTimer } = useTimeTracking();
   
@@ -71,7 +73,9 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onD
     if (isThisTaskActive) {
         stopTimer();
     } else {
-        startTimer(task.id, task.title, task.projectId);
+        if(task.projectId) {
+            startTimer(task.id, task.title, task.projectId);
+        }
     }
   };
 
@@ -136,16 +140,16 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onEdit, onD
         </div>
          <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="flex items-center space-x-2 rtl:space-x-reverse">
-              {(task.attachments?.length || 0) > 0 && (
+              {attachmentCount > 0 && (
                 <div className="flex items-center space-x-1 rtl:space-x-reverse">
                   <PaperClipIcon className="w-4 h-4" />
-                  <span>{task.attachments?.length}</span>
+                  <span>{attachmentCount}</span>
                 </div>
               )}
-              {(task.comments?.length || 0) > 0 && (
+              {commentCount > 0 && (
                 <div className="flex items-center space-x-1 rtl:space-x-reverse">
                   <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
-                  <span>{task.comments?.length}</span>
+                  <span>{commentCount}</span>
                 </div>
               )}
             </div>

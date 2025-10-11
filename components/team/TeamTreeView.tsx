@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TeamMember } from '../../types';
 import { UserPlusIcon } from '../ui/Icons';
 import { Card } from '../ui/Card';
+import { useAppDataContext } from '../../contexts/DataContext';
 
 interface TreeNodeProps {
   member: TeamMember;
@@ -15,7 +16,8 @@ interface TreeNodeProps {
 const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onSelect, selectedMemberId, level }) => {
   const children = allMembers.filter(child => child.reportsTo === member.id);
   
-  const { rolesMap } = useAuth();
+  const { rolesMap, hasPermission } = useAuth();
+  const { currency } = useAppDataContext();
   const roleName = rolesMap[member.roleId]?.name || member.roleId;
   const isSelected = member.id === selectedMemberId;
 
@@ -33,6 +35,20 @@ const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onSelect, selec
         <div>
           <p className={`font-semibold ${isSelected ? 'text-sky-800 dark:text-sky-200' : 'text-slate-800 dark:text-slate-200'}`}>{member.name}</p>
           <p className={`text-sm ${isSelected ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400'}`}>{roleName}</p>
+           {hasPermission('view_all_salaries') && (
+            <>
+              {member.salary != null && (
+                <p className="text-xs text-green-700 dark:text-green-400 font-semibold mt-1">
+                  {member.salary.toLocaleString()} {currency}/شهر
+                </p>
+              )}
+              {member.hourlyRate != null && (
+                <p className="text-xs text-indigo-700 dark:text-indigo-400 font-semibold mt-1">
+                  {member.hourlyRate.toLocaleString()} {currency}/ساعة
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
       {children.length > 0 && (

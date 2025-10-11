@@ -3,14 +3,12 @@ import { GlobalSearch } from './GlobalSearch';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Bars3Icon } from '../ui/Icons';
-import { View } from '../dashboard/Dashboard';
 
 interface HeaderProps {
-  onNavigate: (view: View, props?: any) => void;
   onToggleSidebar: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onNavigate, onToggleSidebar }) => {
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
   return (
     <header className="flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -28,8 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onToggleSidebar }) =
         </div>
         
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
-          <GlobalSearch onNavigate={onNavigate} />
-          <NotificationBell onNavigate={onNavigate} />
+          <GlobalSearch />
+          <NotificationBell />
           <ThemeToggle />
         </div>
       </div>

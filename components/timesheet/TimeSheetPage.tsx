@@ -5,14 +5,14 @@ import { DailyLog, DailyLogFormData } from '../../types';
 import { Calendar } from '../ui/Calendar';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
-import { format, isSameDay, isToday, isThisWeek as isWithinThisWeek, startOfMonth, endOfMonth, isWithinInterval, isFuture } from 'date-fns';
+import { format, isSameDay, isToday, isThisWeek as isWithinThisWeek, startOfMonth, endOfMonth, isWithinInterval, isFuture, differenceInCalendarDays } from 'date-fns';
 import { Card } from '../ui/Card';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { PlusIcon } from '../ui/Icons';
 
 export const TimeSheetPage: React.FC = () => {
     const { currentUser } = useAuth();
-    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useAppDataContext();
+    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog, siteSettings } = useAppDataContext();
     const { tasks } = useProjectContext();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -96,7 +96,16 @@ export const TimeSheetPage: React.FC = () => {
     const logsForSelectedDate = selectedDate ? myLogs.filter(log => isSameDay(new Date(log.date), new Date(selectedDate))) : [];
     
     const isDateSelectableForViewing = (date: Date) => !isFuture(date);
-    const isDateEditableForLogging = (date: Date) => isWithinThisWeek(date, { weekStartsOn: 0 }) && !isFuture(date);
+    
+    const isDateEditableForLogging = (date: Date): boolean => {
+        if (isFuture(date)) {
+            return false;
+        }
+        const limit = siteSettings?.logEditingDaysLimit ?? 3; // Use setting, fallback to 3
+        const diff = differenceInCalendarDays(new Date(), date);
+        return diff <= limit;
+    };
+
 
     return (
         <div className="p-6">

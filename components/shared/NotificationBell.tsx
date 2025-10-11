@@ -1,18 +1,15 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useNotificationContext } from '../../contexts/NotificationContext';
 import { Notification } from '../../types';
 import { BellIcon } from '../ui/Icons';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useAuth } from '../../contexts/AuthContext';
-import { View } from '../dashboard/Dashboard';
+import { useNavigation } from '../../contexts/NavigationContext';
 
-interface NotificationBellProps {
-  onNavigate: (view: View, props?: any) => void;
-}
-
-export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
-  const { notifications, markNotificationAsRead } = useAppDataContext();
+export const NotificationBell: React.FC = () => {
+  const { onNavigate } = useNavigation();
+  const { notifications, markNotificationAsRead } = useNotificationContext();
   const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -46,6 +43,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
     if (notification.type === 'meeting_scheduled') {
         onNavigate('meetings');
     }
+    else if (notification.type === 'overtime_request_submitted') {
+        onNavigate('dashboard');
+    }
+    else if (notification.type === 'overtime_request_resolved') {
+        onNavigate('profile');
+    }
     else if (notification.projectId && notification.taskId) {
       onNavigate('projectDetail', {
         projectId: notification.projectId,
@@ -74,6 +77,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
             return `تمت دعوتك لاجتماع: "${notification.taskTitle}" بواسطة ${notification.assignerName}.`;
         case 'profile_update':
             return notification.message;
+        case 'overtime_request_submitted':
+            return notification.message || 'لديك طلب ساعات إضافية جديد للمراجعة.';
+        case 'overtime_request_resolved':
+            return notification.message || 'تم تحديث حالة طلب الساعات الإضافية الخاص بك.';
         default:
             return 'إشعار جديد.';
     }

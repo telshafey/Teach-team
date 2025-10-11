@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { Calendar } from '../ui/Calendar';
@@ -13,15 +13,12 @@ import { PerformanceSummaryCard } from './PerformanceSummaryCard';
 import { EmptyState } from '../ui/EmptyState';
 import { FolderIcon } from '../ui/Icons';
 import { TaskCardSkeleton } from '../project/TaskCardSkeleton';
-import { View } from './Dashboard';
+import { useNavigation } from '../../contexts/NavigationContext';
 
-interface PersonalDashboardProps {
-    onNavigate: (view: View, state?: any) => void;
-}
-
-export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({ onNavigate }) => {
+export const PersonalDashboard: React.FC = () => {
+    const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
-    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useAppDataContext();
+    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
     const { tasks, isLoading: isTasksLoading } = useProjectContext();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -82,7 +79,7 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({ onNavigate
 
     const handleSaveLog = async (logData: DailyLogFormData) => {
         if (!currentUser) return;
-        const dateToSave = selectedDate || format(new Date(), 'yyyy-MM-dd');
+        const dateToSave = editingLog?.date || selectedDate || format(new Date(), 'yyyy-MM-dd');
         if (editingLog) {
             await handleUpdateDailyLog({ ...editingLog, ...logData });
         } else {
@@ -90,6 +87,12 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({ onNavigate
         }
         setIsLogFormOpen(false);
         setEditingLog(null);
+    };
+
+    const handleOpenLogForm = (logToEdit: DailyLog | null) => {
+        setEditingLog(logToEdit);
+        setIsLogFormOpen(true);
+        if(selectedDate) setSelectedDate(null);
     };
 
     const logsForSelectedDate = selectedDate ? myLogs.filter(log => isSameDay(new Date(log.date), new Date(selectedDate))) : [];
@@ -144,10 +147,10 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({ onNavigate
                     onClose={() => setSelectedDate(null)}
                     date={selectedDate}
                     logs={logsForSelectedDate}
-                    onAdd={() => {}}
-                    onEdit={() => {}}
-                    onDelete={async () => {}}
-                    isEditable={false}
+                    onAdd={() => handleOpenLogForm(null)}
+                    onEdit={(log) => handleOpenLogForm(log)}
+                    onDelete={handleDeleteDailyLog}
+                    isEditable={false} // This should be based on date logic if needed
                 />
             )}
             
@@ -157,7 +160,7 @@ export const PersonalDashboard: React.FC<PersonalDashboardProps> = ({ onNavigate
                     onClose={() => { setIsLogFormOpen(false); setEditingLog(null); }}
                     onSave={handleSaveLog}
                     log={editingLog}
-                    date={selectedDate || format(new Date(), 'yyyy-MM-dd')}
+                    date={editingLog?.date || selectedDate || format(new Date(), 'yyyy-MM-dd')}
                     memberId={currentUser.id}
                 />
             )}

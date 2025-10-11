@@ -1,7 +1,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Task, Project, TeamMember, TaskStatus, TaskFormData } from '../../types';
-import { useToast } from '../../contexts/ToastContext';
+import { Task, Project, TaskStatus, TaskFormData } from '../../types';
 import { ConfirmationModal } from './ConfirmationModal';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface TaskFormModalProps {
   isOpen: boolean;
@@ -10,10 +10,10 @@ interface TaskFormModalProps {
   task: Task | null;
   projects: Project[];
   defaultProjectId: string;
-  members: TeamMember[];
 }
 
-export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task, projects, defaultProjectId, members }) => {
+export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task, projects, defaultProjectId }) => {
+  const { teamMembers } = useTeamContext();
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -65,7 +65,6 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
         onClose();
     } catch (error) {
         console.error("Failed to save task", error);
-        // Toast is now handled by the context with a more specific message
     } finally {
         setIsSaving(false);
     }
@@ -96,7 +95,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
                 <label htmlFor="assignedTo" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">مسندة إلى</label>
                 <select id="assignedTo" value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
                   <option value="">غير مسندة</option>
-                  {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
               <div>

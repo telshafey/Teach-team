@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { TeamMember, Task, PlanStatus, ApprovalStatus, Project, ContractStatus, OvertimeRequest, OvertimeStatus, LeaveRequest, LeaveStatus, WorkContractChangeRequest, WorkContractChangeStatus, Penalty, PenaltyStatus, DecisionItem } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { DAYS_OF_WEEK } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember } from '../../utils/typeGuards';
+
 
 interface DecisionDetailModalProps {
   isOpen: boolean;
@@ -13,39 +17,10 @@ interface DecisionDetailModalProps {
   item: DecisionItem | null;
 }
 
-// --- Robust Type Guards ---
-function isTask(item: any): item is Task {
-  // `approvalStatus` is a good discriminator for Task
-  return item && typeof item.title === 'string' && typeof item.projectId === 'string' && 'approvalStatus' in item;
-}
-function isProject(item: any): item is Project {
-    // `freelancerContract` is unique to Project in this context
-    return item && typeof item.name === 'string' && 'freelancerContract' in item;
-}
-function isOvertimeRequest(item: any): item is OvertimeRequest {
-    // `requestedHours` and `weekStartDate` are unique to OvertimeRequest
-    return item && typeof item.requestedHours === 'number' && typeof item.weekStartDate === 'string';
-}
-function isLeaveRequest(item: any): item is LeaveRequest {
-    // `startDate` and `endDate` are unique to LeaveRequest
-    return item && typeof item.reason === 'string' && typeof item.startDate === 'string';
-}
-function isWorkContractChangeRequest(item: any): item is WorkContractChangeRequest {
-    // `requestedWeeklyHours` and `requestedSalary` are unique
-    return item && typeof item.requestedWeeklyHours === 'number' && typeof item.requestedSalary === 'number' && 'reason' in item;
-}
-function isPenalty(item: any): item is Penalty {
-    // `issuerId` is unique to Penalty
-    return item && typeof item.reason === 'string' && typeof item.amount === 'number' && 'issuerId' in item;
-}
-function isTeamMember(item: any): item is TeamMember {
-    // `weeklyPlan` is unique to TeamMember within the DecisionItem union type.
-    return item && typeof item.name === 'string' && 'weeklyPlan' in item;
-}
-
-
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen, onClose, item }) => {
-  const { handleUpdatePlanStatus, teamMembers, handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, handleUpdatePenaltyStatus, currency } = useAppDataContext();
+  const { handleUpdatePlanStatus, teamMembers } = useTeamContext();
+  const { handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, handleUpdatePenaltyStatus } = useRequestsContext();
+  const { currency } = useSettingsContext();
   const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
   const { hasPermission } = useAuth();
   const [notes, setNotes] = useState('');
@@ -147,6 +122,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
                     <p><strong>المبلغ:</strong> {item.amount} {currency}</p>
                     <p><strong>السبب:</strong> {item.reason}</p>
                 </div>
+                {item.appealReason && (
+                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 rounded">
+                        <p className="font-bold text-sm text-blue-800 dark:text-blue-200">سبب الاستئناف من الموظف:</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">{item.appealReason}</p>
+                    </div>
+                )}
             </div>
         )
     }
@@ -196,8 +177,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
         const freelancer = teamMembers.find(m => m.id === contract.freelancerId);
         let details = '';
         switch(contract.type) {
-            case 'fixed': details = `مبلغ ثابت: ${contract.amount} ريال`; break;
-            case 'hourly': details = `بالساعة: ${contract.hourlyRate} ريال/ساعة`; break;
+            case 'fixed': details = `مبلغ ثابت: ${contract.amount} ${currency}`; break;
+            case 'hourly': details = `بالساعة: ${contract.hourlyRate} ${currency}/ساعة`; break;
             case 'per-task': details = `بالقطعة (لكل مهمة)`; break;
         }
         return (
@@ -265,7 +246,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
             {renderContent()}
             {showNotesField && (
               <div>
-                   <label htmlFor="notes" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الملاحظات (إلزامية عند الرفض)</label>
+                   <label htmlFor="notes" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الملاحظات</label>
                    <textarea 
                       id="notes" 
                       value={notes} 

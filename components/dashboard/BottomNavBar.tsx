@@ -1,6 +1,5 @@
 import React from 'react';
 import { HomeIcon, FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
-// FIX: Corrected import path
 import { View } from './Dashboard';
 
 

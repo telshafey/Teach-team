@@ -3,6 +3,7 @@ import { Meeting } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
+import { useNavigation } from '../../contexts/NavigationContext';
 
 declare global {
     interface Window {
@@ -12,10 +13,10 @@ declare global {
 
 interface MeetingRoomProps {
     meeting: Meeting;
-    onLeave: () => void;
 }
 
-export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) => {
+export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting }) => {
+    const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
     const { addToast } = useToast();
     const jitsiContainerRef = useRef<HTMLDivElement>(null);
@@ -26,10 +27,14 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             return;
         }
 
+        const handleLeave = () => {
+            onNavigate('meetings');
+        };
+
         if (typeof window.JitsiMeetExternalAPI === 'undefined') {
             console.error("Jitsi Meet External API script not loaded.");
             alert("حدث خطأ أثناء تحميل خدمة الاجتماعات. يرجى المحاولة مرة أخرى.");
-            onLeave();
+            handleLeave();
             return;
         }
 
@@ -71,7 +76,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             });
             
             api.addEventListener('videoConferenceLeft', () => {
-                onLeave();
+                handleLeave();
             });
         } catch(error) {
             console.error("Failed to initialize Jitsi Meet API:", error);
@@ -84,7 +89,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting, onLeave }) =>
             jitsiApiRef.current?.dispose();
         };
 
-    }, [meeting, currentUser, onLeave, addToast]);
+    }, [meeting, currentUser, onNavigate, addToast]);
 
     return (
         <div ref={jitsiContainerRef} className="fixed inset-0 bg-slate-900 text-white flex items-center justify-center">
