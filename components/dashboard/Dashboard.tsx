@@ -23,6 +23,7 @@ import { SettingsPage } from '../settings/SettingsPage';
 import { ProfilePage } from '../profile/ProfilePage';
 import { ApprovalsPage } from '../approvals/ApprovalsPage';
 import { NavigationContext } from '../../contexts/NavigationContext';
+import { BottomNavBar } from './BottomNavBar';
 
 
 export type View =
@@ -113,10 +114,11 @@ export const Dashboard: React.FC = () => {
         <div className="flex flex-col flex-1 w-0">
           <Header onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
           <ActiveTimerBar />
-          <main className="flex-1 relative overflow-y-auto focus:outline-none">
+          <main className="flex-1 relative overflow-y-auto focus:outline-none pb-16 lg:pb-0">
             {renderContent()}
           </main>
         </div>
+        <BottomNavBar currentView={viewState.view} onNavigate={onNavigate} />
         {showLogModalFor && currentUser && (
             <LogFormModal 
               isOpen={!!showLogModalFor}

@@ -23,11 +23,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
   const { currency } = useSettingsContext();
   const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
   const { hasPermission } = useAuth();
+
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
   const [modifiedValues, setModifiedValues] = useState<{ hours: string, salary: string }>({ hours: '', salary: '' });
-
   
   useEffect(() => {
     if (item) {
@@ -239,8 +239,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
   const showNotesField = !isTeamMember(item);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-end sm:items-center" dir="rtl">
+      <div className="bg-white dark:bg-slate-800 rounded-t-lg sm:rounded-lg shadow-xl pt-8 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full sm:hidden"></div>
         <h2 className="text-xl font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 text-slate-800 dark:text-slate-200">مراجعة واتخاذ قرار</h2>
         <div className="space-y-4">
             {renderContent()}
