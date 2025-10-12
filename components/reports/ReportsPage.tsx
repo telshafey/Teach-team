@@ -1,14 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useRequestsContext } from '../../contexts/RequestsContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { downloadCSV } from '../../utils/csv';
 import { DocumentArrowDownIcon, DocumentDuplicateIcon, LockClosedIcon } from '../ui/Icons';
-import { format, parseISO, isWithinInterval } from 'date-fns';
 import { EmptyState } from '../ui/EmptyState';
 import { ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { TeamMember } from '../../types';
+import * as reportService from '../../services/reportService';
 
 type ReportType =
   | 'projects_summary'
@@ -21,7 +23,10 @@ type ReportType =
 const ROWS_PER_PAGE = 20;
 
 export const ReportsPage: React.FC = () => {
-    const { teamMembers, dailyLogs, expenseClaims, currency } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
+    const { expenseClaims } = useRequestsContext();
+    const { currency } = useSettingsContext();
     const { projects, tasks } = useProjectContext();
     const { currentUser, hasPermission } = useAuth();
 
@@ -42,17 +47,16 @@ export const ReportsPage: React.FC = () => {
     const { visibleMembers, visibleProjects } = useMemo(() => {
         if (!currentUser) return { visibleMembers: [], visibleProjects: [] };
 
-        // GM sees everything
-        if (currentUser.roleId === 'gm') {
-            return { visibleMembers: teamMembers, visibleProjects: projects };
-        }
+        // GM and Managers can see all projects in the filter dropdown.
+        // The data within the reports will still be scoped correctly for managers.
+        const canSeeAllProjects = currentUser.roleId === 'gm' || currentUser.roleId === 'manager';
 
         // Regular employee sees only themself
-        if (currentUser.roleId === 'employee' || currentUser.roleId === 'freelancer') {
+        if (!canSeeAllProjects) {
              return { visibleMembers: [currentUser], visibleProjects: projects };
         }
         
-        // Manager sees their team (direct and indirect reports)
+        // Manager sees their team (direct and indirect reports) for member-based reports
         const getTeamIds = (managerId: number): number[] => {
             const team = [managerId];
             const directReports = teamMembers.filter(m => m.reportsTo === managerId);
@@ -61,96 +65,55 @@ export const ReportsPage: React.FC = () => {
             });
             return team;
         };
-
-        const myTeamIds = Array.from(new Set(getTeamIds(currentUser.id)));
+        
+        const myTeamIds = currentUser.roleId === 'gm' 
+            ? teamMembers.map(m => m.id)
+            : Array.from(new Set(getTeamIds(currentUser.id)));
+        
         const teamMembersVisible = teamMembers.filter(m => myTeamIds.includes(m.id));
         
-        const teamTaskProjectIds = new Set(tasks.filter(t => t.assignedTo && myTeamIds.includes(t.assignedTo)).map(t => t.projectId));
-        const projectsVisible = projects.filter(p => teamTaskProjectIds.has(p.id));
+        return { visibleMembers: teamMembersVisible, visibleProjects: projects };
 
-        return { visibleMembers: teamMembersVisible, visibleProjects: projectsVisible };
-
-    }, [currentUser, teamMembers, projects, tasks]);
+    }, [currentUser, teamMembers, projects]);
 
     const handleGenerateReport = () => {
         setIsLoading(true);
-        // Simulate generation time
-        setTimeout(() => {
-            const dateFilter = (dateStr: string) => {
-                if (!filters.dateFrom && !filters.dateTo) return true;
-                const date = parseISO(dateStr);
-                const start = filters.dateFrom ? parseISO(filters.dateFrom) : new Date(0);
-                const end = filters.dateTo ? parseISO(filters.dateTo) : new Date();
-                return isWithinInterval(date, { start, end });
-            };
+        let reportData: { headers: string[], rows: any[] } | null = null;
+        
+        const serviceFilters = { ...filters };
 
-            let headers: string[] = [];
-            let rows: any[] = [];
+        switch (reportType) {
+            case 'projects_summary':
+                reportData = reportService.generateProjectsSummary(visibleProjects, dailyLogs, serviceFilters);
+                break;
             
-            switch (reportType) {
-                case 'projects_summary':
-                    headers = ["المشروع", "الحالة", "إجمالي الساعات المسجلة", "التكلفة التقديرية"];
-                    rows = visibleProjects.map(p => {
-                        const projectLogs = dailyLogs.filter(l => l.projectId === p.id && dateFilter(l.date));
-                        const totalHours = projectLogs.reduce((sum, l) => sum + l.hours, 0);
-                        return [p.name, p.status, totalHours.toFixed(2), 'N/A'];
-                    });
-                    break;
-                
-                case 'tasks_detail':
-                    headers = ["المهمة", "المشروع", "مسندة إلى", "الحالة", "تاريخ الاستحقاق"];
-                    let tasksToReport = tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
-                    if(filters.includeUnassigned) {
-                        tasksToReport = tasksToReport.filter(t => !t.assignedTo);
-                    }
-                    if(filters.projectId) {
-                        tasksToReport = tasksToReport.filter(t => t.projectId === filters.projectId);
-                    }
-                    rows = tasksToReport.map(t => {
-                        const assignee = teamMembers.find(m => m.id === t.assignedTo);
-                        return [t.title, projects.find(p=>p.id === t.projectId)?.name || '', assignee?.name || 'غير مسندة', t.status, t.dueDate || ''];
-                    });
-                    break;
+            case 'tasks_detail':
+                reportData = reportService.generateTasksDetail(tasks, visibleProjects, teamMembers, serviceFilters);
+                break;
 
-                case 'employee_performance_general':
-                case 'employee_performance_project':
-                    if (!filters.memberId) {
-                        alert('يرجى اختيار موظف.');
-                        setIsLoading(false);
-                        return;
-                    }
-                    headers = ["التاريخ", "المشروع", "الوصف", "الساعات"];
-                    rows = dailyLogs
-                        .filter(l => 
-                            l.teamMemberId === Number(filters.memberId) && 
-                            dateFilter(l.date) &&
-                            (reportType === 'employee_performance_general' || l.projectId === filters.projectId)
-                        ).map(l => [l.date, projects.find(p=>p.id === l.projectId)?.name || 'N/A', l.description, l.hours]);
-                    
-                    const totalHours = rows.reduce((sum, row) => sum + row[3], 0);
-                    rows.push(['','','المجموع', totalHours.toFixed(2)]);
-                    break;
-                
-                case 'expenses_general':
-                case 'expenses_project':
-                    headers = ["التاريخ", "الموظف", "المشروع", "المبلغ", "الوصف"];
-                    rows = expenseClaims.filter(e => 
-                        dateFilter(e.date) && e.status === 'approved' &&
-                        (reportType === 'expenses_general' || e.projectId === filters.projectId)
-                    ).map(e => {
-                        const member = teamMembers.find(m => m.id === e.teamMemberId);
-                        const project = projects.find(p => p.id === e.projectId);
-                        return [e.date, member?.name || '', project?.name || 'N/A', `${e.amount} ${currency}`, e.description];
-                    });
-                     const totalAmount = rows.reduce((sum, row) => sum + parseFloat(row[3]), 0);
-                     rows.push(['','','',`المجموع: ${totalAmount.toFixed(2)} ${currency}`,'']);
-                    break;
-            }
+            case 'employee_performance_general':
+                reportData = reportService.generateEmployeePerformance(dailyLogs, projects, serviceFilters, false);
+                break;
+            case 'employee_performance_project':
+                if (!filters.memberId) {
+                    alert('يرجى اختيار موظف.');
+                    setIsLoading(false);
+                    return;
+                }
+                reportData = reportService.generateEmployeePerformance(dailyLogs, projects, serviceFilters, true);
+                break;
+            
+            case 'expenses_general':
+                reportData = reportService.generateExpenses(expenseClaims, projects, teamMembers, currency, serviceFilters, false);
+                break;
+            case 'expenses_project':
+                reportData = reportService.generateExpenses(expenseClaims, projects, teamMembers, currency, serviceFilters, true);
+                break;
+        }
 
-            setGeneratedReport({ headers, rows });
-            setCurrentPage(1);
-            setIsLoading(false);
-        }, 500);
+        setGeneratedReport(reportData);
+        setCurrentPage(1);
+        setIsLoading(false);
     };
     
     // Pagination logic

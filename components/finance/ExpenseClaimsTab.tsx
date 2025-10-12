@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, CheckIcon, NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { StatusBadge } from '../ui/StatusBadge';
 
 interface ExpenseClaimsTabProps {
     onNewClaim: () => void;
@@ -31,16 +32,6 @@ export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }
         return claims.filter(c => c.status === statusFilter);
     }, [expenseClaims, statusFilter, currentUser, hasPermission]);
     
-    const getStatusBadge = (status: ExpenseClaim['status']) => {
-        const styles = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-        };
-        const text = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
-
     const filterOptions: {label: string, value: 'all' | ExpenseClaimStatus}[] = [
         {label: 'الكل', value: 'all'},
         {label: 'قيد المراجعة', value: 'pending'},
@@ -86,7 +77,7 @@ export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }
                                 <td className="px-4 py-2">{format(parseISO(claim.date), 'd MMM yyyy', { locale: arSA })}</td>
                                 <td className="px-4 py-2">{project?.name || '-'}</td>
                                 <td className="px-4 py-2 truncate max-w-xs">{claim.description}</td>
-                                <td className="px-4 py-2">{getStatusBadge(claim.status)}</td>
+                                <td className="px-4 py-2"><StatusBadge status={claim.status} type="request" /></td>
                                 {hasPermission('approve_expense_claims') && (
                                     <td className="px-4 py-2">
                                         {claim.status === 'pending' && (

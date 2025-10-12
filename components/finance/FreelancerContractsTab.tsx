@@ -7,8 +7,7 @@ import { Card } from '../ui/Card';
 import { Project } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { EmptyState } from '../ui/EmptyState';
-import { format } from 'date-fns';
-import { arSA } from 'date-fns/locale';
+import { StatusBadge } from '../ui/StatusBadge';
 
 interface FreelancerContractsTabProps {
     onReview: (project: Project) => void;
@@ -20,16 +19,6 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ 
     const { currency } = useSettingsContext();
     const { projects } = useProjectContext();
     const { currentUser, hasPermission } = useAuth();
-
-    const getStatusBadge = (status: 'pending' | 'approved' | 'rejected') => {
-        const styles = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-        };
-        const text = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
 
     if (currentUser?.roleId === 'freelancer') {
         const myContracts = projects.filter(p => p.freelancerContract?.freelancerId === currentUser.id);
@@ -63,7 +52,7 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ 
                                         <td className="px-4 py-2 font-medium">{p.name}</td>
                                         <td className="px-4 py-2">{contract.type === 'fixed' ? 'سعر ثابت' : contract.type === 'hourly' ? 'بالساعة' : 'بالقطعة'}</td>
                                         <td className="px-4 py-2">{contract.amount || contract.hourlyRate || '-'}</td>
-                                        <td className="px-4 py-2">{getStatusBadge(contract.status)}</td>
+                                        <td className="px-4 py-2"><StatusBadge status={contract.status} type="contract" /></td>
                                     </tr>
                                     )
                                 })}
@@ -100,7 +89,7 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ 
                                     <td className="px-4 py-2">{freelancer?.name}</td>
                                     <td className="px-4 py-2">{contract.type === 'fixed' ? 'سعر ثابت' : 'بالساعة'}</td>
                                     <td className="px-4 py-2">{contract.amount || contract.hourlyRate || '-'}</td>
-                                    <td className="px-4 py-2">{getStatusBadge(contract.status)}</td>
+                                    <td className="px-4 py-2"><StatusBadge status={contract.status} type="contract" /></td>
                                     <td className="px-4 py-2">
                                         {contract.status === 'pending' && hasPermission('approve_freelancer_contracts') && <button onClick={() => onReview(p)} className="text-sm font-semibold text-sky-600">مراجعة</button>}
                                     </td>

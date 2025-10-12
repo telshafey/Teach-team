@@ -30,7 +30,12 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !currentUser) {
+        setTeamMembers([]);
+        setRoles([]);
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const [membersData, rolesData] = await Promise.all([
@@ -45,10 +50,10 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [supabaseClient, addToast]);
+  }, [supabaseClient, addToast, currentUser]);
 
   useEffect(() => {
-    if (supabaseClient) {
+    if (supabaseClient && currentUser) {
       fetchData();
       const membersChannel = supabaseClient.channel('public:team_members').on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => fetchData()).subscribe();
       const rolesChannel = supabaseClient.channel('public:roles').on('postgres_changes', { event: '*', schema: 'public', table: 'roles' }, () => fetchData()).subscribe();
@@ -56,8 +61,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         supabaseClient.removeChannel(membersChannel);
         supabaseClient.removeChannel(rolesChannel);
       };
+    } else {
+        setTeamMembers([]);
+        setRoles([]);
     }
-  }, [supabaseClient, fetchData]);
+  }, [supabaseClient, fetchData, currentUser]);
 
   const handleUpdatePlanStatus = async (memberId: number, status: PlanStatus) => {
     if (!supabaseClient || !currentUser) return;
@@ -127,12 +135,16 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const handleUpdateRole = async (role: Role) => {
     if (!supabaseClient) return;
+    const originalRoles = roles;
+    setRoles(prev => prev.map(r => r.id === role.id ? role : r)); // Optimistic update
     try {
-        const { id, ...updates } = role;
-        await api.update<Role>(supabaseClient, 'roles', id, updates);
-        addToast('تم تحديث الدور بنجاح.', 'success');
+      const { id, ...updates } = role;
+      await api.update<Role>(supabaseClient, 'roles', id, updates);
+      addToast('تم تحديث الدور بنجاح.', 'success');
     } catch (error: any) {
-        addToast(`فشل تحديث الدور: ${error.message}`, 'error'); throw error;
+      setRoles(originalRoles); // Revert on failure
+      addToast(`فشل تحديث الدور: ${error.message}`, 'error');
+      throw error;
     }
   };
   

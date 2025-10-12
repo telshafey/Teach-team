@@ -1,8 +1,11 @@
 import React from 'react';
 import { Task } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
-import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon, TrashIcon } from '../ui/Icons';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon, TrashIcon, BellIcon, ExclamationTriangleIcon } from '../ui/Icons';
 import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { format, parseISO, isToday, isPast } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
 interface TaskCardProps {
   task: Task;
@@ -59,8 +62,38 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
     );
 };
 
+const DueDateIndicator: React.FC<{ dueDate: string | undefined }> = ({ dueDate }) => {
+    if (!dueDate) return null;
+
+    const parsedDate = parseISO(dueDate);
+    // An urgent task is one due today or in the past. `isPast` is only true for *yesterday* or before.
+    const isUrgent = isPast(parsedDate) || isToday(parsedDate);
+    
+    const formattedDate = format(parsedDate, 'd MMM', { locale: arSA });
+
+    const icon = isUrgent ? (
+      <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+    ) : (
+      <BellIcon className="w-4 h-4" />
+    );
+
+    const textColor = isUrgent ? 'text-amber-600 dark:text-amber-400 font-semibold' : '';
+
+    return (
+      <div className="relative group flex items-center space-x-1 rtl:space-x-reverse">
+        {icon}
+        <span className={textColor}>{formattedDate}</span>
+        <div className="absolute bottom-full mb-2 -right-1/2 transform translate-x-1/2 w-max p-2 text-xs text-center text-white bg-slate-800 rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
+          تاريخ الاستحقاق: {format(parsedDate, 'eeee, d MMMM yyyy', { locale: arSA })}
+          <svg className="absolute text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+        </div>
+      </div>
+    );
+};
+
 export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, attachmentCount, commentCount, onEdit, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canEdit, canDelete }) => {
-  const { teamMembers, dailyLogs } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
+  const { dailyLogs } = useTimeLogContext();
   const { activeTimer, startTimer, stopTimer } = useTimeTracking();
   
   const assignedMember = teamMembers.find(m => m.id === task.assignedTo);
@@ -95,31 +128,17 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, attachmentC
       onDragStart={(e) => onDragStart(e, task.id)}
       onDragEnd={onDragEnd}
       onClick={() => onCardClick(task)}
-      className={`bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-3 cursor-grab hover:bg-slate-50 dark:hover:bg-slate-600 transition-all group relative ${getApprovalBorder()} ${isDragging ? 'opacity-50 ring-2 ring-sky-500' : ''} ${isThisTaskActive ? 'ring-2 ring-green-500 shadow-lg' : ''}`}
+      className={`bg-white dark:bg-slate-700 rounded-md border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-2 cursor-grab hover:bg-slate-50 dark:hover:bg-slate-600 transition-all group relative ${getApprovalBorder()} ${isDragging ? 'opacity-50 ring-2 ring-sky-500' : ''} ${isThisTaskActive ? 'ring-2 ring-green-500 shadow-lg' : ''}`}
     >
-      <div className="flex justify-between items-start">
-        <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm pr-2">{task.title}</p>
-        {(canEdit || canDelete) && (
-            <div className="flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {canEdit && (
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
-                        className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400" 
-                        aria-label="تعديل المهمة">
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                )}
-                 {canDelete && (
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(task); }} 
-                        className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400" 
-                        aria-label="حذف المهمة">
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                 )}
-            </div>
-        )}
+      <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+        <DueDateIndicator dueDate={task.dueDate} />
+        <div className="flex items-center space-x-1 rtl:space-x-reverse">
+          <ClockIcon className="w-4 h-4" />
+          <span>{taskHours.toFixed(1)}h</span>
+        </div>
       </div>
+
+      <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm pb-2">{task.title}</p>
       
       {task.approvalStatus === 'rejected' && task.approvalNotes && (
           <div className="text-xs text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-2 rounded">
@@ -127,7 +146,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, attachmentC
           </div>
       )}
 
-      <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-600/50">
         <div className="flex items-center space-x-2 rtl:space-x-reverse">
             {assignedMember ? (
                 <img src={assignedMember.avatarUrl} alt={assignedMember.name} className="w-6 h-6 rounded-full" title={assignedMember.name} />
@@ -154,12 +173,29 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, attachmentC
               )}
             </div>
             <ApprovalIndicator status={task.approvalStatus} notes={task.approvalNotes} />
-            <div className="flex items-center space-x-1 rtl:space-x-reverse">
-              <ClockIcon className="w-4 h-4" />
-              <span>{taskHours.toFixed(1)}h</span>
-            </div>
           </div>
       </div>
+
+       {(canEdit || canDelete) && (
+          <div className="absolute bottom-2 left-2 rtl:left-auto rtl:right-2 flex-shrink-0 flex items-center space-x-1 rtl:space-x-reverse opacity-0 group-hover:opacity-100 transition-opacity">
+              {canEdit && (
+                  <button 
+                      onClick={(e) => { e.stopPropagation(); onEdit(task); }} 
+                      className="p-1.5 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-md text-slate-500 hover:text-sky-600 dark:hover:text-sky-400" 
+                      aria-label="تعديل المهمة">
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
+              )}
+               {canDelete && (
+                  <button 
+                      onClick={(e) => { e.stopPropagation(); onDelete(task); }} 
+                      className="p-1.5 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-md text-slate-500 hover:text-red-600 dark:hover:text-red-400" 
+                      aria-label="حذف المهمة">
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+               )}
+          </div>
+      )}
     </div>
   );
 });

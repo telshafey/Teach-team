@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Project, Task, TaskStatus, TaskFormData, BillingProposalFormData } from '../../types';
-import { TaskCard } from './TaskCard';
 import { TaskFormModal } from '../modals/TaskFormModal';
-import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon } from '../ui/Icons';
+import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon } from '../ui/Icons';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { GanttChart } from './GanttChart';
@@ -16,6 +16,7 @@ import { Card } from '../ui/Card';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { generateProjectSummary } from '../../services/geminiService';
 import { useToast } from '../../contexts/ToastContext';
+import { TaskColumn } from './TaskColumn';
 
 
 interface ProjectDetailPageProps {
@@ -23,63 +24,11 @@ interface ProjectDetailPageProps {
   initialTaskIdToOpen?: string;
 }
 
-const TaskColumn: React.FC<{
-    title: string;
-    tasks: Task[];
-    status: TaskStatus;
-    onEdit: (task: Task) => void;
-    onDelete: (task: Task) => void;
-    onCardClick: (task: Task) => void;
-    onDrop: (status: TaskStatus) => void;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
-    onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
-    draggingTaskId: string | null;
-    canEditTasks: boolean;
-    canDeleteTasks: boolean;
-}> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canEditTasks, canDeleteTasks }) => {
-  const [isOver, setIsOver] = useState(false);
-  const { taskAttachments, taskComments } = useProjectContext();
-  
-  const placeholder = useMemo(() => {
-    if (!draggingTaskId) return null;
-    return <div className="h-24 w-full bg-sky-200/50 dark:bg-sky-800/50 border-2 border-dashed border-sky-400 rounded-lg" />;
-  }, [draggingTaskId]);
-  
-  return (
-    <div 
-        onDragOver={(e) => { e.preventDefault(); setIsOver(true); }}
-        onDragLeave={() => setIsOver(false)}
-        onDrop={() => { onDrop(status); setIsOver(false); }}
-        className={`bg-slate-100 dark:bg-slate-800/50 p-3 rounded-lg flex-1 transition-colors`}
-    >
-        <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-4 px-1">{title} ({tasks.length})</h3>
-        <div className="space-y-3 min-h-[60vh]">
-            {tasks.map(task => (
-                <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    attachmentCount={taskAttachments.filter(a => a.taskId === task.id).length}
-                    commentCount={taskComments.filter(c => c.taskId === task.id).length}
-                    onEdit={onEdit} 
-                    onDelete={onDelete}
-                    onCardClick={onCardClick}
-                    onDragStart={onDragStart}
-                    onDragEnd={onDragEnd}
-                    isDragging={draggingTaskId === task.id}
-                    canEdit={canEditTasks}
-                    canDelete={canDeleteTasks}
-                />
-            ))}
-            {isOver && placeholder}
-        </div>
-    </div>
-  );
-};
-
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, initialTaskIdToOpen }) => {
     const { onNavigate } = useNavigation();
-    const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
-    const { teamMembers, dailyLogs } = useAppDataContext();
+    const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleDeleteProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
     const { currentUser, hasPermission } = useAuth();
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -89,6 +38,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isProjectDeleteConfirmOpen, setIsProjectDeleteConfirmOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
     // New state for AI summary
@@ -141,6 +91,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     }
 
     const canEditProject = hasPermission('edit_projects');
+    const canManageProject = hasPermission('manage_projects');
     const canCreateTasks = hasPermission('create_tasks');
     const canEditTasks = hasPermission('edit_tasks');
     const canDeleteTasks = hasPermission('delete_tasks');
@@ -190,6 +141,18 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         }
     };
 
+    const confirmProjectDelete = async () => {
+        if (!project) return;
+        try {
+            await handleDeleteProject(project.id);
+            setIsProjectDeleteConfirmOpen(false);
+            onNavigate('projects'); // Navigate on success
+        } catch (error) {
+            // Toast is already handled by the context
+            setIsProjectDeleteConfirmOpen(false);
+        }
+    };
+
 
     return (
         <div className="p-6">
@@ -223,27 +186,34 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                             <span>تقديم اقتراح للمشروع</span>
                         </button>
                     )}
+                    {canManageProject && (
+                        <button onClick={() => setIsProjectDeleteConfirmOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
+                            <TrashIcon className="w-5 h-5"/><span>حذف المشروع</span>
+                        </button>
+                    )}
                 </div>
             </div>
             
-            <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
-                {projectSummary ? (
-                     <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
-                ) : isGeneratingSummary ? (
-                    <div className="flex justify-center items-center p-4">
-                        <LoadingSpinner className="text-sky-500 w-5 h-5" />
-                        <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
-                    </div>
-                ) : (
-                    <div className="text-center p-4">
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
-                        <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
-                           <SparklesIcon className="w-5 h-5" />
-                           <span>إنشاء ملخص ذكي</span>
-                        </button>
-                    </div>
-                )}
-            </Card>
+            {hasPermission('use_ai_features') && (
+                <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
+                    {projectSummary ? (
+                         <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
+                    ) : isGeneratingSummary ? (
+                        <div className="flex justify-center items-center p-4">
+                            <LoadingSpinner className="text-sky-500 w-5 h-5" />
+                            <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
+                        </div>
+                    ) : (
+                        <div className="text-center p-4">
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
+                            <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                               <SparklesIcon className="w-5 h-5" />
+                               <span>إنشاء ملخص ذكي</span>
+                            </button>
+                        </div>
+                    )}
+                </Card>
+            )}
 
             {viewMode === 'kanban' ? (
                 <div className="flex flex-col md:flex-row gap-4">
@@ -338,6 +308,16 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     onConfirm={confirmDelete}
                     title="تأكيد حذف المهمة"
                     message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+                    isDestructive
+                />
+            )}
+            {isProjectDeleteConfirmOpen && project && (
+                 <ConfirmationModal
+                    isOpen={isProjectDeleteConfirmOpen}
+                    onClose={() => setIsProjectDeleteConfirmOpen(false)}
+                    onConfirm={confirmProjectDelete}
+                    title="تأكيد حذف المشروع"
+                    message={`هل أنت متأكد من رغبتك في حذف مشروع "${project.name}"؟ سيتم حذف جميع المهام والمرفقات والتعليقات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.`}
                     isDestructive
                 />
             )}

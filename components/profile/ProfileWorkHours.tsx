@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { WeeklyHoursTracker } from './WeeklyHoursTracker';
 
 interface ProfileWorkHoursProps {
@@ -9,7 +9,7 @@ interface ProfileWorkHoursProps {
 
 export const ProfileWorkHours: React.FC<ProfileWorkHoursProps> = ({ onStartChangeRequest }) => {
     const { currentUser } = useAuth();
-    const { dailyLogs } = useAppDataContext();
+    const { dailyLogs } = useTimeLogContext();
     
     if (!currentUser || !currentUser.weeklyHoursRequirement) {
         return null; // Or some fallback UI

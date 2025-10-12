@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { DailyLog, DailyLogFormData } from '../../types';
 import { Calendar } from '../ui/Calendar';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
@@ -12,7 +13,8 @@ import { PlusIcon } from '../ui/Icons';
 
 export const TimeSheetPage: React.FC = () => {
     const { currentUser } = useAuth();
-    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog, siteSettings } = useAppDataContext();
+    const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
+    const { siteSettings } = useSettingsContext();
     const { tasks } = useProjectContext();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);

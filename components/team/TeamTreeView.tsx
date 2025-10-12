@@ -1,9 +1,9 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { TeamMember } from '../../types';
 import { UserPlusIcon } from '../ui/Icons';
 import { Card } from '../ui/Card';
-import { useAppDataContext } from '../../contexts/DataContext';
 
 interface TreeNodeProps {
   member: TeamMember;
@@ -17,7 +17,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onSelect, selec
   const children = allMembers.filter(child => child.reportsTo === member.id);
   
   const { rolesMap, hasPermission } = useAuth();
-  const { currency } = useAppDataContext();
+  const { currency } = useSettingsContext();
   const roleName = rolesMap[member.roleId]?.name || member.roleId;
   const isSelected = member.id === selectedMemberId;
 

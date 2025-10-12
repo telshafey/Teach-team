@@ -153,3 +153,66 @@ export const generateProjectSummary = async (
     throw new Error('فشل إنشاء ملخص المشروع. قد تكون خدمة الذكاء الاصطناعي غير مهيأة بشكل صحيح.');
   }
 };
+
+/**
+ * Scans a receipt image and extracts the total amount and description.
+ */
+export const scanReceipt = async (
+  base64ImageData: string,
+  mimeType: string
+): Promise<{ amount: number; description: string }> => {
+  try {
+    const client = getAiClient();
+    
+    const imagePart = {
+      inlineData: {
+        mimeType: mimeType,
+        data: base64ImageData,
+      },
+    };
+
+    const prompt = `
+      Act as an expert accounting assistant. Analyze the following receipt image and extract two pieces of information:
+      1. The final total amount paid.
+      2. A concise description of the items or service purchased (e.g., "Lunch at restaurant", "Office supplies").
+      
+      Return the result as a JSON object. The amount should be a number, not a string.
+    `;
+
+    const textPart = {
+      text: prompt
+    };
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            amount: {
+              type: Type.NUMBER,
+              description: 'The final total amount of the receipt.',
+            },
+            description: {
+              type: Type.STRING,
+              description: 'A concise description of the purchase.',
+            },
+          },
+          propertyOrdering: ['amount', 'description']
+        },
+      },
+    });
+
+    const jsonText = response.text.trim();
+    if (!jsonText) {
+        throw new Error('AI did not return a valid response.');
+    }
+    const result = JSON.parse(jsonText);
+    return result as { amount: number; description: string };
+  } catch (error) {
+    console.error('Error scanning receipt:', error);
+    throw new Error('فشل مسح الإيصال. قد تكون خدمة الذكاء الاصطناعي غير متاحة أو أن الصورة غير واضحة.');
+  }
+};

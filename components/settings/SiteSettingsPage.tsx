@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { SiteSettings } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
@@ -7,7 +7,7 @@ import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { fileToBase64 } from '../../utils/files';
 
 export const SiteSettingsPage: React.FC = () => {
-    const { siteSettings, handleUpdateSiteSettings } = useAppDataContext();
+    const { siteSettings, handleUpdateSiteSettings } = useSettingsContext();
     const { addToast } = useToast();
     const [settings, setSettings] = useState<SiteSettings | null>(siteSettings);
     const [isSaving, setIsSaving] = useState(false);

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { TeamMember } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
@@ -19,7 +20,8 @@ interface TeamMemberDetailPageProps {
 
 export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onBack, onEdit }) => {
   const { onNavigate } = useNavigation();
-  const { dailyLogs, currency } = useAppDataContext();
+  const { dailyLogs } = useTimeLogContext();
+  const { currency } = useSettingsContext();
   const { tasks, projects } = useProjectContext();
   const { rolesMap, hasPermission } = useAuth();
   const { addToast } = useToast();
@@ -112,7 +114,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
                 )}
             </div>
           </Card>
-           {hasPermission('generate_performance_notes') && (
+           {hasPermission('use_ai_features') && (
             <Card title="ملاحظات الأداء (AI)" icon={<SparklesIcon className="w-5 h-5"/>}>
               <div className="space-y-3">
                 <button 

@@ -1,165 +1,168 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { Role, Permission } from '../../types';
+import { PERMISSION_GROUPS, PERMISSION_DESCRIPTIONS } from '../../permissions';
 import { Card } from '../ui/Card';
-import { PlusIcon, TrashIcon, PencilIcon } from '../ui/Icons';
+import { PlusIcon, TrashIcon, PencilIcon, LockClosedIcon } from '../ui/Icons';
 import { RoleFormModal } from '../modals/RoleFormModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { useToast } from '../../contexts/ToastContext';
-import { PERMISSION_GROUPS, PERMISSION_DESCRIPTIONS } from '../../permissions';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { EmptyState } from '../ui/EmptyState';
 
 interface RoleManagementPageProps {
     initialRoleId?: string;
 }
 
 export const RoleManagementPage: React.FC<RoleManagementPageProps> = ({ initialRoleId }) => {
-    const { onNavigate } = useNavigation();
-    const { roles, handleAddRole, handleUpdateRole, handleDeleteRole, teamMembers } = useTeamContext();
-    const { hasPermission } = useAuth();
+    const { roles, handleAddRole, handleUpdateRole, handleDeleteRole } = useTeamContext();
     const { addToast } = useToast();
-    const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-    const [editedPermissions, setEditedPermissions] = useState<Permission[]>([]);
+    
+    const PROTECTED_ROLES = ['gm', 'manager'];
+    const firstEditableRole = roles.find(r => !PROTECTED_ROLES.includes(r.id));
+
+    const [selectedRoleId, setSelectedRoleId] = useState<string | null>(initialRoleId || firstEditableRole?.id || null);
+    
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [roleToEdit, setRoleToEdit] = useState<Role | null>(null);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
 
-    const canManageRoles = hasPermission('manage_roles');
+    const selectedRole = useMemo(() => {
+        return roles.find(r => r.id === selectedRoleId);
+    }, [roles, selectedRoleId]);
 
-    useEffect(() => {
-        if (initialRoleId && roles.length > 0) {
-            const role = roles.find(r => r.id === initialRoleId);
-            setSelectedRole(role || roles[0] || null);
-        } else if (!selectedRole && roles.length > 0) {
-            setSelectedRole(roles[0]);
-        }
-    }, [initialRoleId, roles, selectedRole]);
-
-    useEffect(() => {
-        if (selectedRole) {
-            setEditedPermissions(selectedRole.permissions || []);
-        } else {
-            setEditedPermissions([]);
-        }
-    }, [selectedRole]);
-    
-    const hasChanges = useMemo(() => {
-        if (!selectedRole) return false;
-        const originalPermissions = new Set(selectedRole.permissions || []);
-        const editedPermissionsSet = new Set(editedPermissions);
-        return originalPermissions.size !== editedPermissionsSet.size ||
-               ![...originalPermissions].every(p => editedPermissionsSet.has(p));
-    }, [selectedRole, editedPermissions]);
-
-    const handlePermissionChange = (permission: Permission, checked: boolean) => {
-        setEditedPermissions(prev =>
-            checked ? [...prev, permission] : prev.filter(p => p !== permission)
-        );
+    const handlePermissionToggle = (permission: Permission) => {
+        if (!selectedRole || PROTECTED_ROLES.includes(selectedRole.id)) return;
+        
+        const currentPermissions = selectedRole.permissions || [];
+        const newPermissions = currentPermissions.includes(permission)
+            ? currentPermissions.filter(p => p !== permission)
+            : [...currentPermissions, permission];
+        
+        handleUpdateRole({ ...selectedRole, permissions: newPermissions });
     };
 
-    const handleSavePermissions = async () => {
-        if (!selectedRole) return;
-        setIsSaving(true);
-        try {
-            await handleUpdateRole({ ...selectedRole, permissions: editedPermissions });
-            addToast('تم حفظ الصلاحيات بنجاح.', 'success');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-    
-    const handleSaveRoleForm = async (roleData: { id?: string, name: string }) => {
-        if (roleToEdit) {
-            await handleUpdateRole({ ...roleToEdit, name: roleData.name });
+    const handleSaveRole = async (roleData: { id?: string, name: string }) => {
+        if (roleData.id) {
+            const roleToUpdate = roles.find(r => r.id === roleData.id);
+            if (roleToUpdate) {
+                await handleUpdateRole({ ...roleToUpdate, name: roleData.name });
+            }
         } else {
             await handleAddRole(roleData);
         }
     };
-    
-    const confirmDelete = async () => {
+
+    const confirmDeleteRole = async () => {
         if (roleToDelete) {
             await handleDeleteRole(roleToDelete.id);
-            if (selectedRole?.id === roleToDelete.id) {
-                setSelectedRole(roles.length > 1 ? roles[0] : null);
-            }
             setRoleToDelete(null);
+            if (selectedRoleId === roleToDelete.id) {
+                setSelectedRoleId(firstEditableRole?.id || null);
+            }
         }
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="md:col-span-1">
-                <Card title="الأدوار" headerActions={canManageRoles ? <button onClick={() => { setRoleToEdit(null); setIsFormModalOpen(true); }} className="p-1 text-sky-600 dark:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><PlusIcon className="w-5 h-5"/></button> : null}>
-                    <nav className="space-y-1">
-                        {roles.map(role => (
-                            <a
-                                key={role.id}
-                                href="#"
-                                onClick={(e) => { e.preventDefault(); setSelectedRole(role); }}
-                                className={`group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${selectedRole?.id === role.id ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700'}`}
-                            >
-                                <span>{role.name}</span>
-                                {canManageRoles && role.id !== 'gm' && role.id !== 'manager' && (
-                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e) => { e.stopPropagation(); setRoleToEdit(role); setIsFormModalOpen(true);}} className="p-1 text-slate-400 hover:text-sky-500"><PencilIcon className="w-4 h-4"/></button>
-                                        <button onClick={(e) => { e.stopPropagation(); setRoleToDelete(role);}} className="p-1 text-slate-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                                     </div>
-                                )}
-                            </a>
-                        ))}
-                    </nav>
-                </Card>
-            </div>
-            <div className="md:col-span-3">
-                {selectedRole ? (
-                    <Card title={`صلاحيات دور: ${selectedRole.name}`}>
-                        <div className="space-y-6">
-                            {Object.entries(PERMISSION_GROUPS).map(([groupName, permissions]) => (
-                                <div key={groupName}>
-                                    <h4 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-3 border-b pb-2">{groupName}</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                                        {permissions.map(permission => (
-                                            <label key={permission} className="flex items-center space-x-3 rtl:space-x-reverse">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={editedPermissions.includes(permission)}
-                                                    onChange={(e) => handlePermissionChange(permission, e.target.checked)}
-                                                    disabled={!canManageRoles || selectedRole.id === 'gm'}
-                                                    className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
-                                                />
-                                                <span className="text-sm text-slate-600 dark:text-slate-300">{PERMISSION_DESCRIPTIONS[permission]}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {canManageRoles && hasChanges && selectedRole.id !== 'gm' && (
-                            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-                                <button onClick={handleSavePermissions} disabled={isSaving} className="px-6 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400">
-                                    {isSaving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
-                                </button>
-                            </div>
-                        )}
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                    <Card 
+                        title="الأدوار"
+                        headerActions={
+                            <button onClick={() => { setEditingRole(null); setIsFormModalOpen(true); }} className="p-1.5 text-sky-600 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 rounded-full" title="إضافة دور جديد">
+                                <PlusIcon className="w-5 h-5" />
+                            </button>
+                        }
+                    >
+                        <ul className="space-y-1">
+                            {roles.map(role => {
+                                const isProtected = PROTECTED_ROLES.includes(role.id);
+                                return (
+                                    <li key={role.id}>
+                                        <div
+                                            onClick={() => setSelectedRoleId(role.id)}
+                                            className={`flex justify-between items-center p-2 rounded-md cursor-pointer ${selectedRoleId === role.id ? 'bg-sky-100 dark:bg-sky-900/50' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                        >
+                                            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                                {isProtected && <LockClosedIcon className="w-4 h-4 text-slate-400" />}
+                                                <span className={`font-medium ${selectedRoleId === role.id ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-200'}`}>{role.name}</span>
+                                            </div>
+                                            {!isProtected && (
+                                                <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingRole(role); setIsFormModalOpen(true); }} className="p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400" title="تعديل الاسم"><PencilIcon className="w-4 h-4" /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); }} className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400" title="حذف الدور"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </Card>
-                ) : <p>اختر دورًا لعرض صلاحياته.</p>}
+                </div>
+                <div className="lg:col-span-2">
+                    {selectedRole ? (
+                        <Card title={`صلاحيات دور: ${selectedRole.name}`}>
+                            <div className="space-y-6 p-4">
+                                {PROTECTED_ROLES.includes(selectedRole.id) ? (
+                                    <div className="text-center p-4 bg-slate-100 dark:bg-slate-700 rounded-md">
+                                        <LockClosedIcon className="w-8 h-8 mx-auto text-slate-400 mb-2"/>
+                                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">صلاحيات هذا الدور مدمجة ولا يمكن تعديلها.</p>
+                                        {selectedRole.id === 'gm' && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">المدير العام لديه كل الصلاحيات بشكل افتراضي.</p>}
+                                    </div>
+                                ) : (
+                                    Object.entries(PERMISSION_GROUPS).map(([groupName, permissions]) => (
+                                        <div key={groupName}>
+                                            <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-3 border-b border-slate-200 dark:border-slate-700 pb-2">{groupName}</h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                                                {permissions.map(permission => (
+                                                    <label key={permission} className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedRole.permissions?.includes(permission) || false}
+                                                            onChange={() => handlePermissionToggle(permission)}
+                                                            className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                                                        />
+                                                        <span className="text-sm text-slate-600 dark:text-slate-300">{PERMISSION_DESCRIPTIONS[permission]}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </Card>
+                    ) : (
+                        <Card>
+                             <EmptyState
+                                icon={<LockClosedIcon className="w-12 h-12" />}
+                                title="إدارة الصلاحيات"
+                                message="اختر دوراً من القائمة لعرض وتعديل صلاحياته."
+                             />
+                        </Card>
+                    )}
+                </div>
             </div>
 
-             {isFormModalOpen && (
-                <RoleFormModal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} onSave={handleSaveRoleForm} role={roleToEdit} />
-             )}
-             {roleToDelete && (
+            {isFormModalOpen && (
+                <RoleFormModal 
+                    isOpen={isFormModalOpen}
+                    onClose={() => setIsFormModalOpen(false)}
+                    onSave={handleSaveRole}
+                    role={editingRole}
+                />
+            )}
+
+            {roleToDelete && (
                 <ConfirmationModal 
-                    isOpen={!!roleToDelete} 
-                    onClose={() => setRoleToDelete(null)} 
-                    onConfirm={confirmDelete}
+                    isOpen={!!roleToDelete}
+                    onClose={() => setRoleToDelete(null)}
+                    onConfirm={confirmDeleteRole}
                     title="تأكيد حذف الدور"
                     message={`هل أنت متأكد من رغبتك في حذف دور "${roleToDelete.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
                     isDestructive
                 />
-             )}
-        </div>
+            )}
+        </>
     );
 };

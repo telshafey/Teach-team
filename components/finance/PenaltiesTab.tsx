@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { Penalty, PenaltyStatus } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { StatusBadge } from '../ui/StatusBadge';
 
 interface PenaltiesTabProps {
     penalties: Penalty[];
@@ -14,7 +16,8 @@ interface PenaltiesTabProps {
 }
 
 export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({ penalties, onReview, onNew }) => {
-    const { teamMembers, currency } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { currency } = useSettingsContext();
     const { hasPermission } = useAuth();
     const [statusFilter, setStatusFilter] = useState<'all' | PenaltyStatus>('all');
 
@@ -22,17 +25,6 @@ export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({ penalties, onReview,
         if (statusFilter === 'all') return penalties;
         return penalties.filter(p => p.status === statusFilter);
     }, [penalties, statusFilter]);
-
-    const getStatusBadge = (status: PenaltyStatus) => {
-        const styles: Record<PenaltyStatus, string> = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-            appealed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
-        };
-        const text: Record<PenaltyStatus, string> = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض', appealed: 'مستأنف' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
 
     const filterOptions: { label: string; value: 'all' | PenaltyStatus }[] = [
         { label: 'الكل', value: 'all' },
@@ -76,7 +68,7 @@ export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({ penalties, onReview,
                                     <td className="px-4 py-2">{penalty.amount}</td>
                                     <td className="px-4 py-2">{format(parseISO(penalty.date), 'd MMM yyyy', { locale: arSA })}</td>
                                     <td className="px-4 py-2 truncate max-w-xs">{penalty.reason}</td>
-                                    <td className="px-4 py-2">{getStatusBadge(penalty.status)}</td>
+                                    <td className="px-4 py-2"><StatusBadge status={penalty.status} type="penalty" /></td>
                                     {hasPermission('approve_penalties') && (
                                         <td className="px-4 py-2">
                                             {penalty.status === 'pending' && (

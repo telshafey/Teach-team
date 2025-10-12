@@ -3,6 +3,7 @@ import { DailyLog } from '../types';
 import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 export interface TimeLogContextType {
   dailyLogs: DailyLog[];
@@ -18,11 +19,16 @@ const TimeLogContext = createContext<TimeLogContextType | undefined>(undefined);
 export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
+  const { currentUser } = useAuth();
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !currentUser) {
+        setDailyLogs([]);
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const logsData = await api.fetchAll<DailyLog>(supabaseClient, 'daily_logs');
@@ -33,17 +39,19 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
     } finally {
       setIsLoading(false);
     }
-  }, [supabaseClient, addToast]);
+  }, [supabaseClient, addToast, currentUser]);
 
   useEffect(() => {
-    if (supabaseClient) {
+    if (supabaseClient && currentUser) {
       fetchData();
       const channel = supabaseClient.channel('public:daily_logs').on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, () => fetchData()).subscribe();
       return () => {
         supabaseClient.removeChannel(channel);
       };
+    } else {
+        setDailyLogs([]);
     }
-  }, [supabaseClient, fetchData]);
+  }, [supabaseClient, fetchData, currentUser]);
   
   const handleAddDailyLog = async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;

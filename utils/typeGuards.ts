@@ -1,25 +1,30 @@
-import { TeamMember, Task, Project, OvertimeRequest, LeaveRequest, WorkContractChangeRequest, Penalty, DecisionItem } from '../types';
+import { DecisionItem, LeaveRequest, OvertimeRequest, Penalty, Project, Task, TeamMember, WorkContractChangeRequest } from '../types';
 
-// This file centralizes type guard functions used across the application.
+export function isTeamMember(item: DecisionItem): item is TeamMember {
+  return (item as TeamMember).weeklyPlan !== undefined;
+}
 
-export function isTask(item: any): item is Task {
-  return item && typeof item.title === 'string' && 'approvalStatus' in item;
+export function isTask(item: DecisionItem): item is Task {
+  return (item as Task).approvalStatus !== undefined;
 }
-export function isProject(item: any): item is Project {
-    return item && typeof item.name === 'string' && 'freelancerContract' in item;
+
+export function isProject(item: DecisionItem): item is Project {
+  const status = (item as Project).status;
+  return status === 'نشط' || status === 'مكتمل' || status === 'معلق';
 }
-export function isOvertimeRequest(item: any): item is OvertimeRequest {
-    return item && typeof item.requestedHours === 'number' && typeof item.weekStartDate === 'string';
+
+export function isOvertimeRequest(item: DecisionItem): item is OvertimeRequest {
+  return (item as OvertimeRequest).requestedHours !== undefined;
 }
-export function isLeaveRequest(item: any): item is LeaveRequest {
-    return item && typeof item.reason === 'string' && typeof item.startDate === 'string';
+
+export function isLeaveRequest(item: DecisionItem): item is LeaveRequest {
+  return (item as LeaveRequest).startDate !== undefined && (item as LeaveRequest).endDate !== undefined;
 }
-export function isWorkContractChangeRequest(item: any): item is WorkContractChangeRequest {
-    return item && typeof item.requestedWeeklyHours === 'number' && typeof item.requestedSalary === 'number' && 'reason' in item;
+
+export function isWorkContractChangeRequest(item: DecisionItem): item is WorkContractChangeRequest {
+  return (item as WorkContractChangeRequest).requestedWeeklyHours !== undefined;
 }
-export function isPenalty(item: any): item is Penalty {
-    return item && typeof item.reason === 'string' && typeof item.amount === 'number' && 'issuerId' in item;
-}
-export function isTeamMember(item: any): item is TeamMember {
-    return item && typeof item.name === 'string' && 'weeklyPlan' in item;
+
+export function isPenalty(item: DecisionItem): item is Penalty {
+  return (item as Penalty).issuerId !== undefined;
 }

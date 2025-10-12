@@ -51,6 +51,9 @@ export const fetchAll = async <T>(client: SupabaseClient, table: string): Promis
 export const insert = async <T>(client: SupabaseClient, table: string, record: Partial<T>): Promise<T> => {
     const { data, error } = await client.from(table).insert([camelToSnake(record)]).select().single();
     if (error) throw new Error(error.message || `Failed to insert into table "${table}".`);
+    if (!data) {
+        throw new Error(`فشل عملية الإضافة في جدول "${table}"، قد يكون السبب متعلقاً بصلاحيات الأمان (RLS).`);
+    }
     return snakeToCamel(data) as T;
 };
 
@@ -58,6 +61,9 @@ export const insert = async <T>(client: SupabaseClient, table: string, record: P
 export const insertMany = async <T>(client: SupabaseClient, table: string, records: Partial<T>[]): Promise<T[]> => {
     const { data, error } = await client.from(table).insert(records.map(camelToSnake)).select();
     if (error) throw new Error(error.message || `Failed to insert multiple records into table "${table}".`);
+    if (!data) {
+        throw new Error(`فشل عملية الإضافة في جدول "${table}"، قد يكون السبب متعلقاً بصلاحيات الأمان (RLS).`);
+    }
     return snakeToCamel(data) as T[];
 };
 

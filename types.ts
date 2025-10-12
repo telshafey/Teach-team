@@ -44,7 +44,7 @@ export type Permission =
   | 'view_reports'
   | 'view_analytics'
   | 'view_finances'
-  | 'generate_performance_notes'
+  | 'use_ai_features'
   | 'approve_work_contract_changes'
   | 'issue_penalties'
   | 'approve_penalties';

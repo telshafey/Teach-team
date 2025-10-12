@@ -1,13 +1,13 @@
 import React, { useState, FormEvent, useMemo, useRef, useEffect } from 'react';
 import { Task, TaskComment, TaskAttachment, TeamMember } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { PaperClipIcon, ChatBubbleLeftEllipsisIcon, ArrowUpTrayIcon, XCircleIcon, PencilIcon, TrashIcon } from '../ui/Icons';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useSupabase } from '../../contexts/SupabaseContext';
-import { ConfirmationModal } from '../modals/ConfirmationModal';
+import { ConfirmationModal } from './ConfirmationModal';
 import { useToast } from '../../contexts/ToastContext';
 
 
@@ -18,12 +18,15 @@ interface TaskDetailModalProps {
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClose, task }) => {
-  const { teamMembers, isStorageConfigured } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
   const { projects, taskAttachments, taskComments, handleAddTaskComment, handleDeleteTaskComment, handleAddTaskAttachment, handleDeleteTaskAttachment } = useProjectContext();
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
   
+  // Correctly derive storage configuration status from the Supabase client.
+  const isStorageConfigured = !!supabaseClient?.storage;
+
   const [newComment, setNewComment] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [showStorageErrorModal, setShowStorageErrorModal] = useState(false);
@@ -51,8 +54,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   const handleAddCommentSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    await handleAddTaskComment(task.id, newComment);
-    setNewComment('');
+    try {
+        await handleAddTaskComment(task.id, newComment);
+        setNewComment('');
+    } catch (error) {
+        console.error("Failed to add comment from modal:", error);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,43 +81,31 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
 
         const { data: { publicUrl } } = supabaseClient.storage.from('task_attachments').getPublicUrl(filePath);
 
-        const newAttachment: Omit<TaskAttachment, 'id'> = {
+        await handleAddTaskAttachment({
             taskId: task.id,
             fileName: file.name,
             fileUrl: publicUrl,
             uploaderId: currentUser.id,
             timestamp: new Date().toISOString(),
-        };
+        });
         
-        await handleAddTaskAttachment(newAttachment);
         addToast('تم رفع المرفق بنجاح.', 'success');
 
       } catch (error: any) {
         console.error("Error uploading file:", error);
-        addToast(error.message.includes('rls') ? 'فشل رفع الملف. ليس لديك الصلاحية.' : 'حدث خطأ أثناء رفع الملف.', 'error');
+        addToast(error.message.includes('rls') ? 'فشل رفع الملف. ليس لديك الصلاحية.' : `حدث خطأ أثناء رفع الملف: ${error.message}`, 'error');
       } finally {
         setIsUploading(false);
+        e.target.value = '';
       }
     }
   };
 
   const handleRemoveAttachment = async (attachment: TaskAttachment) => {
       try {
-        // Delete from DB first
-        await handleDeleteTaskAttachment(attachment.id);
-        addToast('تم حذف المرفق بنجاح.', 'success');
-        
-        // Then delete from storage
-        const filePath = new URL(attachment.fileUrl).pathname.split(`/public/task_attachments/`)[1];
-        if (filePath) {
-            const { error: storageError } = await supabaseClient.storage.from('task_attachments').remove([filePath]);
-            if (storageError && storageError.message !== 'The resource was not found') {
-                console.warn(`Failed to delete orphaned file from storage: ${filePath}`, storageError);
-            }
-        }
+        await handleDeleteTaskAttachment(attachment);
       } catch(error: any) {
         console.error("Error removing attachment:", error);
-        addToast(`فشل حذف المرفق: ${error.message}`, 'error');
       }
   };
   
@@ -120,7 +115,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
 
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = text.substring(0, cursorPos);
-    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    const mentionMatch = textBeforeCursor.match(/@([\p{L}\p{N}_\s]*)$/u);
 
     if (mentionMatch) {
       setMentionQuery(mentionMatch[1]);
@@ -136,9 +131,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
     const cursorPos = commentTextareaRef.current.selectionStart;
     const textAfterCursor = text.substring(cursorPos);
     
-    // FIX: Define textBeforeCursor to resolve scope issue. It was used without being defined in this function.
     const textBeforeCursor = text.substring(0, cursorPos);
-    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+    const mentionMatch = textBeforeCursor.match(/@([\p{L}\p{N}_\s]*)$/u);
+
     if(mentionMatch) {
         const startIndex = mentionMatch.index || 0;
         const newText = `${text.substring(0, startIndex)}@${user.name} ${textAfterCursor}`;
@@ -164,8 +159,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
                     </div>
                      {comment && currentUser.id === authorId && (
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {/* Edit button can be implemented later if needed */}
-                            {/* <button onClick={() => {}} className="p-1 text-slate-400 hover:text-sky-500"><PencilIcon className="w-4 h-4" /></button> */}
                             <button onClick={() => setCommentToDelete(comment)} className="p-1 text-slate-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                         </div>
                      )}

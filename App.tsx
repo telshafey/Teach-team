@@ -8,30 +8,33 @@ import { Dashboard } from './components/dashboard/Dashboard';
 import { SupabaseProvider, useSupabase } from './contexts/SupabaseContext';
 import { AppProvider } from './contexts/AppProvider';
 
+// Extracted StaticLogo to avoid duplication
+const StaticLogo: React.FC = () => (
+    <div className="flex items-center space-x-3 rtl:space-x-reverse">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
+                <defs>
+                    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                       <stop offset="0%" stopColor="#38bdf8"/>
+                       <stop offset="100%" stopColor="#0ea5e9"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" fill="url(#g)"/>
+                <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <circle cx="50" cy="50" r="5" fill="white"/>
+            </svg>
+        </div>
+        <span className="text-2xl font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
+            Bokra Team
+        </span>
+    </div>
+);
+
+
 const AppContent: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
 
   if (isLoading) {
-    const StaticLogo = () => (
-        <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
-                    <defs>
-                        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-                           <stop offset="0%" stopColor="#38bdf8"/>
-                           <stop offset="100%" stopColor="#0ea5e9"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="50" cy="50" r="48" fill="url(#g)"/>
-                    <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <circle cx="50" cy="50" r="5" fill="white"/>
-                </svg>
-            </div>
-            <span className="text-2xl font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
-                Bokra Team
-            </span>
-        </div>
-    );
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-white dark:bg-slate-900">
              <div className="animate-pulse"><StaticLogo /></div>
@@ -47,27 +50,6 @@ const AppBootstrap: React.FC = () => {
   const { supabaseClient, isLoading } = useSupabase();
 
   if (isLoading) {
-    const StaticLogo = () => (
-        <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sky-500 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-full h-full p-1.5">
-                    <defs>
-                        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-                           <stop offset="0%" stopColor="#38bdf8"/>
-                           <stop offset="100%" stopColor="#0ea5e9"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="50" cy="50" r="48" fill="url(#g)"/>
-                    <path d="M30 55 L48 70 L75 40" stroke="white" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <circle cx="50" cy="50" r="5" fill="white"/>
-                </svg>
-            </div>
-            <span className="text-2xl font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
-                Bokra Team
-            </span>
-        </div>
-    );
-
     return (
        <div className="flex h-screen w-screen items-center justify-center bg-white dark:bg-slate-900">
            <div className="animate-pulse"><StaticLogo /></div>

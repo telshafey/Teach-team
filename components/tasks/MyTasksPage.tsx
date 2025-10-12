@@ -9,6 +9,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { ClipboardDocumentListIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { StatusBadge } from '../ui/StatusBadge';
 
 export const MyTasksPage: React.FC = () => {
     const { currentUser } = useAuth();
@@ -30,29 +31,6 @@ export const MyTasksPage: React.FC = () => {
         [projects]
     );
 
-    const getStatusBadge = (status: TaskStatus) => {
-        const styles: Record<TaskStatus, string> = {
-            todo: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200',
-            inprogress: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300',
-            done: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-        };
-        const text: Record<TaskStatus, string> = { todo: 'لم تبدأ', inprogress: 'قيد التنفيذ', done: 'مكتملة' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
-    
-    const getApprovalBadge = (status: ApprovalStatus) => {
-        const styles: Record<ApprovalStatus, string> = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'text-green-600',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-            'needs-adjustment': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
-        };
-        const text: Record<ApprovalStatus, string> = { pending: 'قيد المراجعة', approved: 'معتمدة', rejected: 'مرفوضة', 'needs-adjustment': 'تحتاج تعديل' };
-        if (status === 'approved') return <span className={`text-xs font-medium ${styles[status]}`}>{text[status]}</span>
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
-
-    const taskStatuses: TaskStatus[] = ['todo', 'inprogress', 'done'];
     const filterButtons: {label: string, value: 'all' | TaskStatus}[] = [
         {label: 'الكل', value: 'all'},
         {label: 'لم تبدأ', value: 'todo'},
@@ -97,8 +75,8 @@ export const MyTasksPage: React.FC = () => {
                                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{task.title}</td>
                                         <td className="px-6 py-4">{projectsMap[task.projectId]}</td>
                                         <td className="px-6 py-4">{task.dueDate ? format(parseISO(task.dueDate), 'd MMM yyyy', { locale: arSA }) : '-'}</td>
-                                        <td className="px-6 py-4">{getStatusBadge(task.status)}</td>
-                                        <td className="px-6 py-4">{getApprovalBadge(task.approvalStatus)}</td>
+                                        <td className="px-6 py-4"><StatusBadge status={task.status} type="task" /></td>
+                                        <td className="px-6 py-4"><StatusBadge status={task.approvalStatus} type="approval" /></td>
                                     </tr>
                                 ))}
                             </tbody>

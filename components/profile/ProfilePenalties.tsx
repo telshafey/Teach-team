@@ -7,6 +7,7 @@ import { NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Penalty, PenaltyStatus } from '../../types';
+import { StatusBadge } from '../ui/StatusBadge';
 
 interface ProfilePenaltiesProps {
     onAppeal: (penalty: Penalty) => void;
@@ -23,17 +24,6 @@ export const ProfilePenalties: React.FC<ProfilePenaltiesProps> = ({ onAppeal }) 
             .filter(p => p.teamMemberId === currentUser.id)
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [penalties, currentUser]);
-
-    const getStatusBadge = (status: PenaltyStatus) => {
-        const styles: Record<PenaltyStatus, string> = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-            appealed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
-        };
-        const text: Record<PenaltyStatus, string> = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض', appealed: 'مستأنف' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
 
     return (
         <Card title="سجل الجزاءات" icon={<NoSymbolIcon className="w-5 h-5" />}>
@@ -54,7 +44,7 @@ export const ProfilePenalties: React.FC<ProfilePenaltiesProps> = ({ onAppeal }) 
                                 <td className="px-4 py-2">{format(parseISO(p.date), 'd MMM yyyy', { locale: arSA })}</td>
                                 <td className="px-4 py-2">{p.amount}</td>
                                 <td className="px-4 py-2">{p.reason}</td>
-                                <td className="px-4 py-2">{getStatusBadge(p.status)}</td>
+                                <td className="px-4 py-2"><StatusBadge status={p.status} type="penalty" /></td>
                                 <td className="px-4 py-2">
                                     {p.status === 'approved' && (
                                         <button onClick={() => onAppeal(p)} className="text-xs font-semibold text-blue-600 hover:underline">

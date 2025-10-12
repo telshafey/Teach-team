@@ -2,7 +2,7 @@ import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { DailyLog, DailyLogFormData, Task } from '../../types';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface LogFormModalProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ interface LogFormModalProps {
 
 export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onSave, log, date, memberId, initialData }) => {
   const { tasks, projects } = useProjectContext();
-  const { teamMembers } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
   const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -75,9 +75,12 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
     if (!formData.projectId) {
       return [];
     }
-    const projectTasks = tasks.filter(t => t.projectId === formData.projectId);
+    // Make the comparison robust against whitespace and case differences
+    const cleanProjectId = formData.projectId.trim().toLowerCase();
+    const projectTasks = tasks.filter(t => 
+        t.projectId && t.projectId.trim().toLowerCase() === cleanProjectId
+    );
 
-    // Map tasks to include assignee info for sorting and display
     const mappedTasks = projectTasks.map(task => {
         const assignee = teamMembers.find(m => m.id === task.assignedTo);
         return { 
@@ -86,31 +89,16 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
         };
     });
 
-    // Sort the mapped tasks
+    // Simplified sorting logic to be more robust
     mappedTasks.sort((a, b) => {
       const aIsMine = a.assignedTo === memberId;
       const bIsMine = b.assignedTo === memberId;
-      const aIsUnassigned = !a.assignedTo;
-      const bIsUnassigned = !b.assignedTo;
 
-      // Group 1: My tasks
       if (aIsMine && !bIsMine) return -1;
       if (!aIsMine && bIsMine) return 1;
-      if (aIsMine && bIsMine) return a.title.localeCompare(b.title);
 
-      // Group 2: Unassigned tasks
-      if (aIsUnassigned && !bIsUnassigned) return -1;
-      if (!aIsUnassigned && bIsUnassigned) return 1;
-      if (aIsUnassigned && bIsUnassigned) return a.title.localeCompare(b.title);
-
-      // Group 3: Others' tasks - sort by assignee name, then task title
-      const nameA = a.assigneeName || '';
-      const nameB = b.assigneeName || '';
-      if (nameA !== nameB) {
-        return nameA.localeCompare(nameB);
-      }
-      
-      return a.title.localeCompare(b.title);
+      // For all other cases (both are mine, or neither are mine), sort by title
+      return (a.title || '').localeCompare(b.title || '');
     });
 
     return mappedTasks;

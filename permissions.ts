@@ -3,10 +3,10 @@ import { Permission } from './types';
 // Group permissions for better UI
 export const PERMISSION_GROUPS: Record<string, Permission[]> = {
     'المشاريع والمهام': ['manage_projects', 'edit_projects', 'create_tasks', 'edit_tasks', 'delete_tasks', 'approve_task_submissions'],
-    'الفريق والموظفين': ['manage_team', 'edit_team_members', 'approve_weekly_plans', 'approve_overtime', 'approve_leave_requests', 'generate_performance_notes', 'approve_work_contract_changes', 'issue_penalties', 'approve_penalties'],
+    'الفريق والموظفين': ['manage_team', 'edit_team_members', 'approve_weekly_plans', 'approve_overtime', 'approve_leave_requests', 'approve_work_contract_changes', 'issue_penalties', 'approve_penalties'],
     'المالية': ['view_finances', 'view_all_salaries', 'submit_expenses', 'approve_expense_claims', 'approve_freelancer_contracts'],
     'النظام والإعدادات': ['manage_roles', 'manage_site_settings', 'manage_db_settings'],
-    'أخرى': ['manage_meetings', 'view_reports', 'view_analytics'],
+    'أخرى': ['manage_meetings', 'view_reports', 'view_analytics', 'use_ai_features'],
 };
 
 // Simple descriptions for permissions in Arabic
@@ -33,7 +33,7 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
     view_reports: 'عرض التقارير',
     view_analytics: 'عرض التحليلات',
     view_finances: 'عرض البيانات المالية',
-    generate_performance_notes: 'إنشاء ملاحظات أداء (AI)',
+    use_ai_features: 'استخدام مزايا الذكاء الاصطناعي (ملخصات، تحليل، اقتراحات)',
     approve_work_contract_changes: 'اعتماد طلبات تعديل عقد العمل',
     issue_penalties: 'إصدار جزاءات',
     approve_penalties: 'اعتماد/رفض الجزاءات',

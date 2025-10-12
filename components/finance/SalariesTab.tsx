@@ -1,5 +1,6 @@
 import React from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { TeamMember } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,7 +11,8 @@ interface SalariesTabProps {
 }
 
 export const SalariesTab: React.FC<SalariesTabProps> = ({ onEdit }) => {
-    const { teamMembers, currency } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { currency } = useSettingsContext();
     const { hasPermission } = useAuth();
     
     return (

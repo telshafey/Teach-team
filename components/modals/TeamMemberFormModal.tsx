@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { TeamMember, TeamMemberFormData } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ConfirmationModal } from './ConfirmationModal';
 import { DAYS_OF_WEEK } from '../../constants';
@@ -13,7 +13,7 @@ interface TeamMemberFormModalProps {
 }
 
 export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen, onClose, onSave, member }) => {
-  const { teamMembers } = useAppDataContext();
+  const { teamMembers } = useTeamContext();
   const { roles } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);

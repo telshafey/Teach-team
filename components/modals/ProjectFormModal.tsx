@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon, TrashIcon } from '../ui/Icons';
 import { ConfirmationModal } from './ConfirmationModal';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ProjectFormModalProps {
 export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onClose, onSave, project }) => {
   const { currency } = useSettingsContext();
   const { addToast } = useToast();
+  const { hasPermission } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
@@ -135,7 +137,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                 <textarea id="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" required></textarea>
               </div>
 
-              {!project && (
+              {!project && hasPermission('use_ai_features') && (
                 <div className="space-y-3">
                   <button 
                     type="button" 

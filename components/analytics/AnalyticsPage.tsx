@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, LineChart } from '../ui/Charts';
@@ -7,7 +8,8 @@ import { FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 
 export const AnalyticsPage: React.FC = () => {
-    const { teamMembers, dailyLogs } = useAppDataContext();
+    const { teamMembers } = useTeamContext();
+    const { dailyLogs } = useTimeLogContext();
     const { projects, tasks } = useProjectContext();
     
     const [dateRange, setDateRange] = useState({ from: '', to: '' });

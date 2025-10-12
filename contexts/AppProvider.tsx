@@ -7,7 +7,6 @@ import { MeetingProvider } from './MeetingContext';
 import { TimeLogProvider } from './TimeLogContext';
 import { ProjectProvider } from './ProjectContext';
 import { TimeTrackingProvider } from './TimeTrackingContext';
-import { DataProvider } from './DataContext';
 
 // This component composes all the data providers for a cleaner App.tsx
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -20,9 +19,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               <RequestsProvider>
                 <MeetingProvider>
                   <TimeTrackingProvider>
-                    <DataProvider>
                       {children}
-                    </DataProvider>
                   </TimeTrackingProvider>
                 </MeetingProvider>
               </RequestsProvider>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -24,7 +24,7 @@ const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string |
 export const ProfilePerformance: React.FC = () => {
     const { currentUser } = useAuth();
     const { addToast } = useToast();
-    const { dailyLogs } = useAppDataContext();
+    const { dailyLogs } = useTimeLogContext();
     const { tasks } = useProjectContext();
     const [isGeneratingNotes, setIsGeneratingNotes] = useState(false);
     const [performanceNotes, setPerformanceNotes] = useState('');

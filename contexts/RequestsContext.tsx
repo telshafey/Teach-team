@@ -44,7 +44,15 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !currentUser) {
+        setLeaveRequests([]);
+        setOvertimeRequests([]);
+        setExpenseClaims([]);
+        setWorkContractChangeRequests([]);
+        setPenalties([]);
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const [leaves, overtimes, expenses, contracts, penaltiesData] = await Promise.all([
@@ -65,17 +73,23 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     } finally {
       setIsLoading(false);
     }
-  }, [supabaseClient, addToast]);
+  }, [supabaseClient, addToast, currentUser]);
 
   useEffect(() => {
-    if (supabaseClient) {
+    if (supabaseClient && currentUser) {
       fetchData();
       const channel = supabaseClient.channel('public-requests').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchData()).subscribe();
       return () => {
         supabaseClient.removeChannel(channel);
       };
+    } else {
+        setLeaveRequests([]);
+        setOvertimeRequests([]);
+        setExpenseClaims([]);
+        setWorkContractChangeRequests([]);
+        setPenalties([]);
     }
-  }, [supabaseClient, fetchData]);
+  }, [supabaseClient, fetchData, currentUser]);
 
   const submitLeaveRequest = async (formData: LeaveRequestFormData) => {
     if (!supabaseClient || !currentUser) return;

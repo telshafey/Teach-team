@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { Calendar } from '../ui/Calendar';
 import { DailyLog, DailyLogFormData, Task } from '../../types';
-import { format, isSameDay, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
+import { format, isSameDay, startOfMonth, endOfMonth, subMonths, isWithinInterval, isFuture, differenceInCalendarDays } from 'date-fns';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
@@ -20,6 +21,7 @@ export const PersonalDashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
     const { tasks, isLoading: isTasksLoading } = useProjectContext();
+    const { siteSettings } = useSettingsContext();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [editingLog, setEditingLog] = useState<DailyLog | null>(null);
@@ -29,6 +31,15 @@ export const PersonalDashboard: React.FC = () => {
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
     const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
     const myInProgressTasks = useMemo(() => myTasks.filter(task => task.status === 'inprogress'), [myTasks]);
+
+    const isDateEditableForLogging = useCallback((date: Date): boolean => {
+        if (isFuture(date)) {
+            return false;
+        }
+        const limit = siteSettings?.logEditingDaysLimit ?? 3;
+        const diff = differenceInCalendarDays(new Date(), date);
+        return diff <= limit;
+    }, [siteSettings]);
 
     const { currentMonthHours, lastMonthHours, currentMonthTasks, lastMonthTasks } = useMemo(() => {
         const now = new Date();
@@ -150,7 +161,7 @@ export const PersonalDashboard: React.FC = () => {
                     onAdd={() => handleOpenLogForm(null)}
                     onEdit={(log) => handleOpenLogForm(log)}
                     onDelete={handleDeleteDailyLog}
-                    isEditable={false} // This should be based on date logic if needed
+                    isEditable={selectedDate ? isDateEditableForLogging(new Date(selectedDate)) : false}
                 />
             )}
             

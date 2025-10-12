@@ -5,6 +5,7 @@ import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { StatusBadge } from '../ui/StatusBadge';
 
 const RequestTable: React.FC<{
     title: string;
@@ -53,35 +54,25 @@ export const ProfileRequests: React.FC<ProfileRequestsProps> = ({ onNewLeave, on
         }
     }, [leaveRequests, expenseClaims, overtimeRequests, currentUser]);
 
-    const getStatusBadge = (status: 'pending' | 'approved' | 'rejected') => {
-        const styles = {
-            pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-            approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-            rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
-        };
-        const text = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' };
-        return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
-    };
-
     return (
         <div className="space-y-6">
             <RequestTable title="طلبات الإجازات" data={myData.leaves} onNew={onNewLeave} columns={[
                 { header: 'النوع', accessor: (r:any) => r.type === 'regular' ? 'عادية' : 'طارئة' },
                 { header: 'من', accessor: (r:any) => format(parseISO(r.startDate), 'd MMM yyyy', { locale: arSA }) },
                 { header: 'إلى', accessor: (r:any) => format(parseISO(r.endDate), 'd MMM yyyy', { locale: arSA }) },
-                { header: 'الحالة', accessor: (r:any) => getStatusBadge(r.status) },
+                { header: 'الحالة', accessor: (r:any) => <StatusBadge status={r.status} type="request" /> },
                 { header: '', accessor: (r:any) => r.status === 'pending' ? <button onClick={() => onCancelRequest(r.id, 'leave')} className="text-xs text-red-600 hover:underline">إلغاء</button> : null }
             ]}/>
              <RequestTable title="طلبات المصروفات" data={myData.expenses} onNew={onNewExpense} columns={[
                 { header: 'التاريخ', accessor: (r:any) => format(parseISO(r.date), 'd MMM yyyy', { locale: arSA }) },
                 { header: 'المبلغ', accessor: (r:any) => `${r.amount} ${currency}` },
                 { header: 'الوصف', accessor: (r:any) => r.description },
-                { header: 'الحالة', accessor: (r:any) => getStatusBadge(r.status) },
+                { header: 'الحالة', accessor: (r:any) => <StatusBadge status={r.status} type="request" /> },
             ]}/>
             <RequestTable title="طلبات الساعات الإضافية" data={myData.overtimes} onNew={onNewOvertime} columns={[
                 { header: 'بداية الأسبوع', accessor: (r:any) => format(parseISO(r.weekStartDate), 'd MMM yyyy', { locale: arSA }) },
                 { header: 'الساعات المطلوبة', accessor: (r:any) => r.requestedHours },
-                { header: 'الحالة', accessor: (r:any) => getStatusBadge(r.status) },
+                { header: 'الحالة', accessor: (r:any) => <StatusBadge status={r.status} type="request" /> },
                 { header: '', accessor: (r:any) => r.status === 'pending' ? <button onClick={() => onCancelRequest(r.id, 'overtime')} className="text-xs text-red-600 hover:underline">إلغاء</button> : null }
             ]}/>
         </div>

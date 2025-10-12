@@ -1,6 +1,6 @@
 import React, { useState, FormEvent, useEffect } from 'react';
 import { TeamMember } from '../../types';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmationModal } from './ConfirmationModal';
 
@@ -12,7 +12,7 @@ interface SalaryEditModalProps {
 }
 
 export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({ isOpen, onClose, onSave, member }) => {
-  const { currency } = useAppDataContext();
+  const { currency } = useSettingsContext();
   const [rate, setRate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);

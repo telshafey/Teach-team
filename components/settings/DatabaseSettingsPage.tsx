@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { useAppDataContext } from '../../contexts/DataContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { DatabaseSettings } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
@@ -7,7 +7,7 @@ import { LockClosedIcon } from '../ui/Icons';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 
 export const DatabaseSettingsPage: React.FC = () => {
-    const { siteSettings, handleUpdateSiteSettings } = useAppDataContext();
+    const { siteSettings, handleUpdateSiteSettings } = useSettingsContext();
     const { addToast } = useToast();
     const [dbSettings, setDbSettings] = useState<DatabaseSettings>({
         supabaseUrl: '',

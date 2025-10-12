@@ -25,7 +25,11 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !currentUser) {
+        setMeetings([]);
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const meetingsData = await api.fetchAll<Meeting>(supabaseClient, 'meetings');
@@ -36,17 +40,19 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
     } finally {
       setIsLoading(false);
     }
-  }, [supabaseClient, addToast]);
+  }, [supabaseClient, addToast, currentUser]);
 
   useEffect(() => {
-    if (supabaseClient) {
+    if (supabaseClient && currentUser) {
       fetchData();
       const channel = supabaseClient.channel('public:meetings').on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => fetchData()).subscribe();
       return () => {
         supabaseClient.removeChannel(channel);
       };
+    } else {
+        setMeetings([]);
     }
-  }, [supabaseClient, fetchData]);
+  }, [supabaseClient, fetchData, currentUser]);
 
   const handleAddMeeting = async (formData: MeetingFormData) => {
     if (!supabaseClient || !currentUser) return;
