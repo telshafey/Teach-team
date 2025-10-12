@@ -58,7 +58,11 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
         }
 
-        const client = createClient(settings.databaseSettings.supabaseUrl, settings.databaseSettings.supabaseAnonKey);
+        const client = createClient(
+            settings.databaseSettings.supabaseUrl, 
+            settings.databaseSettings.supabaseAnonKey,
+            { global: { fetch: window.fetch } }
+        );
         
         setSiteSettings(settings);
         setSupabaseClient(client);

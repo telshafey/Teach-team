@@ -1,10 +1,11 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { TeamMember, Role, PlanStatus, TeamMemberFormData } from '../types';
 import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
+import { slugify } from '../utils/slugify';
 
 export interface TeamContextType {
   teamMembers: TeamMember[];
@@ -20,6 +21,24 @@ export interface TeamContextType {
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
+
+// --- Singleton for temporary auth client to prevent console warnings ---
+let tempAuthClient: SupabaseClient | null = null;
+const getTempAuthClient = (settings: { supabaseUrl: string, supabaseAnonKey: string }): SupabaseClient => {
+    if (tempAuthClient) {
+        return tempAuthClient;
+    }
+    tempAuthClient = createClient(settings.supabaseUrl, settings.supabaseAnonKey, {
+        global: { fetch: window.fetch },
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        }
+    });
+    return tempAuthClient;
+};
+// ---
 
 export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { supabaseClient, siteSettings } = useSupabase();
@@ -111,17 +130,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-        const { supabaseUrl, supabaseAnonKey } = siteSettings.databaseSettings;
-        // Create a temporary client that doesn't persist sessions to avoid overwriting the admin's session
-        const tempAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-                detectSessionInUrl: false,
-            }
-        });
+        const clientForSignUp = getTempAuthClient(siteSettings.databaseSettings);
 
-        const { data: authData, error: authError } = await tempAuthClient.auth.signUp({
+        const { data: authData, error: authError } = await clientForSignUp.auth.signUp({
             email: memberData.email,
             password: memberData.password,
         });
@@ -183,10 +194,26 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const handleAddRole = async (roleData: { name: string }) => {
     if (!supabaseClient) return;
     try {
-        await api.insert(supabaseClient, 'roles', { ...roleData, permissions: [] });
-        addToast('تمت إضافة الدور بنجاح.', 'success');
+      const roleId = slugify(roleData.name);
+
+      // Check if role with this ID or name already exists to prevent duplicates
+      const existingRoleById = roles.find(r => r.id.toLowerCase() === roleId.toLowerCase());
+      const existingRoleByName = roles.find(r => r.name.toLowerCase() === roleData.name.toLowerCase());
+
+      if (existingRoleById || existingRoleByName) {
+          const message = `الدور بهذا الاسم أو المعرف موجود بالفعل. يرجى اختيار اسم آخر.`;
+          addToast(message, 'error');
+          throw new Error(message);
+      }
+
+      await api.insert(supabaseClient, 'roles', { id: roleId, name: roleData.name, permissions: [] });
+      addToast('تمت إضافة الدور بنجاح.', 'success');
     } catch (error: any) {
-        addToast(`فشل إضافة الدور: ${error.message}`, 'error'); throw error;
+        // Prevent showing generic error if it's the specific "already exists" error
+        if (!error.message.includes('موجود بالفعل')) {
+            addToast(`فشل إضافة الدور: ${error.message}`, 'error'); 
+        }
+        throw error;
     }
   };
   
@@ -194,7 +221,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!supabaseClient) return;
     try {
       const { id, ...updates } = role;
-      await api.update<Role>(supabaseClient, 'roles', id, updates);
+      const updatedRole = await api.update<Role>(supabaseClient, 'roles', id, updates);
+      setRoles(prev => prev.map(r => (r.id === id ? updatedRole : r)));
       addToast('تم تحديث الدور بنجاح.', 'success');
     } catch (error: any) {
       addToast(`فشل تحديث الدور: ${error.message}`, 'error');
