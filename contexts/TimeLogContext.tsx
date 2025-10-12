@@ -44,22 +44,36 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     if (supabaseClient && currentUser) {
       fetchData();
-      const channel = supabaseClient.channel('public:daily_logs').on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, () => fetchData()).subscribe();
+      
+      const handleLogsChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch(eventType) {
+          case 'INSERT':
+            setDailyLogs(prev => [...prev, record]);
+            break;
+          case 'UPDATE':
+            setDailyLogs(prev => prev.map(log => log.id === record.id ? record : log));
+            break;
+          case 'DELETE':
+            setDailyLogs(prev => prev.filter(log => log.id !== oldRecord.id));
+            break;
+        }
+      };
+
+      const channel = supabaseClient.channel('public:daily_logs').on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, handleLogsChange).subscribe();
+      
       return () => {
         supabaseClient.removeChannel(channel);
       };
     } else {
         setDailyLogs([]);
     }
-  }, [supabaseClient, fetchData, currentUser]);
+  }, [supabaseClient, currentUser, fetchData]);
   
   const handleAddDailyLog = async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;
     try {
-        // The DB schema for 'daily_logs' does not auto-generate the 'id'.
-        // We generate a UUID on the client as a workaround.
-        // A better long-term solution is to set a default value for the 'id' column in the database,
-        // e.g., using `gen_random_uuid()`.
         await api.insert(supabaseClient, 'daily_logs', { ...logData, id: crypto.randomUUID() });
         addToast('تم إضافة السجل بنجاح.', 'success');
     } catch(e: any) {

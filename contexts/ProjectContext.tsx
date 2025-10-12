@@ -57,31 +57,127 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
     setIsLoading(true);
     try {
-      const [projectsData, tasksData, attachmentsData, commentsData] = await Promise.all([
-        api.fetchAll<Project>(supabaseClient, 'projects'),
-        api.fetchAll<Task>(supabaseClient, 'tasks'),
-        api.fetchAll<TaskAttachment>(supabaseClient, 'task_attachments'),
-        api.fetchAll<TaskComment>(supabaseClient, 'task_comments'),
-      ]);
-      setProjects(projectsData);
-      setTasks(tasksData);
-      setTaskAttachments(attachmentsData);
-      setTaskComments(commentsData);
+        const isRestrictedView = currentUser.roleId === 'employee' || currentUser.roleId === 'freelancer';
+
+        let projectsData: Project[] = [];
+        let tasksData: Task[] = [];
+        let attachmentsData: TaskAttachment[] = [];
+        let commentsData: TaskComment[] = [];
+
+        if (isRestrictedView) {
+            // Step 1: Find projects the user is part of by finding their tasks.
+            const { data: myTasksData, error: myTasksError } = await supabaseClient
+                .from('tasks')
+                .select('project_id')
+                .eq('assigned_to', currentUser.id);
+
+            if (myTasksError) throw myTasksError;
+
+            const myProjectIds = [...new Set(myTasksData.map((t: any) => t.project_id))];
+
+            if (myProjectIds.length > 0) {
+                // Step 2: Fetch all data related to those projects.
+                const { data: projectsForUser, error: projectsError } = await supabaseClient
+                    .from('projects').select('*').in('id', myProjectIds);
+                if (projectsError) throw projectsError;
+                projectsData = api.snakeToCamel(projectsForUser) as Project[];
+
+                const { data: tasksForProjects, error: tasksError } = await supabaseClient
+                    .from('tasks').select('*').in('project_id', myProjectIds);
+                if (tasksError) throw tasksError;
+                tasksData = api.snakeToCamel(tasksForProjects) as Task[];
+
+                const taskIdsInMyProjects = tasksData.map(t => t.id);
+                if (taskIdsInMyProjects.length > 0) {
+                    const [attachmentsRes, commentsRes] = await Promise.all([
+                        supabaseClient.from('task_attachments').select('*').in('task_id', taskIdsInMyProjects),
+                        supabaseClient.from('task_comments').select('*').in('task_id', taskIdsInMyProjects),
+                    ]);
+
+                    if (attachmentsRes.error) throw attachmentsRes.error;
+                    attachmentsData = api.snakeToCamel(attachmentsRes.data || []) as TaskAttachment[];
+                    
+                    if (commentsRes.error) throw commentsRes.error;
+                    commentsData = api.snakeToCamel(commentsRes.data || []) as TaskComment[];
+                }
+            }
+            // If the user has no tasks, they see no projects, which is correct.
+        } else {
+            // Manager/GM view: Fetch everything
+            const [pData, tData, aData, cData] = await Promise.all([
+                api.fetchAll<Project>(supabaseClient, 'projects'),
+                api.fetchAll<Task>(supabaseClient, 'tasks'),
+                api.fetchAll<TaskAttachment>(supabaseClient, 'task_attachments'),
+                api.fetchAll<TaskComment>(supabaseClient, 'task_comments'),
+            ]);
+            projectsData = pData;
+            tasksData = tData;
+            attachmentsData = aData;
+            commentsData = cData;
+        }
+
+        setProjects(projectsData);
+        setTasks(tasksData);
+        setTaskAttachments(attachmentsData);
+        setTaskComments(commentsData);
+
     } catch (error: any) {
-      console.error('Error fetching project data:', error);
-      addToast('فشل تحميل بيانات المشاريع والمهام.', 'error');
+        console.error('Error fetching project data:', error);
+        addToast('فشل تحميل بيانات المشاريع والمهام.', 'error');
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [supabaseClient, addToast, currentUser, setTaskAttachments, setTaskComments]);
+}, [supabaseClient, addToast, currentUser, setTaskAttachments, setTaskComments]);
 
   useEffect(() => {
     if (supabaseClient && currentUser) {
       fetchData();
-      const projectsChannel = supabaseClient.channel('public:projects').on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => fetchData()).subscribe();
-      const tasksChannel = supabaseClient.channel('public:tasks').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchData()).subscribe();
-      const attachmentsChannel = supabaseClient.channel('public:task_attachments').on('postgres_changes', { event: '*', schema: 'public', table: 'task_attachments' }, () => fetchData()).subscribe();
-      const commentsChannel = supabaseClient.channel('public:task_comments').on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => fetchData()).subscribe();
+      
+      const handleProjectsChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch (eventType) {
+          case 'INSERT': setProjects(prev => prev.some(p => p.id === record.id) ? prev : [...prev, record]); break;
+          case 'UPDATE': setProjects(prev => prev.map(p => p.id === record.id ? record : p)); break;
+          case 'DELETE': setProjects(prev => prev.filter(p => p.id !== oldRecord.id)); break;
+        }
+      };
+      
+      const handleTasksChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch (eventType) {
+          case 'INSERT': setTasks(prev => prev.some(t => t.id === record.id) ? prev : [...prev, record]); break;
+          case 'UPDATE': setTasks(prev => prev.map(t => t.id === record.id ? record : t)); break;
+          case 'DELETE': setTasks(prev => prev.filter(t => t.id !== oldRecord.id)); break;
+        }
+      };
+
+      const handleAttachmentsChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch (eventType) {
+          case 'INSERT': setTaskAttachments(prev => prev.some(a => a.id === record.id) ? prev : [...prev, record]); break;
+          case 'UPDATE': setTaskAttachments(prev => prev.map(a => a.id === record.id ? record : a)); break;
+          case 'DELETE': setTaskAttachments(prev => prev.filter(a => a.id !== oldRecord.id)); break;
+        }
+      };
+      
+      const handleCommentsChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch (eventType) {
+          case 'INSERT': setTaskComments(prev => prev.some(c => c.id === record.id) ? prev : [...prev, record]); break;
+          case 'UPDATE': setTaskComments(prev => prev.map(c => c.id === record.id ? record : c)); break;
+          case 'DELETE': setTaskComments(prev => prev.filter(c => c.id !== oldRecord.id)); break;
+        }
+      };
+
+      const projectsChannel = supabaseClient.channel('public:projects').on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, handleProjectsChange).subscribe();
+      const tasksChannel = supabaseClient.channel('public:tasks').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, handleTasksChange).subscribe();
+      const attachmentsChannel = supabaseClient.channel('public:task_attachments').on('postgres_changes', { event: '*', schema: 'public', table: 'task_attachments' }, handleAttachmentsChange).subscribe();
+      const commentsChannel = supabaseClient.channel('public:task_comments').on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, handleCommentsChange).subscribe();
+      
       return () => {
         supabaseClient.removeChannel(projectsChannel);
         supabaseClient.removeChannel(tasksChannel);
@@ -94,47 +190,31 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setTaskAttachments([]);
         setTaskComments([]);
     }
-  }, [supabaseClient, fetchData, currentUser, setTaskAttachments, setTaskComments]);
+  }, [supabaseClient, currentUser, setTaskAttachments, setTaskComments, fetchData]);
   
   const handleAddProject = async (projectData: ProjectFormData, suggestedTasks?: SuggestedTask[]) => {
     if (!supabaseClient) return;
-    const tempProjectId = crypto.randomUUID();
-    const newProject: Project = {
-        ...projectData,
-        id: tempProjectId,
-        freelancerContract: undefined,
-        budgetNotificationSent: undefined,
-    };
-
-    const tempTasks: Task[] = (suggestedTasks || [])
-        .filter(st => st.title.trim() !== '')
-        .map(st => ({
-            id: crypto.randomUUID(),
-            title: st.title,
-            projectId: tempProjectId,
-            status: 'todo' as TaskStatus,
-            approvalStatus: 'approved' as ApprovalStatus,
-        }));
-
-    // Optimistic Updates
-    setProjects(prev => [...prev, newProject]);
-    if (tempTasks.length > 0) {
-        setTasks(prev => [...prev, ...tempTasks]);
-    }
-
     try {
         const createdProject = await api.insert<Project>(supabaseClient, 'projects', { ...projectData, id: crypto.randomUUID() });
-        setProjects(prev => prev.map(p => p.id === tempProjectId ? createdProject : p));
+        setProjects(prev => [...prev, createdProject]);
 
-        if (tempTasks.length > 0) {
-            const newTasksData = tempTasks.map(t => ({ ...t, projectId: createdProject.id, id: crypto.randomUUID() }));
-            const createdTasks = await api.insertMany<Task>(supabaseClient, 'tasks', newTasksData);
-            setTasks(prev => [...prev.filter(t => t.projectId !== tempProjectId), ...createdTasks]);
+        if (suggestedTasks && suggestedTasks.length > 0) {
+            const newTasksData = suggestedTasks
+                .filter(t => t.title.trim() !== '')
+                .map(t => ({ 
+                    ...t, 
+                    projectId: createdProject.id, 
+                    id: crypto.randomUUID(),
+                    status: 'todo' as TaskStatus,
+                    approvalStatus: 'approved' as ApprovalStatus,
+                }));
+            if (newTasksData.length > 0) {
+              const createdTasks = await api.insertMany<Task>(supabaseClient, 'tasks', newTasksData);
+              setTasks(prev => [...prev, ...createdTasks]);
+            }
         }
         addToast('تمت إضافة المشروع بنجاح.', 'success');
     } catch(e: any) {
-        setProjects(prev => prev.filter(p => p.id !== tempProjectId));
-        setTasks(prev => prev.filter(t => t.projectId !== tempProjectId));
         addToast(`فشل إضافة المشروع: ${e.message}`, 'error'); 
         throw e;
     }
@@ -142,17 +222,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleUpdateProject = async (projectUpdate: Partial<Project> & { id: string }) => {
     if (!supabaseClient) return;
-    const originalProject = projects.find(p => p.id === projectUpdate.id);
-    if (!originalProject) return;
-
-    setProjects(prev => prev.map(p => p.id === projectUpdate.id ? { ...p, ...projectUpdate } : p));
-
     try {
         const { id, ...updates } = projectUpdate;
-        await api.update<Project>(supabaseClient, 'projects', id, updates);
+        const updatedProject = await api.update<Project>(supabaseClient, 'projects', id, updates);
+        setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
         addToast('تم تحديث المشروع بنجاح.', 'success');
     } catch (e: any) {
-        setProjects(prev => prev.map(p => p.id === projectUpdate.id ? originalProject : p));
         addToast(`فشل تحديث المشروع: ${e.message}`, 'error');
         throw e;
     }
@@ -160,16 +235,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   
   const handleDeleteProject = async (projectId: string) => {
     if (!supabaseClient) return;
-    const originalState = { projects, tasks, taskAttachments, taskComments };
-    const tasksInProject = originalState.tasks.filter(t => t.projectId === projectId).map(t => t.id);
-
-    // Optimistic update
-    setProjects(prev => prev.filter(p => p.id !== projectId));
-    setTasks(prev => prev.filter(t => t.projectId !== projectId));
-    setTaskAttachments(prev => prev.filter(a => !tasksInProject.includes(a.taskId)));
-    setTaskComments(prev => prev.filter(c => !tasksInProject.includes(c.taskId)));
-
     try {
+        const tasksInProject = tasks.filter(t => t.projectId === projectId).map(t => t.id);
         if (tasksInProject.length > 0) {
             await supabaseClient.from('task_attachments').delete().in('task_id', tasksInProject);
             await supabaseClient.from('task_comments').delete().in('task_id', tasksInProject);
@@ -179,12 +246,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         await supabaseClient.from('expense_claims').update({ project_id: null }).eq('project_id', projectId);
         await supabaseClient.from('overtime_requests').update({ project_id: null }).eq('project_id', projectId);
         await api.deleteById(supabaseClient, 'projects', projectId);
+        
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+        setTasks(prev => prev.filter(t => t.projectId !== projectId));
+        
         addToast('تم حذف المشروع بنجاح.', 'success');
     } catch (e: any) {
-        setProjects(originalState.projects);
-        setTasks(originalState.tasks);
-        setTaskAttachments(originalState.taskAttachments);
-        setTaskComments(originalState.taskComments);
         addToast(`فشل حذف المشروع: ${e.message}`, 'error');
         throw e;
     }
@@ -193,19 +260,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleAddTask = async (taskData: TaskFormData) => {
     if (!supabaseClient || !currentUser) return;
-    const tempId = crypto.randomUUID();
-    const newTask: Task = { id: tempId, ...taskData, assignedTo: taskData.assignedTo || undefined, approvalStatus: 'approved' };
-    setTasks(prev => [...prev, newTask]);
-
     try {
         const createdTask = await api.insert<Task>(supabaseClient, 'tasks', { ...taskData, id: crypto.randomUUID(), approvalStatus: 'approved' });
-        setTasks(prev => prev.map(t => t.id === tempId ? createdTask : t));
+        setTasks(prev => [...prev, createdTask]);
         if (taskData.assignedTo) {
             createNotification(supabaseClient, { recipientId: taskData.assignedTo, type: 'task_assigned', taskTitle: taskData.title, assignerName: currentUser.name, projectId: taskData.projectId });
         }
         addToast('تمت إضافة المهمة بنجاح.', 'success');
     } catch(e: any) {
-        setTasks(prev => prev.filter(t => t.id !== tempId));
         addToast(`فشل إضافة المهمة: ${e.message}`, 'error'); 
         throw e;
     }
@@ -213,16 +275,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleUpdateTask = async (taskUpdate: Partial<Task> & { id: string }) => {
     if (!supabaseClient) return;
-    const originalTask = tasks.find(t => t.id === taskUpdate.id);
-    if (!originalTask) return;
-    setTasks(prev => prev.map(t => t.id === taskUpdate.id ? { ...t, ...taskUpdate } : t));
-
     try {
         const { id, ...updates } = taskUpdate;
-        await api.update<Task>(supabaseClient, 'tasks', id, updates);
+        const updatedTask = await api.update<Task>(supabaseClient, 'tasks', id, updates);
+        setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
         addToast('تم تحديث المهمة بنجاح.', 'success');
     } catch (e: any) {
-        setTasks(prev => prev.map(t => t.id === taskUpdate.id ? originalTask : t));
         addToast(`فشل تحديث المهمة: ${e.message}`, 'error');
         throw e;
     }
@@ -230,14 +288,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleDeleteTask = async (taskId: string) => {
     if (!supabaseClient) return;
-    const originalTasks = tasks;
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-
     try {
         await api.deleteById(supabaseClient, 'tasks', taskId);
+        setTasks(prev => prev.filter(t => t.id !== taskId));
         addToast('تم حذف المهمة بنجاح.', 'success');
     } catch (e: any) {
-        setTasks(originalTasks);
         addToast(`فشل حذف المهمة: ${e.message}`, 'error');
         throw e;
     }
@@ -248,10 +303,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     const originalTask = tasks.find(t => t.id === taskId);
     if (!originalTask || originalTask.status === status) return;
     const approvalStatus = status === 'done' ? 'pending' : 'approved';
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, approvalStatus } : t));
 
     try {
-        await api.update<Task>(supabaseClient, 'tasks', taskId, { status, approvalStatus });
+        const updatedTask = await api.update<Task>(supabaseClient, 'tasks', taskId, { status, approvalStatus });
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
         if (status === 'done' && originalTask.assignedTo) {
             const member = teamMembers.find(m => m.id === originalTask.assignedTo);
             if (member?.reportsTo) {
@@ -260,22 +315,17 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
         addToast('تم تحديث حالة المهمة.', 'success');
     } catch(e: any) {
-        setTasks(prev => prev.map(t => t.id === taskId ? originalTask : t));
         addToast(`فشل تحديث الحالة: ${e.message}`, 'error');
     }
   };
   
   const handleUpdateTaskApproval = async (taskId: string, status: ApprovalStatus, notes: string) => {
     if (!supabaseClient) return;
-    const originalTask = tasks.find(t => t.id === taskId);
-    if (!originalTask) return;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, approvalStatus: status, approvalNotes: notes } : t));
-    
     try {
-        await api.update<Task>(supabaseClient, 'tasks', taskId, { approvalStatus: status, approvalNotes: notes });
+        const updatedTask = await api.update<Task>(supabaseClient, 'tasks', taskId, { approvalStatus: status, approvalNotes: notes });
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
         addToast('تم تحديث حالة الموافقة.', 'success');
     } catch (e: any) {
-        setTasks(prev => prev.map(t => t.id === taskId ? originalTask : t));
         addToast(`فشل تحديث حالة الموافقة: ${e.message}`, 'error');
         throw e;
     }

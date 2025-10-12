@@ -28,7 +28,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     setIsLoading(true);
     try {
       const { data, error } = await supabaseClient.from('notifications').select('*').eq('recipient_id', currentUser.id);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       setNotifications(api.snakeToCamel(data) as Notification[]);
     } catch (error: any) {
       console.error('Error fetching notifications:', error);

@@ -78,9 +78,27 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     if (supabaseClient && currentUser) {
       fetchData();
-      const channel = supabaseClient.channel('public-requests').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchData()).subscribe();
+      
+      const createHandler = <T extends {id: any}>(setState: React.Dispatch<React.SetStateAction<T[]>>) => (payload: any) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          const record = api.snakeToCamel(newRecord);
+          switch (eventType) {
+              case 'INSERT': setState(prev => [...prev, record]); break;
+              case 'UPDATE': setState(prev => prev.map(item => item.id === record.id ? record : item)); break;
+              case 'DELETE': setState(prev => prev.filter(item => item.id !== oldRecord.id)); break;
+          }
+      };
+
+      const channels = [
+        supabaseClient.channel('public:leave_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, createHandler(setLeaveRequests)).subscribe(),
+        supabaseClient.channel('public:overtime_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'overtime_requests' }, createHandler(setOvertimeRequests)).subscribe(),
+        supabaseClient.channel('public:expense_claims').on('postgres_changes', { event: '*', schema: 'public', table: 'expense_claims' }, createHandler(setExpenseClaims)).subscribe(),
+        supabaseClient.channel('public:work_contract_change_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'work_contract_change_requests' }, createHandler(setWorkContractChangeRequests)).subscribe(),
+        supabaseClient.channel('public:penalties').on('postgres_changes', { event: '*', schema: 'public', table: 'penalties' }, createHandler(setPenalties)).subscribe(),
+      ];
+
       return () => {
-        supabaseClient.removeChannel(channel);
+        channels.forEach(channel => supabaseClient.removeChannel(channel));
       };
     } else {
         setLeaveRequests([]);
@@ -89,7 +107,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setWorkContractChangeRequests([]);
         setPenalties([]);
     }
-  }, [supabaseClient, fetchData, currentUser]);
+  }, [supabaseClient, currentUser, fetchData]);
 
   const submitLeaveRequest = async (formData: LeaveRequestFormData) => {
     if (!supabaseClient || !currentUser) return;

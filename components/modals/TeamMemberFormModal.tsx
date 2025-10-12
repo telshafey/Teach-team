@@ -26,7 +26,7 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
       setFormData({
         name: member?.name || '',
         email: member?.email || '',
-        password: '',
+        password: '', // Always clear password on open
         roleId: member?.roleId || 'employee',
         reportsTo: member?.reportsTo,
         avatarUrl: member?.avatarUrl || `https://i.pravatar.cc/150?u=${Math.random()}`,
@@ -50,19 +50,15 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
     setIsSaving(true);
     try {
       const dataToSave: TeamMemberFormData = { ...formData };
-      if (isNew && !dataToSave.password) {
-        // Handle error: password required for new users
-        alert('كلمة المرور مطلوبة للعضو الجديد.');
-        setIsSaving(false);
-        return;
-      }
-      if (!isNew || !dataToSave.password) {
-        delete dataToSave.password; // Don't send empty password
+      if (!isNew) {
+        // Password should not be sent on updates.
+        delete dataToSave.password;
       }
       await onSave(dataToSave, isNew);
       onClose();
     } catch (error) {
       console.error("Failed to save member:", error);
+      // The context will show the toast, so no need to show one here.
     } finally {
       setIsSaving(false);
     }
@@ -86,9 +82,14 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-2 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="text" placeholder="الاسم" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} required className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" />
-                <input type="email" placeholder="البريد الإلكتروني" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} required className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" />
+                <input type="email" placeholder="البريد الإلكتروني" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} required readOnly={!isNew} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-700" />
             </div>
-            {isNew && <div><input type="password" placeholder="كلمة المرور" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} required className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" /></div>}
+             {isNew && (
+                <>
+                    <input type="password" placeholder="كلمة المرور المؤقتة" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} required className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">سيستخدم العضو كلمة المرور هذه لتسجيل الدخول لأول مرة، ويمكنه تغييرها لاحقًا من ملفه الشخصي.</p>
+                </>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <select value={formData.roleId || ''} onChange={e => setFormData({...formData, roleId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
                     {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}

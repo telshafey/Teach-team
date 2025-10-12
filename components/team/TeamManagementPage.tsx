@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { TeamMember, TeamMemberFormData } from '../../types';
 import { TeamMemberFormModal } from '../modals/TeamMemberFormModal';
 import { Card } from '../ui/Card';
-import { UsersIcon } from '../ui/Icons';
+import { UsersIcon, UserPlusIcon } from '../ui/Icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
 
@@ -17,8 +17,8 @@ interface TeamManagementPageProps {
 
 export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialProps }) => {
     const { teamMembers, isLoading, handleAddMember, handleUpdateMember } = useTeamContext();
-    const { currentUser } = useAuth();
-    const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialProps?.memberId || null);
+    const { currentUser, hasPermission } = useAuth();
+    const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialProps?.memberId || currentUser?.id || null);
     
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -89,34 +89,44 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialP
     
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
-                <div className="md:col-span-1 xl:col-span-1 border-l border-slate-200 dark:border-slate-700 h-full overflow-y-auto">
-                     <TeamTreeView 
-                        rootMembers={rootOfTree}
-                        allMembers={displayedMembers}
-                        onSelectMember={handleSelectMember} 
-                        onAddMember={() => handleOpenForm(null)}
-                        selectedMemberId={selectedMemberId}
-                    />
+            <div className="p-6">
+                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">الفريق</h2>
+                        <p className="text-md text-slate-500 dark:text-slate-400">الهيكل التنظيمي لفريقك.</p>
+                    </div>
+                    {hasPermission('manage_team') && (
+                        <button onClick={() => handleOpenForm(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                            <UserPlusIcon className="w-5 h-5"/><span>إضافة عضو</span>
+                        </button>
+                    )}
                 </div>
-                <div className="md:col-span-2 xl:col-span-3 h-full overflow-y-auto">
-                    {selectedMember ? (
-                        <TeamMemberDetailPage
-                            member={selectedMember}
-                            onBack={() => setSelectedMemberId(null)}
-                            onEdit={() => handleOpenForm(selectedMember)}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1">
+                        <TeamTreeView 
+                            rootMembers={rootOfTree}
+                            allMembers={displayedMembers}
+                            onSelectMember={handleSelectMember} 
+                            selectedMemberId={selectedMemberId}
                         />
-                    ) : (
-                        <div className="flex h-full items-center justify-center p-6">
-                            <Card className="text-center w-full max-w-md">
-                                <div className="p-8">
-                                     <UsersIcon className="w-12 h-12 mx-auto text-slate-400"/>
+                    </div>
+                    <div className="lg:col-span-2">
+                        {selectedMember ? (
+                            <TeamMemberDetailPage
+                                member={selectedMember}
+                                onEdit={() => handleOpenForm(selectedMember)}
+                            />
+                        ) : (
+                            <Card className="flex h-full min-h-[400px] items-center justify-center">
+                                <div className="text-center p-8">
+                                    <UsersIcon className="w-12 h-12 mx-auto text-slate-400"/>
                                     <h2 className="mt-4 text-xl font-bold text-slate-800 dark:text-slate-100">عرض تفاصيل الفريق</h2>
                                     <p className="mt-2 text-md text-slate-500 dark:text-slate-400">اختر عضوًا من القائمة الجانبية لعرض ملفه الشخصي الكامل وبيانات أدائه.</p>
                                 </div>
                             </Card>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
             

@@ -45,14 +45,32 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     if (supabaseClient && currentUser) {
       fetchData();
-      const channel = supabaseClient.channel('public:meetings').on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => fetchData()).subscribe();
+
+      const handleMeetingsChange = (payload: any) => {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+        const record = api.snakeToCamel(newRecord);
+        switch(eventType) {
+          case 'INSERT':
+            setMeetings(prev => [...prev, record]);
+            break;
+          case 'UPDATE':
+            setMeetings(prev => prev.map(m => m.id === record.id ? record : m));
+            break;
+          case 'DELETE':
+            setMeetings(prev => prev.filter(m => m.id !== oldRecord.id));
+            break;
+        }
+      };
+
+      const channel = supabaseClient.channel('public:meetings').on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, handleMeetingsChange).subscribe();
+      
       return () => {
         supabaseClient.removeChannel(channel);
       };
     } else {
         setMeetings([]);
     }
-  }, [supabaseClient, fetchData, currentUser]);
+  }, [supabaseClient, currentUser, fetchData]);
 
   const handleAddMeeting = async (formData: MeetingFormData) => {
     if (!supabaseClient || !currentUser) return;

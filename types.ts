@@ -59,7 +59,7 @@ export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment
 
 export interface TeamMember {
   id: number;
-  auth_user_id?: string;
+  authUserId?: string;
   name: string;
   email: string;
   avatarUrl: string;

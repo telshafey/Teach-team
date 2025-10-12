@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useSupabase } from './SupabaseContext';
 import { Role, TeamMember, Permission } from '../types';
@@ -30,6 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Combined loading state
     const [isLoading, setIsLoading] = useState(true);
     const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
+    const hasLoadedUser = useRef(false);
 
     const rolesMap = React.useMemo(() => {
         return roles.reduce((acc, role) => {
@@ -63,7 +64,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const fetchUserData = async (authUser: User) => {
              if (!supabaseClient) return;
-             setIsLoading(true);
+
+             if (!hasLoadedUser.current) {
+                setIsLoading(true);
+             }
+
              try {
                 // Fetch roles and profile in parallel
                 const [rolesData, profileData] = await Promise.all([
@@ -79,6 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 setRoles(rolesData);
                 setCurrentUser(profileData);
+                hasLoadedUser.current = true;
 
              } catch (error: any) {
                 console.error("Auth context: Critical failure fetching user data", error);
@@ -86,6 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 // IMPORTANT: Do NOT sign out here. Let the user see the error and sign out manually.
                 setCurrentUser(null);
                 setRoles([]);
+                hasLoadedUser.current = false;
              } finally {
                 setIsLoading(false);
              }
@@ -99,6 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setCurrentUser(null);
                 setRoles([]);
                 setIsLoading(false);
+                hasLoadedUser.current = false;
             }
         }
     }, [user, authCheckCompleted, supabaseClient, addToast]);

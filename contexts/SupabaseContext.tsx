@@ -23,60 +23,46 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isLoading, setIsLoading] = useState(true);
   const { addToast } = useToast();
 
-  const initialize = useCallback(async () => {
+  const initialize = useCallback(() => {
     setIsLoading(true);
     try {
-        let tempDbSettings: DatabaseSettings | null = null;
+        let settings: SiteSettings | null = null;
         const storedSettingsRaw = localStorage.getItem(SUPABASE_SETTINGS_KEY);
+        
         if (storedSettingsRaw) {
             try {
-                const parsed = JSON.parse(storedSettingsRaw);
-                tempDbSettings = parsed.databaseSettings || parsed;
-            } catch (e) { console.warn("Could not parse stored settings.") }
-        }
-        if (!tempDbSettings?.supabaseUrl || !tempDbSettings?.supabaseAnonKey) {
-            tempDbSettings = initialData.siteSettings.databaseSettings;
-        }
-
-        const tempClient = createClient(tempDbSettings.supabaseUrl, tempDbSettings.supabaseAnonKey);
-        const { data, error } = await tempClient.from('site_settings').select('settings').eq('id', 1).single();
-
-        let finalSettings: SiteSettings;
-        if (error && error.code !== 'PGRST116') { throw error; }
-        
-        if (data?.settings) {
-            const dbSettings = data.settings as Partial<SiteSettings>;
-            
-            // Validate the settings from the DB. If they are invalid, fall back to the working temp settings.
-            let validDbConnectionSettings = dbSettings.databaseSettings;
-            if (!validDbConnectionSettings || !validDbConnectionSettings.supabaseUrl || !validDbConnectionSettings.supabaseAnonKey) {
-                console.warn("Incomplete database settings found in DB. Falling back to last known good configuration.");
-                validDbConnectionSettings = tempDbSettings; 
+                // Try to parse settings from local storage
+                settings = JSON.parse(storedSettingsRaw) as SiteSettings;
+            } catch (e) {
+                console.warn("Could not parse stored settings, falling back to initial data.", e);
+                localStorage.removeItem(SUPABASE_SETTINGS_KEY);
             }
+        }
+        
+        // If no valid settings from storage, use initial data
+        if (!settings) {
+            settings = initialData.siteSettings;
+            localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(settings));
+        }
 
-            finalSettings = {
-                ...initialData.siteSettings,
-                ...dbSettings,
-                databaseSettings: {
-                    ...initialData.siteSettings.databaseSettings,
-                    ...validDbConnectionSettings,
-                },
-            };
-        } else {
-            finalSettings = initialData.siteSettings;
-            const { error: insertError } = await tempClient.from('site_settings').upsert({ id: 1, settings: finalSettings });
-            if (insertError) throw insertError;
+        const dbSettings = settings.databaseSettings;
+
+        // Final validation before creating the client
+        if (!dbSettings || !dbSettings.supabaseUrl || !dbSettings.supabaseAnonKey) {
+            // If settings are fundamentally broken, reset to initial and try again.
+            console.error("Supabase URL or Anon Key is missing. Resetting to initial settings.");
+            localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(initialData.siteSettings));
+            settings = initialData.siteSettings;
+            if (!settings.databaseSettings.supabaseUrl || !settings.databaseSettings.supabaseAnonKey) {
+                 throw new Error("Initial Supabase settings are also invalid.");
+            }
         }
+
+        const client = createClient(settings.databaseSettings.supabaseUrl, settings.databaseSettings.supabaseAnonKey);
         
-        let finalClient = tempClient;
-        const finalDbSettings = finalSettings.databaseSettings;
-        if (finalDbSettings.supabaseUrl !== tempDbSettings.supabaseUrl || finalDbSettings.supabaseAnonKey !== tempDbSettings.supabaseAnonKey) {
-            finalClient = createClient(finalDbSettings.supabaseUrl, finalDbSettings.supabaseAnonKey);
-        }
-        
-        setSiteSettings(finalSettings);
-        setSupabaseClient(finalClient);
-        localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(finalSettings));
+        setSiteSettings(settings);
+        setSupabaseClient(client);
+
     } catch (error: any) {
         console.error('CRITICAL: Supabase initialization failed.', error);
         addToast(`فشل تهيئة التطبيق: ${error.message}`, 'error');
@@ -90,6 +76,46 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     initialize();
   }, [initialize]);
+  
+  // This effect will run after initialization and sync settings from the database
+  // without interfering with the currently running client.
+   useEffect(() => {
+    if (!supabaseClient) return;
+
+    const syncSettingsFromDb = async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from('site_settings')
+                .select('settings')
+                .eq('id', 1)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 = row not found
+                throw error;
+            }
+
+            if (data?.settings) {
+                const dbSettings = data.settings as SiteSettings;
+                // Update local state for non-critical changes if they differ
+                if (JSON.stringify(dbSettings) !== JSON.stringify(siteSettings)) {
+                    console.log("Settings in DB differ from local state. Updating state and localStorage.");
+                    setSiteSettings(dbSettings);
+                    localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(dbSettings));
+                }
+            } else if (!error) {
+                // No settings found in DB, so let's upload the initial ones
+                 await supabaseClient.from('site_settings').upsert({ id: 1, settings: initialData.siteSettings });
+            }
+        } catch (error: any) {
+            console.warn("Could not sync settings from DB:", error.message);
+            // Don't show a toast for this, it's a background sync.
+        }
+    };
+    
+    syncSettingsFromDb();
+
+  }, [supabaseClient, siteSettings]);
+
 
   const handleUpdateSiteSettings = async (settings: SiteSettings) => {
     if (!supabaseClient) throw new Error("Supabase client is not available.");
@@ -107,12 +133,13 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!data) throw new Error("لم يتم العثور على سجل الإعدادات في قاعدة البيانات. فشل التحديث.");
 
       // On successful DB update, update the state and localStorage
+      const oldDbSettings = siteSettings?.databaseSettings;
+      
       setSiteSettings(settings);
       localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(settings));
 
       addToast('تم تحديث الإعدادات بنجاح.', 'success');
       
-      const oldDbSettings = siteSettings?.databaseSettings;
       const newDbSettings = settings.databaseSettings;
 
       if (oldDbSettings && (oldDbSettings.supabaseUrl !== newDbSettings.supabaseUrl || oldDbSettings.supabaseAnonKey !== newDbSettings.supabaseAnonKey)) {

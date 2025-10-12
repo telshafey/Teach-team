@@ -14,11 +14,10 @@ import { useNavigation } from '../../contexts/NavigationContext';
 
 interface TeamMemberDetailPageProps {
   member: TeamMember;
-  onBack: () => void;
   onEdit: () => void;
 }
 
-export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onBack, onEdit }) => {
+export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, onEdit }) => {
   const { onNavigate } = useNavigation();
   const { dailyLogs } = useTimeLogContext();
   const { currency } = useSettingsContext();
@@ -71,9 +70,8 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-6">
-        <button onClick={onBack} className="text-sm font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 mb-2">&larr; العودة للفريق</button>
         <div className="flex items-center space-x-4 rtl:space-x-reverse">
           <img src={member.avatarUrl} alt={member.name} className="w-16 h-16 rounded-full ring-2 ring-white dark:ring-slate-700 shadow" />
           <div>
@@ -91,7 +89,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1 space-y-6">
+        <div className="md:col-span-3 lg:col-span-1 space-y-6">
           <Card title="معلومات أساسية" icon={<UserIcon className="w-5 h-5"/>}>
             <div className="space-y-3 text-sm text-slate-700 dark:text-slate-300">
                 <div className="flex justify-between"><span>إجمالي الساعات المسجلة:</span> <span className="font-bold">{totalHoursLogged.toFixed(1)}</span></div>
@@ -134,7 +132,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
             </Card>
            )}
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-3 lg:col-span-2">
             <Card title="توزيع ساعات العمل على المشاريع" icon={<ClockIcon className="w-5 h-5"/>}>
                 <BarChart title="" data={hoursByProject} />
             </Card>
