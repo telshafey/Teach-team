@@ -16,8 +16,8 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ icon, label, isActive, on
       onClick={onClick}
       className={`flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs font-medium transition-colors ${
         isActive
-          ? 'text-[var(--theme-color-600)] dark:text-sky-400'
-          : 'text-slate-500 dark:text-slate-400 hover:text-[var(--theme-color-600)] dark:hover:text-sky-400'
+          ? 'text-sky-600 dark:text-sky-400'
+          : 'text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400'
       }`}
     >
       {icon}

@@ -97,6 +97,13 @@ export type ApprovalStatus = 'approved' | 'pending' | 'rejected' | 'needs-adjust
 export type ContractStatus = 'pending' | 'approved' | 'rejected';
 export type BillingType = 'fixed' | 'hourly' | 'per-task';
 
+export type ProjectRole = 'Manager' | 'Member';
+
+export interface ProjectMember {
+  teamMemberId: number;
+  projectRole: ProjectRole;
+}
+
 export interface FreelancerContract {
   freelancerId: number;
   type: BillingType;
@@ -116,6 +123,7 @@ export interface Project {
   deadline?: string;
   budgetNotificationSent?: number;
   freelancerContract?: FreelancerContract;
+  members?: ProjectMember[];
 }
 
 export interface ProjectFormData {

@@ -5,7 +5,7 @@ import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Project, Task, TaskStatus, TaskFormData, BillingProposalFormData } from '../../types';
 import { TaskFormModal } from '../modals/TaskFormModal';
-import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon } from '../ui/Icons';
+import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon, UsersIcon } from '../ui/Icons';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { GanttChart } from './GanttChart';
@@ -17,6 +17,8 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { generateProjectSummary } from '../../services/geminiService';
 import { useToast } from '../../contexts/ToastContext';
 import { TaskColumn } from './TaskColumn';
+import { useProjectPermissions } from '../../hooks/useProjectPermissions';
+import { ProjectMembers } from './ProjectMembers';
 
 
 interface ProjectDetailPageProps {
@@ -29,7 +31,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleDeleteProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
     const { teamMembers } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
-    const { currentUser, hasPermission } = useAuth();
+    const { currentUser, hasPermission: hasGlobalPermission } = useAuth();
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -39,7 +41,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isProjectDeleteConfirmOpen, setIsProjectDeleteConfirmOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
+    const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'members'>('kanban');
+
+    const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(projectId);
+    const canDeleteEntireProject = hasGlobalPermission('manage_projects');
 
     // New state for AI summary
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -90,11 +95,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         );
     }
 
-    const canEditProject = hasPermission('edit_projects');
-    const canManageProject = hasPermission('manage_projects');
-    const canCreateTasks = hasPermission('create_tasks');
-    const canEditTasks = hasPermission('edit_tasks');
-    const canDeleteTasks = hasPermission('delete_tasks');
     const canPropose = currentUser?.roleId === 'freelancer' && !project.freelancerContract;
 
     const handleSaveProposal = async (proposalData: BillingProposalFormData) => {
@@ -156,27 +156,19 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
 
     return (
         <div className="p-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+            <div className="flex flex-col md:flex-row justify-between md:items-start mb-6 gap-4">
                 <div>
                     <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
                     <div className="flex items-center space-x-3 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
-                         {canEditProject && (
+                         {canEditProjectSettings && (
                             <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
                          )}
                     </div>
                     <p className="text-md text-slate-500 dark:text-slate-400 mt-1">{project.description}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                        <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                            <ListBulletIcon className="w-5 h-5" /> <span>كانبان</span>
-                        </button>
-                        <button onClick={() => setViewMode('gantt')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'gantt' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                            <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
-                        </button>
-                    </div>
-                    {canCreateTasks && (
+                <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
+                    {canManageTasks && (
                         <button onClick={() => openTaskModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                             <PlusIcon className="w-5 h-5"/><span>إضافة مهمة</span>
                         </button>
@@ -186,15 +178,26 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                             <span>تقديم اقتراح للمشروع</span>
                         </button>
                     )}
-                    {canManageProject && (
+                    {canDeleteEntireProject && (
                         <button onClick={() => setIsProjectDeleteConfirmOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
                             <TrashIcon className="w-5 h-5"/><span>حذف المشروع</span>
                         </button>
                     )}
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+                        <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                            <ListBulletIcon className="w-5 h-5" /> <span>كانبان</span>
+                        </button>
+                        <button onClick={() => setViewMode('gantt')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'gantt' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                            <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
+                        </button>
+                        <button onClick={() => setViewMode('members')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'members' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                            <UsersIcon className="w-5 h-5" /> <span>الفريق</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            {hasPermission('use_ai_features') && (
+            {hasGlobalPermission('use_ai_features') && (
                 <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
                     {projectSummary ? (
                          <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
@@ -228,8 +231,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canEditTasks={canEditTasks}
-                        canDeleteTasks={canDeleteTasks}
+                        canEditTasks={canManageTasks}
+                        canDeleteTasks={canManageTasks}
                     />
                     <TaskColumn 
                         title="قيد التنفيذ" 
@@ -242,8 +245,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canEditTasks={canEditTasks}
-                        canDeleteTasks={canDeleteTasks}
+                        canEditTasks={canManageTasks}
+                        canDeleteTasks={canManageTasks}
                     />
                     <TaskColumn 
                         title="مكتملة" 
@@ -256,12 +259,14 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                         onDragStart={handleDragStart}
                         onDragEnd={() => setDraggingTaskId(null)}
                         draggingTaskId={draggingTaskId}
-                        canEditTasks={canEditTasks}
-                        canDeleteTasks={canDeleteTasks}
+                        canEditTasks={canManageTasks}
+                        canDeleteTasks={canManageTasks}
                     />
                 </div>
-            ) : (
+            ) : viewMode === 'gantt' ? (
                 <GanttChart project={project} tasks={projectTasks} />
+            ) : (
+                <ProjectMembers project={project} canManageMembers={canManageMembers} />
             )}
             
             {isTaskModalOpen && (

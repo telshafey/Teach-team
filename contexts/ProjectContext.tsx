@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Project, Task, ProjectFormData, TaskFormData, ApprovalStatus, TaskStatus, SuggestedTask, BillingProposalFormData, TaskAttachment, TaskComment } from '../types';
+import { Project, Task, ProjectFormData, TaskFormData, ApprovalStatus, TaskStatus, SuggestedTask, BillingProposalFormData, TaskAttachment, TaskComment, ProjectMember } from '../types';
 import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
@@ -193,9 +193,18 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [supabaseClient, currentUser, setTaskAttachments, setTaskComments, fetchData]);
   
   const handleAddProject = async (projectData: ProjectFormData, suggestedTasks?: SuggestedTask[]) => {
-    if (!supabaseClient) return;
+    if (!supabaseClient || !currentUser) return;
     try {
-        const createdProject = await api.insert<Project>(supabaseClient, 'projects', { ...projectData, id: crypto.randomUUID() });
+        const projectMembers: ProjectMember[] = [{
+            teamMemberId: currentUser.id,
+            projectRole: 'Manager',
+        }];
+
+        const createdProject = await api.insert<Project>(supabaseClient, 'projects', { 
+            ...projectData, 
+            id: crypto.randomUUID(),
+            members: projectMembers
+        });
         setProjects(prev => [...prev, createdProject]);
 
         if (suggestedTasks && suggestedTasks.length > 0) {
