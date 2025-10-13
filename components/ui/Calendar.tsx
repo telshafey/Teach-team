@@ -8,6 +8,7 @@ interface CalendarEvent {
   date: Date;
   hasLog?: boolean;
   isDueDate?: boolean;
+  isMeeting?: boolean;
 }
 
 interface CalendarProps {
@@ -73,8 +74,11 @@ export const Calendar: React.FC<CalendarProps> = ({ events, onDateClick, highlig
           onClick={() => isSelectable && onDateClick(day)}
         >
           <span>{format(day, 'd')}</span>
-          {event?.hasLog && <div className="absolute bottom-2 w-1.5 h-1.5 bg-green-500 rounded-full"></div>}
-          {event?.isDueDate && <div className="absolute top-2 w-1.5 h-1.5 bg-red-500 rounded-full"></div>}
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex space-x-1 rtl:space-x-reverse">
+            {event?.hasLog && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" title="يوم مسجل"></div>}
+            {event?.isMeeting && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" title="اجتماع"></div>}
+          </div>
+          {event?.isDueDate && <div className="absolute top-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-500 rounded-full" title="تاريخ استحقاق"></div>}
         </div>
       );
 
@@ -92,9 +96,10 @@ export const Calendar: React.FC<CalendarProps> = ({ events, onDateClick, highlig
       {renderHeader()}
       {renderDays()}
       {renderCells()}
-      <div className="flex justify-center space-x-4 rtl:space-x-reverse text-xs mt-2 p-2 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex justify-center flex-wrap gap-x-4 gap-y-1 text-xs mt-2 p-2 border-t border-slate-200 dark:border-slate-700">
           <div className="flex items-center space-x-1 rtl:space-x-reverse"><div className="w-2 h-2 bg-green-500 rounded-full"></div><span>يوم مسجل</span></div>
           <div className="flex items-center space-x-1 rtl:space-x-reverse"><div className="w-2 h-2 bg-red-500 rounded-full"></div><span>تاريخ استحقاق</span></div>
+          <div className="flex items-center space-x-1 rtl:space-x-reverse"><div className="w-2 h-2 bg-blue-500 rounded-full"></div><span>اجتماع</span></div>
       </div>
     </div>
   );

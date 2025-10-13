@@ -53,6 +53,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting }) => {
                 startWithAudioMuted: false,
                 startWithVideoMuted: false,
                 prejoinPageEnabled: false,
+                lobby: { enable: false },
             },
             interfaceConfigOverwrite: {
                 // Hiding some buttons for a cleaner interface

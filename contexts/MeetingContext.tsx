@@ -51,7 +51,10 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
         const record = api.snakeToCamel(newRecord);
         switch(eventType) {
           case 'INSERT':
-            setMeetings(prev => [...prev, record]);
+            setMeetings(prev => {
+              if (prev.some(m => m.id === record.id)) return prev;
+              return [...prev, record];
+            });
             break;
           case 'UPDATE':
             setMeetings(prev => prev.map(m => m.id === record.id ? record : m));
@@ -76,7 +79,9 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!supabaseClient || !currentUser) return;
     try {
       const jitsiRoomName = `${slugify(formData.title)}-${Date.now()}`;
-      await api.insert(supabaseClient, 'meetings', { ...formData, jitsiRoomName });
+      const newMeeting = await api.insert<Meeting>(supabaseClient, 'meetings', { ...formData, id: crypto.randomUUID(), jitsiRoomName });
+      
+      setMeetings(prev => [...prev, newMeeting]);
       
       // Send notifications to participants
       for (const memberId of formData.members) {

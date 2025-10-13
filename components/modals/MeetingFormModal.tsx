@@ -1,7 +1,8 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useMemo } from 'react';
 import { MeetingFormData } from '../../types';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useToast } from '../../contexts/ToastContext';
+import { SearchIcon } from '../ui/Icons';
 
 interface MeetingFormModalProps {
   isOpen: boolean;
@@ -16,8 +17,16 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
     const [scheduledTime, setScheduledTime] = useState('');
     const [members, setMembers] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [participantSearch, setParticipantSearch] = useState('');
 
     if (!isOpen) return null;
+    
+    const filteredMembers = useMemo(() => {
+        if (!participantSearch) return teamMembers;
+        return teamMembers.filter(member => 
+            member.name.toLowerCase().includes(participantSearch.toLowerCase())
+        );
+    }, [teamMembers, participantSearch]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -53,8 +62,20 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشاركون</label>
+                        <div className="relative mb-2">
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <SearchIcon className="w-5 h-5 text-slate-400" />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="بحث عن مشارك..."
+                                value={participantSearch}
+                                onChange={e => setParticipantSearch(e.target.value)}
+                                className="w-full p-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
+                            />
+                        </div>
                         <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-md p-2 space-y-2">
-                            {teamMembers.map(member => (
+                            {filteredMembers.map(member => (
                                 <label key={member.id} className="flex items-center space-x-3 rtl:space-x-reverse">
                                     <input type="checkbox" checked={members.includes(member.id)} onChange={() => handleParticipantChange(member.id)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" />
                                     <span className="text-sm text-slate-700 dark:text-slate-200">{member.name}</span>
