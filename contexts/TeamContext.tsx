@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { TeamMember, Role, PlanStatus, TeamMemberFormData } from '../types';
+import { Role, TeamMember, TeamMemberFormData, PlanStatus } from '../types';
 import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
 import { useToast } from './ToastContext';
@@ -11,37 +10,19 @@ export interface TeamContextType {
   teamMembers: TeamMember[];
   roles: Role[];
   isLoading: boolean;
-  handleUpdatePlanStatus: (memberId: number, status: PlanStatus) => Promise<void>;
   handleAddMember: (memberData: TeamMemberFormData) => Promise<void>;
-  handleUpdateMember: (memberId: number, memberData: TeamMemberFormData) => Promise<void>;
+  handleUpdateMember: (memberId: number, memberData: Partial<TeamMemberFormData>) => Promise<void>;
   handleAddRole: (roleData: { name: string }) => Promise<void>;
   handleUpdateRole: (role: Role) => Promise<void>;
   handleDeleteRole: (roleId: string) => Promise<void>;
+  handleUpdatePlanStatus: (memberId: number, status: PlanStatus) => Promise<void>;
   fetchData: () => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
-// --- Singleton for temporary auth client to prevent console warnings ---
-let tempAuthClient: SupabaseClient | null = null;
-const getTempAuthClient = (settings: { supabaseUrl: string, supabaseAnonKey: string }): SupabaseClient => {
-    if (tempAuthClient) {
-        return tempAuthClient;
-    }
-    tempAuthClient = createClient(settings.supabaseUrl, settings.supabaseAnonKey, {
-        global: { fetch: window.fetch },
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-        }
-    });
-    return tempAuthClient;
-};
-// ---
-
 export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { supabaseClient, siteSettings } = useSupabase();
+  const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
   const { currentUser } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -50,10 +31,10 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchData = useCallback(async () => {
     if (!supabaseClient || !currentUser) {
-        setTeamMembers([]);
-        setRoles([]);
-        setIsLoading(false);
-        return;
+      setTeamMembers([]);
+      setRoles([]);
+      setIsLoading(false);
+      return;
     }
     setIsLoading(true);
     try {
@@ -74,12 +55,12 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (supabaseClient && currentUser) {
       fetchData();
-
-      const handleMembersChange = (payload: any) => {
+      
+      const handleTeamMembersChange = (payload: any) => {
         const { eventType, new: newRecord, old: oldRecord } = payload;
         const record = api.snakeToCamel(newRecord);
-        switch (eventType) {
-          case 'INSERT': setTeamMembers(prev => [...prev, record]); break;
+        switch(eventType) {
+          case 'INSERT': setTeamMembers(prev => prev.some(m => m.id === record.id) ? prev : [...prev, record]); break;
           case 'UPDATE': setTeamMembers(prev => prev.map(m => m.id === record.id ? record : m)); break;
           case 'DELETE': setTeamMembers(prev => prev.filter(m => m.id !== oldRecord.id)); break;
         }
@@ -88,164 +69,134 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const handleRolesChange = (payload: any) => {
         const { eventType, new: newRecord, old: oldRecord } = payload;
         const record = api.snakeToCamel(newRecord);
-        switch (eventType) {
-          case 'INSERT': setRoles(prev => [...prev, record]); break;
+        switch(eventType) {
+          case 'INSERT': setRoles(prev => prev.some(r => r.id === record.id) ? prev : [...prev, record]); break;
           case 'UPDATE': setRoles(prev => prev.map(r => r.id === record.id ? record : r)); break;
           case 'DELETE': setRoles(prev => prev.filter(r => r.id !== oldRecord.id)); break;
         }
       };
-
-      const membersChannel = supabaseClient.channel('public:team_members').on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, handleMembersChange).subscribe();
-      const rolesChannel = supabaseClient.channel('public:roles').on('postgres_changes', { event: '*', schema: 'public', table: 'roles' }, handleRolesChange).subscribe();
+      
+      const membersChannel = supabaseClient.channel('team_members_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, handleTeamMembersChange).subscribe();
+      const rolesChannel = supabaseClient.channel('roles_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'roles' }, handleRolesChange).subscribe();
       
       return () => {
         supabaseClient.removeChannel(membersChannel);
         supabaseClient.removeChannel(rolesChannel);
       };
     } else {
-        setTeamMembers([]);
-        setRoles([]);
+      setTeamMembers([]);
+      setRoles([]);
     }
   }, [supabaseClient, currentUser, fetchData]);
-
-  const handleUpdatePlanStatus = async (memberId: number, status: PlanStatus) => {
-    if (!supabaseClient || !currentUser) return;
-    try {
-      const member = teamMembers.find(m => m.id === memberId);
-      if (member) {
-        const updatedPlan = { ...member.weeklyPlan, status };
-        await api.update<TeamMember>(supabaseClient, 'team_members', memberId, { weeklyPlan: updatedPlan });
-        addToast('تم تحديث حالة الخطة.', 'success');
-      }
-    } catch (error: any) {
-      addToast(`فشل تحديث الحالة: ${error.message}`, 'error');
-    }
-  };
-
+  
   const handleAddMember = async (memberData: TeamMemberFormData) => {
-    if (!supabaseClient || !memberData.email || !memberData.password || !siteSettings?.databaseSettings) {
-        const message = 'بيانات الإضافة غير مكتملة أو إعدادات قاعدة البيانات غير متاحة.';
-        addToast(message, 'error');
-        throw new Error(message);
-    }
-
+    if (!supabaseClient) return;
     try {
-        const clientForSignUp = getTempAuthClient(siteSettings.databaseSettings);
+      const { password, ...profileData } = memberData;
+      if (!password) throw new Error("Password is required for new members.");
 
-        const { data: authData, error: authError } = await clientForSignUp.auth.signUp({
-            email: memberData.email,
-            password: memberData.password,
-        });
+      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+        email: profileData.email!,
+        password: password,
+      });
 
-        if (authError) throw authError;
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("User not created in auth.");
+      
+      const newMemberData = {
+          ...profileData,
+          authUserId: authData.user.id,
+          weeklyPlan: { status: 'approved', hours: {} },
+      };
 
-        if (authData.user) {
-            try {
-                // Use the main client (which is still authenticated as the admin) to insert the profile
-                const newMember = {
-                    authUserId: authData.user.id,
-                    name: memberData.name!,
-                    email: memberData.email,
-                    roleId: memberData.roleId!,
-                    avatarUrl: memberData.avatarUrl,
-                    reportsTo: memberData.reportsTo,
-                    salary: memberData.salary,
-                    hourlyRate: memberData.hourlyRate,
-                    weeklyHoursRequirement: memberData.weeklyHoursRequirement,
-                    daysOff: memberData.daysOff,
-                    // FIX: Explicitly cast status to PlanStatus to avoid type widening to string.
-                    weeklyPlan: { status: 'approved' as PlanStatus, hours: {} },
-                };
-                const createdMember = await api.insert<TeamMember>(supabaseClient, 'team_members', newMember);
-                setTeamMembers(prev => [...prev, createdMember]);
-                addToast('تمت إضافة العضو الجديد بنجاح.', 'success');
-            } catch (profileError: any) {
-                console.error("Failed to create team member profile after sign up:", profileError);
-                addToast('فشل إنشاء ملف الفريق. تحقق من أن سياسات أمان قاعدة البيانات (RLS) تسمح للمدراء بإضافة أعضاء.', 'error');
-                throw new Error('Profile creation failed after auth user was created.');
-            }
-        } else {
-             throw new Error("Sign up completed but no user data was returned.");
-        }
-    } catch (error: any) {
-        let errorMessage = error.message;
-        if (error.message.includes('User already registered')) {
-            errorMessage = 'هذا البريد الإلكتروني مسجل بالفعل في نظام المصادقة. قد تحتاج لحذفه يدوياً من لوحة تحكم Supabase.';
-        }
-        
-        const finalMessage = `فشل إضافة العضو: ${errorMessage}`;
-        addToast(finalMessage, 'error');
-        console.error(finalMessage, error);
-        throw error;
+      const createdMember = await api.insert<TeamMember>(supabaseClient, 'team_members', newMemberData as Omit<TeamMember, 'id'>);
+      setTeamMembers(prev => [...prev, createdMember]);
+      addToast('تمت إضافة العضو بنجاح.', 'success');
+    } catch(e: any) {
+      let message = `فشل إضافة العضو: ${e.message}`;
+      if (e.message.includes('User already registered')) {
+          message = 'فشل إضافة العضو: هذا البريد الإلكتروني مسجل بالفعل في نظام المصادقة. إذا كانت هذه محاولة فاشلة سابقة، يرجى حذف المستخدم من قسم "Authentication" في لوحة تحكم Supabase قبل المحاولة مرة أخرى.';
+      } else if (e.message.includes('violates row-level security policy')) {
+          message = 'فشل إنشاء ملف الفريق. تحقق من أن سياسات أمان قاعدة البيانات (RLS) تسمح للمدراء بإضافة أعضاء.';
+      } else if (e.message.includes('duplicate key value violates unique constraint')) {
+          message = 'فشل إضافة العضو: حدث خطأ في قاعدة البيانات أثناء إنشاء معرّف فريد. يرجى التأكد من تشغيل كود SQL Propvided.';
+      }
+      addToast(message, 'error');
+      throw e;
     }
-  };
-
-  const handleUpdateMember = async (memberId: number, memberData: TeamMemberFormData) => {
-     if (!supabaseClient) return;
-     try {
-        await api.update<TeamMember>(supabaseClient, 'team_members', memberId, memberData);
-        addToast('تم تحديث بيانات العضو بنجاح.', 'success');
-     } catch (error: any) {
-        addToast(`فشل تحديث البيانات: ${error.message}`, 'error');
-        throw error;
-     }
   };
   
+  const handleUpdateMember = async (memberId: number, memberData: Partial<TeamMemberFormData>) => {
+    if (!supabaseClient) return;
+    try {
+      const { password, ...updates } = memberData; // password is never updated here
+      const updatedMember = await api.update<TeamMember>(supabaseClient, 'team_members', memberId, updates as any);
+      setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
+      addToast('تم تحديث بيانات العضو بنجاح.', 'success');
+    } catch(e: any) {
+      addToast(`فشل تحديث بيانات العضو: ${e.message}`, 'error'); throw e;
+    }
+  };
+
   const handleAddRole = async (roleData: { name: string }) => {
     if (!supabaseClient) return;
     try {
-      const roleId = slugify(roleData.name);
-
-      // Check if role with this ID or name already exists to prevent duplicates
-      const existingRoleById = roles.find(r => r.id.toLowerCase() === roleId.toLowerCase());
-      const existingRoleByName = roles.find(r => r.name.toLowerCase() === roleData.name.toLowerCase());
-
-      if (existingRoleById || existingRoleByName) {
-          const message = `الدور بهذا الاسم أو المعرف موجود بالفعل. يرجى اختيار اسم آخر.`;
-          addToast(message, 'error');
-          throw new Error(message);
-      }
-
-      await api.insert(supabaseClient, 'roles', { id: roleId, name: roleData.name, permissions: [] });
-      addToast('تمت إضافة الدور بنجاح.', 'success');
-    } catch (error: any) {
-        // Prevent showing generic error if it's the specific "already exists" error
-        if (!error.message.includes('موجود بالفعل')) {
-            addToast(`فشل إضافة الدور: ${error.message}`, 'error'); 
-        }
-        throw error;
+        const newRoleData = {
+            ...roleData,
+            id: `${slugify(roleData.name)}-${crypto.randomUUID().slice(0, 4)}`,
+            permissions: []
+        };
+        const createdRole = await api.insert<Role>(supabaseClient, 'roles', newRoleData);
+        setRoles(prev => [...prev, createdRole]);
+        addToast('تمت إضافة الدور بنجاح.', 'success');
+    } catch(e: any) {
+        addToast(`فشل إضافة الدور: ${e.message}`, 'error'); throw e;
     }
   };
-  
+
   const handleUpdateRole = async (role: Role) => {
     if (!supabaseClient) return;
     try {
-      const { id, ...updates } = role;
-      const updatedRole = await api.update<Role>(supabaseClient, 'roles', id, updates);
-      setRoles(prev => prev.map(r => (r.id === id ? updatedRole : r)));
-      addToast('تم تحديث الدور بنجاح.', 'success');
-    } catch (error: any) {
-      addToast(`فشل تحديث الدور: ${error.message}`, 'error');
-      throw error;
+        const { id, ...updates } = role;
+        const updatedRole = await api.update<Role>(supabaseClient, 'roles', id, updates);
+        setRoles(prev => prev.map(r => r.id === id ? updatedRole : r));
+        addToast('تم تحديث الدور بنجاح.', 'success');
+    } catch(e: any) {
+        addToast(`فشل تحديث الدور: ${e.message}`, 'error'); throw e;
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    if (!supabaseClient) return;
+    try {
+        const membersWithRole = teamMembers.filter(m => m.roleId === roleId);
+        if (membersWithRole.length > 0) {
+            throw new Error(`لا يمكن حذف هذا الدور لأنه مسند إلى ${membersWithRole.length} عضو.`);
+        }
+        await api.deleteById(supabaseClient, 'roles', roleId);
+        setRoles(prev => prev.filter(r => r.id !== roleId));
+        addToast('تم حذف الدور بنجاح.', 'success');
+    } catch(e: any) {
+        addToast(`فشل حذف الدور: ${e.message}`, 'error'); throw e;
     }
   };
   
-  const handleDeleteRole = async (roleId: string) => {
+  const handleUpdatePlanStatus = async (memberId: number, status: PlanStatus) => {
     if (!supabaseClient) return;
-    if (teamMembers.some(m => m.roleId === roleId)) {
-        addToast('لا يمكن حذف الدور لأنه مسند إلى عضو واحد على الأقل.', 'error');
-        return;
-    }
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member) return;
+    
     try {
-        await api.deleteById(supabaseClient, 'roles', roleId);
-        addToast('تم حذف الدور بنجاح.', 'success');
-    } catch (error: any) {
-        addToast(`فشل حذف الدور: ${error.message}`, 'error'); throw error;
+        const updatedPlan = { ...member.weeklyPlan, status };
+        const updatedMember = await api.update<TeamMember>(supabaseClient, 'team_members', memberId, { weeklyPlan: updatedPlan } as any);
+        setTeamMembers(prev => prev.map(m => m.id === memberId ? updatedMember : m));
+        addToast(`تم ${status === 'approved' ? 'اعتماد' : 'رفض'} الخطة بنجاح.`, 'success');
+    } catch(e: any) {
+        addToast(`فشل تحديث حالة الخطة: ${e.message}`, 'error'); throw e;
     }
   };
 
-
-  const value = { teamMembers, roles, isLoading, handleUpdatePlanStatus, handleAddMember, handleUpdateMember, handleAddRole, handleUpdateRole, handleDeleteRole, fetchData };
+  const value = { teamMembers, roles, isLoading, handleAddMember, handleUpdateMember, handleAddRole, handleUpdateRole, handleDeleteRole, handleUpdatePlanStatus, fetchData };
 
   return (
     <TeamContext.Provider value={value}>

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useSupabase } from './SupabaseContext';
 import { Role, TeamMember, Permission } from '../types';
@@ -22,15 +22,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { supabaseClient } = useSupabase();
     const { addToast } = useToast();
     
-    // State for the raw Supabase user and our app-specific user profile
     const [user, setUser] = useState<User | null>(null);
     const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
     const [roles, setRoles] = useState<Role[]>([]);
-    
-    // Combined loading state
     const [isLoading, setIsLoading] = useState(true);
-    const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
-    const hasLoadedUser = useRef(false);
 
     const rolesMap = React.useMemo(() => {
         return roles.reduce((acc, role) => {
@@ -38,89 +33,104 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return acc;
         }, {} as { [key: string]: Role });
     }, [roles]);
-
-    // Effect to listen for Supabase auth state changes ONLY
+    
     useEffect(() => {
         if (!supabaseClient) {
             setIsLoading(false);
-            setAuthCheckCompleted(true);
             return;
         }
 
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+        const getInitialSession = async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
             setUser(session?.user ?? null);
-            // Once the first auth event fires, we know the initial check is done.
-            if (!authCheckCompleted) {
-                setAuthCheckCompleted(true);
+            if (!session) {
+                setIsLoading(false);
             }
+        };
+
+        getInitialSession();
+
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
         });
 
         return () => {
             subscription?.unsubscribe();
         };
-    }, [supabaseClient, authCheckCompleted]);
+    }, [supabaseClient]);
     
-    // Effect to fetch user data WHEN the raw Supabase user changes
     useEffect(() => {
-        const fetchUserData = async (authUser: User) => {
-             if (!supabaseClient) return;
+        // This effect runs when the Supabase auth user object changes.
+        if (user) {
+            const fetchAndSetUserData = async () => {
+                if (!supabaseClient) return;
+                
+                let profileData: TeamMember | null = null;
+                let rolesData: Role[] = [];
+                let fetchError: Error | null = null;
 
-             if (!hasLoadedUser.current) {
-                setIsLoading(true);
-             }
+                try {
+                    const [rolesRes, profileRes] = await Promise.all([
+                        supabaseClient.from('roles').select('*'),
+                        // Use limit(1) instead of single() for robustness against duplicate profiles
+                        supabaseClient.from('team_members').select('*').eq('auth_user_id', user.id).limit(1)
+                    ]);
 
-             try {
-                // Fetch roles and profile in parallel
-                const [rolesData, profileData] = await Promise.all([
-                    api.fetchAll<Role>(supabaseClient, 'roles'),
-                    api.snakeToCamel(
-                        (await supabaseClient.from('team_members').select('*').eq('auth_user_id', authUser.id).single()).data
-                    ) as TeamMember
-                ]);
+                    if (rolesRes.error) throw rolesRes.error;
+                    if (profileRes.error) throw profileRes.error;
 
-                if (!profileData) {
-                    throw new Error('فشل في تحميل ملف المستخدم. قد لا يكون ملفك الشخصي مرتبطًا بحسابك.');
+                    if (profileRes.data && profileRes.data.length > 0) {
+                        profileData = api.snakeToCamel(profileRes.data[0]) as TeamMember;
+                        rolesData = api.snakeToCamel(rolesRes.data || []) as Role[];
+                    } else {
+                        // This is the critical case: user is authenticated but has no profile.
+                        fetchError = new Error('فشل في تحميل ملف المستخدم. قد لا يكون ملفك الشخصي مرتبطًا بحسابك.');
+                    }
+                } catch (error: any) {
+                    fetchError = error;
                 }
 
-                setRoles(rolesData);
-                setCurrentUser(profileData);
-                hasLoadedUser.current = true;
-
-             } catch (error: any) {
-                console.error("Auth context: Critical failure fetching user data", error);
-                addToast(`فشل تحميل بيانات المستخدم: ${error.message}`, 'error');
-                // IMPORTANT: Do NOT sign out here. Let the user see the error and sign out manually.
-                setCurrentUser(null);
-                setRoles([]);
-                hasLoadedUser.current = false;
-             } finally {
-                setIsLoading(false);
-             }
-        };
-
-        if (authCheckCompleted) {
-            if (user) {
-                fetchUserData(user);
-            } else {
-                // User is logged out, clear all data and stop loading
-                setCurrentUser(null);
-                setRoles([]);
-                setIsLoading(false);
-                hasLoadedUser.current = false;
-            }
+                // Now, based on the outcome, update the state.
+                if (fetchError) {
+                    console.error("Auth context: Critical failure fetching user data", fetchError);
+                    addToast(`${fetchError.message}. سيتم تسجيل خروجك الآن.`, 'error');
+                    // We must sign out. The onAuthStateChange listener will handle the rest of the cleanup.
+                    await supabaseClient.auth.signOut();
+                } else {
+                    // Success case
+                    setCurrentUser(profileData);
+                    setRoles(rolesData);
+                    setIsLoading(false);
+                }
+            };
+            
+            setIsLoading(true);
+            fetchAndSetUserData();
+        } else {
+            // This block runs when user is null (logged out or initial state).
+            setCurrentUser(null);
+            setRoles([]);
+            setIsLoading(false);
         }
-    }, [user, authCheckCompleted, supabaseClient, addToast]);
+    }, [user, supabaseClient, addToast]);
 
 
     const handleLogin = async (email: string, password: string) => {
         if (!supabaseClient) return { error: new Error('Supabase client not available.') };
+        setIsLoading(true);
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+            setIsLoading(false);
+        }
         return { error };
     };
 
     const handleLogout = async () => {
         if (!supabaseClient) return;
+        setIsLoading(true);
         await supabaseClient.auth.signOut();
+        // The onAuthStateChange listener will handle setting user to null,
+        // which will trigger the useEffect to clean up and set isLoading to false.
     };
 
     const hasPermission = useCallback((permission: Permission): boolean => {
@@ -140,12 +150,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .from('team_members')
             .update(api.camelToSnake(updates))
             .eq('id', currentUser.id)
-            .select()
-            .single();
+            .select();
             
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Profile not found after update.");
 
-        const updatedProfile = api.snakeToCamel(data) as TeamMember;
+        const updatedProfile = api.snakeToCamel(data[0]) as TeamMember;
         setCurrentUser(updatedProfile);
     };
 

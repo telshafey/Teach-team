@@ -62,7 +62,6 @@ export const generateEmployeePerformance = (
     if (!filters.memberId) return null;
     const headers = ["التاريخ", "المشروع", "الوصف", "الساعات"];
     
-    // FIX: Filter logs first, then calculate total from the filtered typed data
     const logsToReport = dailyLogs
         .filter(l =>
             l.teamMemberId === Number(filters.memberId) &&
@@ -87,7 +86,6 @@ export const generateExpenses = (
 ): { headers: string[], rows: any[] } => {
     const headers = ["التاريخ", "الموظف", "المشروع", "المبلغ", "الوصف"];
 
-    // FIX: Filter claims first to perform calculations on typed data, avoiding string parsing
     const claimsToReport = expenseClaims
         .filter(e =>
             dateFilter(e.date, filters) && e.status === 'approved' &&

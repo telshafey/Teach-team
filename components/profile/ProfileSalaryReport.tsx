@@ -6,48 +6,20 @@ import { Card } from '../ui/Card';
 import { CurrencyDollarIcon, ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
 import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths, subMonths, isSameMonth, isAfter } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { generateSalarySlipData } from '../../utils/salarySlip';
+import { SalarySlipModal } from '../modals/SalarySlipModal';
+import { SalarySlipData } from '../../types';
 
 export const ProfileSalaryReport: React.FC = () => {
     const { currentUser } = useAuth();
     const { overtimeRequests, expenseClaims, penalties } = useRequestsContext();
     const { currency, siteSettings } = useSettingsContext();
     const [viewedMonth, setViewedMonth] = useState(new Date());
+    const [slipData, setSlipData] = useState<SalarySlipData | null>(null);
 
     const salaryReportData = useMemo(() => {
         if (!currentUser?.salary) return null;
-
-        const startOfMonthForView = startOfMonth(viewedMonth);
-        const endOfMonthForView = endOfMonth(viewedMonth);
-
-        const myOvertimes = overtimeRequests.filter(o => o.teamMemberId === currentUser.id);
-        const myExpenses = expenseClaims.filter(e => e.teamMemberId === currentUser.id);
-        const myPenalties = penalties.filter(p => p.teamMemberId === currentUser.id);
-
-        const approvedOvertimeHours = myOvertimes
-            .filter(r => r.status === 'approved' && isWithinInterval(new Date(r.weekStartDate), { start: startOfMonthForView, end: endOfMonthForView }))
-            .reduce((sum, r) => sum + r.requestedHours, 0);
-            
-        const approvedExpensesAmount = myExpenses
-            .filter(e => e.status === 'approved' && isWithinInterval(new Date(e.date), { start: startOfMonthForView, end: endOfMonthForView }))
-            .reduce((sum, e) => sum + e.amount, 0);
-
-        const approvedPenaltiesAmount = myPenalties
-            .filter(p => p.status === 'approved' && isWithinInterval(new Date(p.date), { start: startOfMonthForView, end: endOfMonthForView }))
-            .reduce((sum, p) => sum + p.amount, 0);
-            
-        const hourlyRate = currentUser.salary / (22 * 8); // Approximation
-        const overtimeMultiplier = siteSettings?.overtimeRateMultiplier || 1.5;
-        const overtimePay = approvedOvertimeHours * hourlyRate * overtimeMultiplier;
-
-        const totalEstimated = currentUser.salary + overtimePay + approvedExpensesAmount - approvedPenaltiesAmount;
-
-        return {
-            baseSalary: currentUser.salary,
-            overtimePay,
-            approvedExpensesAmount,
-            approvedPenaltiesAmount,
-            totalEstimated
-        };
+        return generateSalarySlipData(currentUser, viewedMonth, overtimeRequests, expenseClaims, penalties, siteSettings);
     }, [currentUser, overtimeRequests, expenseClaims, penalties, viewedMonth, siteSettings]);
 
     if (!salaryReportData) {
@@ -55,6 +27,7 @@ export const ProfileSalaryReport: React.FC = () => {
     }
 
     return (
+        <>
         <Card 
             icon={<CurrencyDollarIcon className="w-5 h-5"/>}
             title={`تقرير الراتب لشهر ${format(viewedMonth, 'MMMM yyyy', { locale: arSA })}`}
@@ -72,25 +45,33 @@ export const ProfileSalaryReport: React.FC = () => {
             <div className="space-y-4 text-sm">
                 <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
                     <span className="font-medium text-slate-600 dark:text-slate-300">الراتب الأساسي</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{salaryReportData.baseSalary.toLocaleString()} {currency}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-100">{salaryReportData.baseSalary.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
                     <span className="font-medium text-slate-600 dark:text-slate-300">قيمة الساعات الإضافية المعتمدة</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">+ {salaryReportData.overtimePay.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}</span>
+                    <span className="font-bold text-green-600 dark:text-green-400">+ {salaryReportData.overtimePay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
                     <span className="font-medium text-slate-600 dark:text-slate-300">قيمة المصروفات المعتمدة</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">+ {salaryReportData.approvedExpensesAmount.toLocaleString()} {currency}</span>
+                    <span className="font-bold text-green-600 dark:text-green-400">+ {salaryReportData.expensesReimbursed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                 </div>
                  <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/30 rounded-md">
                     <span className="font-medium text-red-700 dark:text-red-300">الخصومات والجزاءات المعتمدة</span>
-                    <span className="font-bold text-red-600 dark:text-red-400">- {salaryReportData.approvedPenaltiesAmount.toLocaleString()} {currency}</span>
+                    <span className="font-bold text-red-600 dark:text-red-400">- {salaryReportData.penaltiesDeducted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
                 </div>
                 <div className="flex justify-between items-center p-4 border-t-2 border-dashed border-slate-300 dark:border-slate-600 mt-4">
                     <span className="text-base font-bold text-slate-800 dark:text-slate-100">إجمالي الراتب المتوقع</span>
-                    <span className="text-lg font-extrabold text-sky-600 dark:text-sky-400">{salaryReportData.totalEstimated.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}</span>
+                    <span className="text-lg font-extrabold text-sky-600 dark:text-sky-400">{salaryReportData.netSalary.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</span>
+                </div>
+
+                 <div className="pt-4">
+                    <button onClick={() => setSlipData(salaryReportData)} className="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                        عرض قسيمة الراتب
+                    </button>
                 </div>
             </div>
         </Card>
+        <SalarySlipModal isOpen={!!slipData} onClose={() => setSlipData(null)} slipData={slipData} />
+        </>
     );
 };

@@ -7,14 +7,25 @@ export const createNotification = async (
   notificationData: Omit<Notification, 'id' | 'read' | 'timestamp'>
 ): Promise<void> => {
   try {
-    const notificationWithTimestamp = {
+    const notificationPayload = {
+      id: crypto.randomUUID(),
       ...notificationData,
       timestamp: new Date().toISOString(),
+      read: false,
     };
-    // We don't need the returned value, just fire and forget.
-    await api.insert<Notification>(supabaseClient, 'notifications', notificationWithTimestamp);
+
+    // Bypass generic insert for a direct, more controlled call to definitively fix the null ID issue.
+    const { error } = await supabaseClient
+        .from('notifications')
+        .insert([api.camelToSnake(notificationPayload)]);
+    
+    if (error) {
+        // Rethrow to be caught by the outer catch block
+        throw new Error(error.message);
+    }
+
   } catch (error: any) {
     console.error("Failed to create notification:", error.message);
-    // Don't show toast for this background task.
+    // Don't show toast for this background task as it's a background process.
   }
 };

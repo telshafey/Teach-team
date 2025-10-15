@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useRequestsContext } from '../../contexts/RequestsContext';
@@ -8,10 +8,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
 import { BarChart } from '../ui/Charts';
 import { UsersIcon, ClipboardDocumentListIcon, FolderIcon } from '../ui/Icons';
-import { Meeting } from '../../types';
+import { Meeting, Task, TaskFormData } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { UnassignedTasksCard } from './UnassignedTasksCard';
+import { TaskFormModal } from '../modals/TaskFormModal';
 
 
 export const ManagerDashboard: React.FC = () => {
@@ -21,7 +23,10 @@ export const ManagerDashboard: React.FC = () => {
     const { dailyLogs } = useTimeLogContext();
     const { overtimeRequests, leaveRequests, workContractChangeRequests, penalties } = useRequestsContext();
     const { meetings } = useMeetingContext();
-    const { projects, tasks } = useProjectContext();
+    const { projects, tasks, handleUpdateTask } = useProjectContext();
+
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
     const myTeam = useMemo(() => {
         if (!currentUser) return [];
@@ -35,9 +40,13 @@ export const ManagerDashboard: React.FC = () => {
     }, [tasks, myTeamIds]);
     
     const myProjects = useMemo(() => {
-        const projectIds = new Set(myTeamTasks.map(t => t.projectId));
-        return projects.filter(p => projectIds.has(p.id));
-    }, [projects, myTeamTasks]);
+        if (!currentUser) return [];
+        // A manager's projects are any project they are a member of, or any project their team members have tasks in.
+        const teamProjectIds = new Set(tasks.filter(t => t.assignedTo && myTeamIds.includes(t.assignedTo)).map(t => t.projectId));
+        const myProjectIds = new Set(projects.filter(p => p.members.some(m => m.teamMemberId === currentUser.id)).map(p => p.id));
+        const allRelevantIds = new Set([...teamProjectIds, ...myProjectIds]);
+        return projects.filter(p => allRelevantIds.has(p.id));
+    }, [projects, tasks, myTeamIds, currentUser]);
 
     const meetingsForMyTeam = useMemo(() => {
         if (!currentUser) return [];
@@ -63,8 +72,24 @@ export const ManagerDashboard: React.FC = () => {
         })).sort((a, b) => b.value - a.value).slice(0, 10);
     }, [myTeam, dailyLogs]);
     
+    const unassignedTasksInMyProjects = useMemo(() => {
+        const myProjectIds = new Set(myProjects.map(p => p.id));
+        return tasks.filter(t => !t.assignedTo && t.projectId && myProjectIds.has(t.projectId));
+    }, [tasks, myProjects]);
+    
     const handleJoinMeeting = (meeting: Meeting) => {
         onNavigate('meetingRoom', { meeting });
+    };
+
+    const handleOpenAssignModal = (task: Task) => {
+        setEditingTask(task);
+        setIsTaskModalOpen(true);
+    };
+
+    const handleSaveTask = async (taskData: TaskFormData) => {
+        if (editingTask) {
+            await handleUpdateTask({ ...editingTask, ...taskData });
+        }
     };
 
 
@@ -77,6 +102,7 @@ export const ManagerDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
+                     <UnassignedTasksCard tasks={unassignedTasksInMyProjects} onAssign={handleOpenAssignModal} />
                     <Card title="مشاريع فريقي" icon={<FolderIcon className="w-5 h-5"/>}>
                          {myProjects.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,6 +139,17 @@ export const ManagerDashboard: React.FC = () => {
                     </Card>
                 </div>
             </div>
+
+             {isTaskModalOpen && (
+                <TaskFormModal 
+                    isOpen={isTaskModalOpen}
+                    onClose={() => setIsTaskModalOpen(false)}
+                    onSave={handleSaveTask}
+                    task={editingTask}
+                    projects={projects}
+                    defaultProjectId={editingTask?.projectId}
+                />
+            )}
         </div>
     );
 };

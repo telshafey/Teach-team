@@ -23,6 +23,18 @@ export const ChevronDownIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) 
     </svg>
 );
 
+export const ChevronUpDownIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+    </svg>
+);
+
+export const EnvelopeIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+    </svg>
+);
+
 
 export const UsersIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
@@ -286,7 +298,7 @@ export const ArrowPathIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) =>
 export const BriefcaseIcon: React.FC<IconProps> = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.075c0 1.313-.964 2.411-2.175 2.585-1.211.174-2.427-.24-3.32-1.135l-1.635-1.635-1.635 1.635c-.9.9-2.11.13-3.32 1.135-1.21.174-2.175-1.272-2.175-2.585v-4.075a2.25 2.25 0 0 1 2.25-2.25h10.5a2.25 2.25 0 0 1 2.25 2.25Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 4.875c0-.593.237-1.157.659-1.579.422-.422.986-.659 1.579-.659h1.513c.593 0 1.157.237 1.579.659.422.422.659.986.659 1.579v4.075c0 .593-.237 1.157-.659 1.579-.422-.422-.986.659-1.579.659H11.99c-.593 0-1.157-.237-1.579-.659-.422-.422-.659-.986-.659-1.579V4.875Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 4.875c0-.593.237-1.157.659-1.579.422-.422.986-.659 1.579-.659h1.513c.593 0 1.157.237 1.579.659.422.422.659.986.659 1.579v4.075c0 .593-.237 1.157-.659 1.579-.422-.422-.986.659-1.579.659H11.99c-.593 0-1.157-.237-1.579-.659-.422-.422-.659.986-.659-1.579V4.875Z" />
     </svg>
 );
 

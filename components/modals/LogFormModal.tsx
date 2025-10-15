@@ -14,13 +14,12 @@ interface LogFormModalProps {
   initialData?: {
     hours: number;
     taskId: string;
-    projectId: string;
+    projectId?: string;
   }
 }
 
 export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onSave, log, date, memberId, initialData }) => {
   const { tasks, projects } = useProjectContext();
-  const { teamMembers } = useTeamContext();
   const { addToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,12 +29,35 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
     taskId: ''
   });
 
+  const groupedTasks = useMemo(() => {
+    const projectGroups: Record<string, { name: string, tasks: Task[] }> = projects.reduce((acc, p) => {
+        acc[p.id] = { name: p.name, tasks: [] };
+        return acc;
+    }, {} as Record<string, { name: string, tasks: Task[] }>);
+
+    const generalTasks: Task[] = [];
+
+    for (const task of tasks) {
+        if (task.projectId && projectGroups[task.projectId]) {
+            projectGroups[task.projectId].tasks.push(task);
+        } else if (!task.projectId) {
+            generalTasks.push(task);
+        }
+    }
+
+    return {
+        projectGroups: Object.values(projectGroups).filter(g => g.tasks.length > 0),
+        generalTasks
+    };
+  }, [projects, tasks]);
+
+
   useEffect(() => {
     if (initialData) {
         setFormData({
             hours: initialData.hours.toFixed(2),
             description: '',
-            projectId: initialData.projectId,
+            projectId: initialData.projectId || '',
             taskId: initialData.taskId
         });
     } else if (log) {
@@ -71,38 +93,17 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
     }
   };
 
-  const availableTasks = useMemo(() => {
-    if (!formData.projectId) {
-      return [];
+  const handleTaskSelectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedTaskId = e.target.value;
+    if (!selectedTaskId) {
+        setFormData({ ...formData, taskId: '', projectId: '' });
+        return;
     }
-    // Make the comparison robust against whitespace and case differences
-    const cleanProjectId = formData.projectId.trim().toLowerCase();
-    const projectTasks = tasks.filter(t => 
-        t.projectId && t.projectId.trim().toLowerCase() === cleanProjectId
-    );
-
-    const mappedTasks = projectTasks.map(task => {
-        const assignee = teamMembers.find(m => m.id === task.assignedTo);
-        return { 
-            ...task, 
-            assigneeName: assignee?.name 
-        };
-    });
-
-    // Simplified sorting logic to be more robust
-    mappedTasks.sort((a, b) => {
-      const aIsMine = a.assignedTo === memberId;
-      const bIsMine = b.assignedTo === memberId;
-
-      if (aIsMine && !bIsMine) return -1;
-      if (!aIsMine && bIsMine) return 1;
-
-      // For all other cases (both are mine, or neither are mine), sort by title
-      return (a.title || '').localeCompare(b.title || '');
-    });
-
-    return mappedTasks;
-  }, [formData.projectId, tasks, memberId, teamMembers]);
+    const task = tasks.find(t => t.id === selectedTaskId);
+    if (task) {
+        setFormData({ ...formData, taskId: task.id, projectId: task.projectId || '' });
+    }
+  };
   
   const isFromTimer = !!initialData;
 
@@ -115,26 +116,34 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
             <label htmlFor="hours" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">عدد الساعات</label>
             <input type="number" step="0.1" id="hours" value={formData.hours} onChange={e => setFormData({...formData, hours: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 read-only:bg-slate-100 dark:read-only:bg-slate-900 read-only:cursor-not-allowed" required readOnly={isFromTimer} />
           </div>
+          
           <div>
-            <label htmlFor="project" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع</label>
-            <select id="project" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value, taskId: ''})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70" disabled={isFromTimer}>
-              <option value="">عمل آخر / غير مرتبط بمشروع</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-           {formData.projectId && (
-            <div>
               <label htmlFor="task" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المهمة (اختياري)</label>
-              <select id="task" value={formData.taskId} onChange={e => setFormData({...formData, taskId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70" disabled={isFromTimer}>
-                <option value="">-- بدون تحديد مهمة --</option>
-                {availableTasks.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.title} {t.assigneeName && t.assignedTo !== memberId ? `(${t.assigneeName})` : ''}
-                  </option>
+              <select 
+                id="task" 
+                value={formData.taskId} 
+                onChange={handleTaskSelectionChange} 
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isFromTimer}
+              >
+                <option value="">-- عمل آخر / بدون مهمة --</option>
+                {groupedTasks.generalTasks.length > 0 && (
+                    <optgroup label="مهام عامة">
+                        {groupedTasks.generalTasks.map(task => (
+                            <option key={task.id} value={task.id}>{task.title}</option>
+                        ))}
+                    </optgroup>
+                )}
+                {groupedTasks.projectGroups.map(group => (
+                    <optgroup key={group.name} label={group.name}>
+                        {group.tasks.map(task => (
+                            <option key={task.id} value={task.id}>{task.title}</option>
+                        ))}
+                    </optgroup>
                 ))}
               </select>
             </div>
-           )}
+
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الوصف</label>
             <textarea id="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700" required></textarea>

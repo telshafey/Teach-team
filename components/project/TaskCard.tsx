@@ -53,7 +53,7 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
 
     return (
         <div className="relative group flex items-center">
-            <Icon className={`w-5 h-5 ${color}`} />
+            <Icon className={`w-5 h-5 ${color}`} title={tooltipText} />
             <div className="absolute bottom-full mb-2 -right-1/2 transform translate-x-1/2 w-48 p-2 text-xs text-center text-white bg-slate-800 dark:bg-slate-900 rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
                 {tooltipText}
                  <svg className="absolute text-slate-800 dark:text-slate-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
@@ -70,6 +70,7 @@ const DueDateIndicator: React.FC<{ dueDate: string | undefined }> = ({ dueDate }
     const isUrgent = isPast(parsedDate) || isToday(parsedDate);
     
     const formattedDate = format(parsedDate, 'd MMM', { locale: arSA });
+    const fullDateTooltip = format(parsedDate, 'eeee, d MMMM yyyy', { locale: arSA });
 
     const icon = isUrgent ? (
       <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -80,11 +81,11 @@ const DueDateIndicator: React.FC<{ dueDate: string | undefined }> = ({ dueDate }
     const textColor = isUrgent ? 'text-amber-600 dark:text-amber-400 font-semibold' : '';
 
     return (
-      <div className="relative group flex items-center space-x-1 rtl:space-x-reverse">
+      <div className="relative group flex items-center space-x-1 rtl:space-x-reverse" title={`تاريخ الاستحقاق: ${fullDateTooltip}`}>
         {icon}
         <span className={textColor}>{formattedDate}</span>
         <div className="absolute bottom-full mb-2 -right-1/2 transform translate-x-1/2 w-max p-2 text-xs text-center text-white bg-slate-800 rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-          تاريخ الاستحقاق: {format(parsedDate, 'eeee, d MMMM yyyy', { locale: arSA })}
+          {`تاريخ الاستحقاق: ${fullDateTooltip}`}
           <svg className="absolute text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
         </div>
       </div>

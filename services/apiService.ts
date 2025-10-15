@@ -70,14 +70,17 @@ export const insertMany = async <T>(client: SupabaseClient, table: string, recor
 
 // Generic update
 export const update = async <T extends { id: any }>(client: SupabaseClient, table: string, id: T['id'], updates: Partial<T>): Promise<T> => {
-    const { data, error } = await client.from(table).update(camelToSnake(updates)).eq('id', id).select().single();
+    // .select() without .single() returns an array of updated records. This is more robust.
+    const { data, error } = await client.from(table).update(camelToSnake(updates)).eq('id', id).select();
+    
     if (error) {
         throw new Error(error.message || `Failed to update record in table "${table}".`);
     }
-    if (!data) {
-        throw new Error(`فشل عملية التحديث في جدول "${table}"، قد يكون السبب متعلقاً بصلاحيات الأمان (RLS).`);
+    if (!data || data.length === 0) {
+        throw new Error(`فشل عملية التحديث في جدول "${table}"، السجل غير موجود أو أن السبب متعلق بصلاحيات الأمان (RLS).`);
     }
-    return snakeToCamel(data) as T;
+    // Return the first record from the array to maintain the function's return type.
+    return snakeToCamel(data[0]) as T;
 };
 
 // Generic delete

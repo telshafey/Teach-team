@@ -83,18 +83,18 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
           const { eventType, new: newRecord, old: oldRecord } = payload;
           const record = api.snakeToCamel(newRecord);
           switch (eventType) {
-              case 'INSERT': setState(prev => [...prev, record]); break;
+              case 'INSERT': setState(prev => prev.some(item => item.id === record.id) ? prev : [...prev, record]); break;
               case 'UPDATE': setState(prev => prev.map(item => item.id === record.id ? record : item)); break;
               case 'DELETE': setState(prev => prev.filter(item => item.id !== oldRecord.id)); break;
           }
       };
 
       const channels = [
-        supabaseClient.channel('public:leave_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, createHandler(setLeaveRequests)).subscribe(),
-        supabaseClient.channel('public:overtime_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'overtime_requests' }, createHandler(setOvertimeRequests)).subscribe(),
-        supabaseClient.channel('public:expense_claims').on('postgres_changes', { event: '*', schema: 'public', table: 'expense_claims' }, createHandler(setExpenseClaims)).subscribe(),
-        supabaseClient.channel('public:work_contract_change_requests').on('postgres_changes', { event: '*', schema: 'public', table: 'work_contract_change_requests' }, createHandler(setWorkContractChangeRequests)).subscribe(),
-        supabaseClient.channel('public:penalties').on('postgres_changes', { event: '*', schema: 'public', table: 'penalties' }, createHandler(setPenalties)).subscribe(),
+        supabaseClient.channel('leave_requests_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, createHandler(setLeaveRequests)).subscribe(),
+        supabaseClient.channel('overtime_requests_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'overtime_requests' }, createHandler(setOvertimeRequests)).subscribe(),
+        supabaseClient.channel('expense_claims_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'expense_claims' }, createHandler(setExpenseClaims)).subscribe(),
+        supabaseClient.channel('work_contract_changes_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'work_contract_change_requests' }, createHandler(setWorkContractChangeRequests)).subscribe(),
+        supabaseClient.channel('penalties_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'penalties' }, createHandler(setPenalties)).subscribe(),
       ];
 
       return () => {
@@ -111,29 +111,35 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const submitLeaveRequest = async (formData: LeaveRequestFormData) => {
     if (!supabaseClient || !currentUser) return;
-    await api.insert(supabaseClient, 'leave_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    const newRequest = await api.insert<LeaveRequest>(supabaseClient, 'leave_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    setLeaveRequests(prev => [...prev, newRequest]);
   };
   const cancelLeaveRequest = async (requestId: string) => {
     if (!supabaseClient) return;
     await api.deleteById(supabaseClient, 'leave_requests', requestId);
+    setLeaveRequests(prev => prev.filter(r => r.id !== requestId));
   };
   const handleUpdateLeaveStatus = async (requestId: string, status: LeaveStatus, notes: string) => {
      if (!supabaseClient) return;
-     await api.update<LeaveRequest>(supabaseClient, 'leave_requests', requestId, { status, managerNotes: notes });
+     const updatedRequest = await api.update<LeaveRequest>(supabaseClient, 'leave_requests', requestId, { status, managerNotes: notes });
+     setLeaveRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
   };
   const submitOvertimeRequest = async (formData: OvertimeRequestFormData) => {
     if (!supabaseClient || !currentUser) return;
-    await api.insert(supabaseClient, 'overtime_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    const newRequest = await api.insert<OvertimeRequest>(supabaseClient, 'overtime_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    setOvertimeRequests(prev => [...prev, newRequest]);
   };
   const cancelOvertimeRequest = async (requestId: string) => {
     if (!supabaseClient) return;
     await api.deleteById(supabaseClient, 'overtime_requests', requestId);
+    setOvertimeRequests(prev => prev.filter(r => r.id !== requestId));
   };
   const handleUpdateOvertimeStatus = async (requestId: string, status: OvertimeStatus, notes: string) => {
      if (!supabaseClient || !currentUser) return;
      const request = overtimeRequests.find(r => r.id === requestId);
      if (!request) return;
-     await api.update<OvertimeRequest>(supabaseClient, 'overtime_requests', requestId, { status, managerNotes: notes });
+     const updatedRequest = await api.update<OvertimeRequest>(supabaseClient, 'overtime_requests', requestId, { status, managerNotes: notes });
+     setOvertimeRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
      await createNotification(supabaseClient, {
         recipientId: request.teamMemberId,
         type: 'overtime_request_resolved',
@@ -142,23 +148,27 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
   const handleSubmitExpenseClaim = async (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => {
     if (!supabaseClient) return;
-    await api.insert(supabaseClient, 'expense_claims', { ...claimData, status: 'pending' });
+    const newClaim = await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', { ...claimData, status: 'pending' });
+    setExpenseClaims(prev => [...prev, newClaim]);
   };
   const handleUpdateExpenseClaimStatus = async (claimId: string, status: ExpenseClaimStatus) => {
     if (!supabaseClient) return;
-    await api.update<ExpenseClaim>(supabaseClient, 'expense_claims', claimId, { status });
+    const updatedClaim = await api.update<ExpenseClaim>(supabaseClient, 'expense_claims', claimId, { status });
+    setExpenseClaims(prev => prev.map(c => c.id === claimId ? updatedClaim : c));
   };
   const submitWorkContractChangeRequest = async (formData: WorkContractChangeRequestFormData) => {
      if (!supabaseClient || !currentUser) return;
      const reqData = { 
         ...formData, 
         teamMemberId: currentUser.id, 
-        status: 'pending',
+        // Fix: Explicitly cast 'pending' to the correct type to resolve TypeScript error.
+        status: 'pending' as WorkContractChangeStatus,
         currentSalary: currentUser.salary,
         currentWeeklyHours: currentUser.weeklyHoursRequirement,
         createdAt: new Date().toISOString()
      };
-     await api.insert(supabaseClient, 'work_contract_change_requests', reqData);
+     const newRequest = await api.insert<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests', reqData);
+     setWorkContractChangeRequests(prev => [...prev, newRequest]);
   };
   const handleUpdateWorkContractChangeRequestStatus = async (requestId: string, status: WorkContractChangeStatus, notes: string, modifiedValues?: { hours: number, salary: number }) => {
     if (!supabaseClient) return;
@@ -167,28 +177,33 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateData.approvedWeeklyHours = modifiedValues.hours;
         updateData.approvedSalary = modifiedValues.salary;
     }
-    await api.update<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests', requestId, updateData);
+    const updatedRequest = await api.update<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests', requestId, updateData);
+    setWorkContractChangeRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
   };
   const handleIssuePenalty = async (formData: PenaltyFormData) => {
     if (!supabaseClient || !currentUser) return;
     const penaltyData = {
         ...formData,
         issuerId: currentUser.id,
-        status: 'pending',
+        // Fix: Explicitly cast 'pending' to the correct type to resolve TypeScript error.
+        status: 'pending' as PenaltyStatus,
         createdAt: new Date().toISOString(),
     };
-    await api.insert(supabaseClient, 'penalties', penaltyData);
+    const newPenalty = await api.insert<Penalty>(supabaseClient, 'penalties', penaltyData);
+    setPenalties(prev => [...prev, newPenalty]);
   };
   const handleUpdatePenaltyStatus = async (penaltyId: string, status: PenaltyStatus, notes: string) => {
     if (!supabaseClient) return;
-    await api.update<Penalty>(supabaseClient, 'penalties', penaltyId, { status, managerNotes: notes });
+    const updatedPenalty = await api.update<Penalty>(supabaseClient, 'penalties', penaltyId, { status, managerNotes: notes });
+    setPenalties(prev => prev.map(p => p.id === penaltyId ? updatedPenalty : p));
   };
     const handleAppealPenalty = async (penaltyId: string, appealReason: string) => {
     if (!supabaseClient || !currentUser) return;
     try {
       const penalty = penalties.find(p => p.id === penaltyId);
       if (penalty && penalty.teamMemberId === currentUser.id) {
-        await api.update<Penalty>(supabaseClient, 'penalties', penaltyId, { status: 'appealed', appealReason });
+        const updatedPenalty = await api.update<Penalty>(supabaseClient, 'penalties', penaltyId, { status: 'appealed', appealReason });
+        setPenalties(prev => prev.map(p => p.id === penaltyId ? updatedPenalty : p));
         addToast('تم تقديم استئناف بنجاح.', 'success');
       } else {
         throw new Error('Penalty not found or you do not have permission to appeal.');

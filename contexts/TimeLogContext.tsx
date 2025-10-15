@@ -50,7 +50,7 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
         const record = api.snakeToCamel(newRecord);
         switch(eventType) {
           case 'INSERT':
-            setDailyLogs(prev => [...prev, record]);
+            setDailyLogs(prev => prev.some(l => l.id === record.id) ? prev : [...prev, record]);
             break;
           case 'UPDATE':
             setDailyLogs(prev => prev.map(log => log.id === record.id ? record : log));
@@ -61,7 +61,7 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
       };
 
-      const channel = supabaseClient.channel('public:daily_logs').on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, handleLogsChange).subscribe();
+      const channel = supabaseClient.channel('daily_logs_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, handleLogsChange).subscribe();
       
       return () => {
         supabaseClient.removeChannel(channel);
@@ -74,7 +74,8 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
   const handleAddDailyLog = async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;
     try {
-        await api.insert(supabaseClient, 'daily_logs', { ...logData, id: crypto.randomUUID() });
+        const newLog = await api.insert<DailyLog>(supabaseClient, 'daily_logs', { ...logData, id: crypto.randomUUID() });
+        setDailyLogs(prev => [...prev, newLog]);
         addToast('تم إضافة السجل بنجاح.', 'success');
     } catch(e: any) {
         addToast(`فشل إضافة السجل: ${e.message}`, 'error'); throw e;
@@ -85,7 +86,8 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!supabaseClient) return;
      try {
         const { id, ...updates } = log;
-        await api.update<DailyLog>(supabaseClient, 'daily_logs', id, updates);
+        const updatedLog = await api.update<DailyLog>(supabaseClient, 'daily_logs', id, updates);
+        setDailyLogs(prev => prev.map(l => l.id === id ? updatedLog : l));
         addToast('تم تعديل السجل بنجاح.', 'success');
     } catch(e: any) {
         addToast(`فشل تعديل السجل: ${e.message}`, 'error'); throw e;
@@ -96,6 +98,7 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!supabaseClient) return;
      try {
         await api.deleteById(supabaseClient, 'daily_logs', logId);
+        setDailyLogs(prev => prev.filter(l => l.id !== logId));
         addToast('تم حذف السجل بنجاح.', 'success');
     } catch(e: any) {
         addToast(`فشل حذف السجل: ${e.message}`, 'error'); throw e;

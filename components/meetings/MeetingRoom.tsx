@@ -1,103 +1,87 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Meeting } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMeetingContext } from '../../contexts/MeetingContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useToast } from '../../contexts/ToastContext';
-import { useNavigation } from '../../contexts/NavigationContext';
-
-declare global {
-    interface Window {
-        JitsiMeetExternalAPI: any;
-    }
-}
 
 interface MeetingRoomProps {
     meeting: Meeting;
 }
 
+const WHEREBY_SUBDOMAIN = 'tech-bokra.whereby.com';
+
 export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting }) => {
-    const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
-    const { addToast } = useToast();
-    const jitsiContainerRef = useRef<HTMLDivElement>(null);
-    const jitsiApiRef = useRef<any>(null);
+    const { handleJoinMeeting } = useMeetingContext();
+    const { siteSettings } = useSettingsContext();
+    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!jitsiContainerRef.current || !currentUser) {
-            return;
+    React.useEffect(() => {
+        if (currentUser) {
+            handleJoinMeeting(meeting.id);
         }
+    }, [meeting.id, currentUser, handleJoinMeeting]);
 
-        const handleLeave = () => {
-            onNavigate('meetings');
-        };
+    const roomUrl = useMemo(() => {
+        if (!currentUser) return '';
 
-        if (typeof window.JitsiMeetExternalAPI === 'undefined') {
-            console.error("Jitsi Meet External API script not loaded.");
-            alert("حدث خطأ أثناء تحميل خدمة الاجتماعات. يرجى المحاولة مرة أخرى.");
-            handleLeave();
-            return;
-        }
-
-        const domain = 'meet.jit.si';
-        const options = {
-            roomName: meeting.jitsiRoomName,
-            width: '100%',
-            height: '100%',
-            parentNode: jitsiContainerRef.current,
-            userInfo: {
-                displayName: currentUser.name,
-                email: currentUser.email,
-                avatarUrl: currentUser.avatarUrl,
-            },
-            configOverwrite: {
-                startWithAudioMuted: false,
-                startWithVideoMuted: false,
-                prejoinPageEnabled: false,
-                lobby: { enable: false },
-            },
-            interfaceConfigOverwrite: {
-                // Hiding some buttons for a cleaner interface
-                TOOLBAR_BUTTONS: [
-                    'microphone', 'camera', 'desktop', 'fullscreen',
-                    'fodeviceselection', 'hangup', 'profile', 'chat',
-                    'recording', 'livestreaming', 'etherpad', 'sharedvideo',
-                    'settings', 'raisehand', 'videoquality', 'filmstrip',
-                    'feedback', 'stats', 'shortcuts', 'tileview',
-                    'videobackgroundblur', 'download', 'help', 'mute-everyone',
-                ],
-            },
-        };
+        const params = new URLSearchParams({
+            displayName: currentUser.name,
+            lang: 'ar',
+            embed: 'true',
+            precallReview: 'off',
+        });
         
-        try {
-            const api = new window.JitsiMeetExternalAPI(domain, options);
-            jitsiApiRef.current = api;
-    
-            api.addEventListener('videoConferenceJoined', () => {
-                addToast(`مرحباً بك ${currentUser?.name}! تم إرسال تذكيرات لبقية المشاركين.`, 'info');
-            });
-            
-            api.addEventListener('videoConferenceLeft', () => {
-                handleLeave();
-            });
-        } catch(error) {
-            console.error("Failed to initialize Jitsi Meet API:", error);
-            alert("فشل في بدء الاجتماع.");
+        const meetingSettings = siteSettings?.meetingSettings;
+        if (meetingSettings) {
+            if (meetingSettings.startWithAudioMuted) params.append('audio', 'off');
+            if (meetingSettings.startWithVideoMuted) params.append('video', 'off');
+            if (meetingSettings.hideChat) params.append('chat', 'off');
+            if (meetingSettings.hidePeople) params.append('people', 'off');
         }
 
+        // Add roomKey if current user is creator and key is available
+        let hostKey = siteSettings?.meetingSettings?.wherebyHostRoomKey;
+        if (currentUser.id === meeting.creatorId && hostKey) {
+            // Robustness: if user pasted the whole URL, extract the key.
+            if (hostKey.includes('?roomKey=')) {
+                try {
+                    const url = new URL(hostKey);
+                    const keyFromUrl = url.searchParams.get('roomKey');
+                    if (keyFromUrl) {
+                        hostKey = keyFromUrl;
+                    }
+                } catch (e) {
+                    // Ignore parsing errors, proceed with the original string
+                    console.warn("Could not parse host room key URL, using it as is.", e);
+                }
+            }
+            params.append('roomKey', hostKey);
+        }
 
-        // Cleanup function
-        return () => {
-            jitsiApiRef.current?.dispose();
-        };
+        return `https://${WHEREBY_SUBDOMAIN}/${meeting.roomName}?${params.toString()}`;
+    }, [currentUser, meeting.roomName, meeting.creatorId, siteSettings?.meetingSettings]);
 
-    }, [meeting, currentUser, onNavigate, addToast]);
 
+    if (!currentUser) {
+        return <p>يجب تسجيل الدخول للانضمام للاجتماع.</p>;
+    }
+    
     return (
-        <div ref={jitsiContainerRef} className="fixed inset-0 bg-slate-900 text-white flex items-center justify-center">
-            <div className="text-center">
-                <LoadingSpinner className="text-sky-500 w-12 h-12" />
-                <p className="mt-4 text-lg">جارٍ الانضمام إلى الاجتماع...</p>
-            </div>
+        <div className="fixed inset-0 bg-slate-900">
+            {isLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white z-10">
+                    <LoadingSpinner className="w-10 h-10 text-sky-400" />
+                    <p className="mt-4 text-lg">جارٍ تحضير غرفة الاجتماع...</p>
+                </div>
+            )}
+            <iframe
+                src={roomUrl}
+                allow="camera; microphone; fullscreen; speaker; display-capture"
+                className={`w-full h-full border-0 ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity'}`}
+                onLoad={() => setIsLoading(false)}
+            ></iframe>
         </div>
     );
 };

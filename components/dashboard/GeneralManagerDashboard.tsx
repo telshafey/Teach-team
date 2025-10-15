@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useRequestsContext } from '../../contexts/RequestsContext';
@@ -7,11 +7,14 @@ import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, PieChartData } from '../ui/Charts';
 import { UsersIcon, FolderIcon, ClipboardDocumentListIcon, ClockIcon } from '../ui/Icons';
-import { ProjectStatus, Meeting } from '../../types';
+import { ProjectStatus, Meeting, Task, TaskFormData } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
-import { isThisWeek, parseISO } from 'date-fns';
+import { isThisWeek, parseISO, isToday } from 'date-fns';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { UnassignedTasksCard } from './UnassignedTasksCard';
+import { TaskFormModal } from '../modals/TaskFormModal';
+import { TodaysFocusCard } from './TodaysFocusCard';
 
 export const GeneralManagerDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
@@ -19,8 +22,11 @@ export const GeneralManagerDashboard: React.FC = () => {
     const { dailyLogs } = useTimeLogContext();
     const { overtimeRequests, leaveRequests, workContractChangeRequests, penalties } = useRequestsContext();
     const { meetings } = useMeetingContext();
-    const { projects, tasks } = useProjectContext();
+    const { projects, tasks, handleUpdateTask } = useProjectContext();
     
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
     const totalHoursLogged = useMemo(() => dailyLogs.reduce((sum, log) => sum + log.hours, 0), [dailyLogs]);
 
     const projectStatusData = useMemo((): PieChartData[] => {
@@ -91,6 +97,13 @@ export const GeneralManagerDashboard: React.FC = () => {
         return pendingTasks + pendingPlans + pendingContracts + pendingOvertime + pendingLeave + pendingContractChanges + pendingPenalties;
     }, [tasks, teamMembers, projects, overtimeRequests, leaveRequests, workContractChangeRequests, penalties]);
 
+    const unassignedTasks = useMemo(() => tasks.filter(t => !t.assignedTo), [tasks]);
+    
+    const { inProgressTasks, dueTodayTasks } = useMemo(() => {
+        const inProgress = tasks.filter(t => t.status === 'inprogress');
+        const dueToday = tasks.filter(t => t.dueDate && isToday(parseISO(t.dueDate)) && t.status !== 'done');
+        return { inProgressTasks: inProgress, dueTodayTasks: dueToday };
+    }, [tasks]);
 
     const handlePieItemClick = (item: PieChartData) => {
         onNavigate('projects', { initialState: { statusFilter: item.label as ProjectStatus } });
@@ -99,6 +112,19 @@ export const GeneralManagerDashboard: React.FC = () => {
     const handleJoinMeeting = (meeting: Meeting) => {
         onNavigate('meetingRoom', { meeting });
     };
+    
+    const handleOpenAssignModal = (task: Task) => {
+        setEditingTask(task);
+        setIsTaskModalOpen(true);
+    };
+
+    const handleSaveTask = async (taskData: TaskFormData) => {
+        if (editingTask) {
+            await handleUpdateTask({ ...editingTask, ...taskData });
+        }
+        // This dashboard doesn't create new tasks, only assigns existing ones.
+    };
+
 
     return (
         <div className="p-6" dir="rtl">
@@ -119,7 +145,9 @@ export const GeneralManagerDashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column (Main) */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card title="إنتاجية الفريق (إجمالي)" icon={<UsersIcon className="w-5 h-5"/>}>
+                    <TodaysFocusCard inProgressTasks={inProgressTasks} dueTodayTasks={dueTodayTasks} />
+                    <UnassignedTasksCard tasks={unassignedTasks} onAssign={handleOpenAssignModal} />
+                    <Card title="إنتاجية الفريق (إجمالي الساعات)" icon={<UsersIcon className="w-5 h-5"/>}>
                         <BarChart title="" data={allTimeProductivityData} />
                     </Card>
                      <Card title="توزيع ساعات المشاريع (الأعلى)" icon={<FolderIcon className="w-5 h-5"/>}>
@@ -152,6 +180,17 @@ export const GeneralManagerDashboard: React.FC = () => {
                     </Card>
                 </div>
             </div>
+            
+            {isTaskModalOpen && (
+                <TaskFormModal 
+                    isOpen={isTaskModalOpen}
+                    onClose={() => setIsTaskModalOpen(false)}
+                    onSave={handleSaveTask}
+                    task={editingTask}
+                    projects={projects}
+                    defaultProjectId={editingTask?.projectId}
+                />
+            )}
         </div>
     );
 };

@@ -13,6 +13,7 @@ import { FreelancerContractsTab } from './FreelancerContractsTab';
 import { ExpenseClaimsTab } from './ExpenseClaimsTab';
 import { SalariesTab } from './SalariesTab';
 import { PenaltiesTab } from './PenaltiesTab';
+import { SalarySlipsTab } from './SalarySlipsTab';
 
 export const FinancePage: React.FC = () => {
     const { handleUpdateMember } = useTeamContext();
@@ -44,6 +45,7 @@ export const FinancePage: React.FC = () => {
         { id: 'expenses', label: 'طلبات الصرف', permission: true },
         { id: 'penalties', label: 'الجزاءات', permission: hasPermission('issue_penalties') || hasPermission('approve_penalties') },
         { id: 'salaries', label: 'الرواتب', permission: hasPermission('view_all_salaries') },
+        { id: 'salary_slips', label: 'قسائم الرواتب', permission: hasPermission('view_all_salaries') },
     ].filter(item => item.permission);
 
 
@@ -75,6 +77,7 @@ export const FinancePage: React.FC = () => {
             {activeTab === 'expenses' && <ExpenseClaimsTab onNewClaim={() => setIsExpenseModalOpen(true)} />}
             {activeTab === 'penalties' && <PenaltiesTab penalties={penalties} onReview={setReviewingItem as (item: Penalty) => void} onNew={() => setIsPenaltyModalOpen(true)} />}
             {activeTab === 'salaries' && <SalariesTab onEdit={setEditingMember} />}
+            {activeTab === 'salary_slips' && <SalarySlipsTab />}
             
             {editingMember && (
                 <SalaryEditModal
@@ -108,4 +111,3 @@ export const FinancePage: React.FC = () => {
         </div>
     );
 };
-

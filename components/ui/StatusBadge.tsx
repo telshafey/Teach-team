@@ -22,7 +22,7 @@ const statusMaps: Record<StatusType, Record<StatusValue, { text: string, classNa
   },
   approval: {
     pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمدة', className: 'text-green-600' },
+    approved: { text: 'معتمدة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
     rejected: { text: 'مرفوضة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
     'needs-adjustment': { text: 'تحتاج تعديل', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' }
   },

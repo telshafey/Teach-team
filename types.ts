@@ -1,26 +1,4 @@
-// --- SETTINGS & CONFIG ---
-
-export interface DatabaseSettings {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-}
-
-export interface SiteSettings {
-  appName: string;
-  logoUrl: string;
-  themeColor: string;
-  currency: string;
-  overtimeRateMultiplier?: number;
-  logEditingDaysLimit?: number;
-  isFinanceModuleEnabled: boolean;
-  isMeetingsModuleEnabled: boolean;
-  isAnalyticsModuleEnabled: boolean;
-  isReportsModuleEnabled: boolean;
-  databaseSettings: DatabaseSettings;
-}
-
-// --- TEAM & ROLES ---
-
+// PERMISSIONS
 export type Permission =
   | 'manage_projects'
   | 'edit_projects'
@@ -49,6 +27,7 @@ export type Permission =
   | 'issue_penalties'
   | 'approve_penalties';
 
+// ROLES & TEAM
 export interface Role {
   id: string;
   name: string;
@@ -57,60 +36,67 @@ export interface Role {
 
 export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
 
+export interface WeeklyPlan {
+    status: PlanStatus;
+    hours: { [key: string]: number };
+}
+
 export interface TeamMember {
   id: number;
-  authUserId?: string;
+  authUserId: string;
   name: string;
   email: string;
-  avatarUrl: string;
   roleId: string;
   reportsTo?: number;
+  avatarUrl: string;
   salary?: number;
   hourlyRate?: number;
   weeklyHoursRequirement?: number;
-  daysOff?: number[];
-  weeklyPlan: {
-    status: PlanStatus;
-    hours: { [key: string]: number };
-  };
+  daysOff: number[];
+  weeklyPlan: WeeklyPlan;
 }
 
 export interface TeamMemberFormData {
-  name?: string;
-  email?: string;
-  password?: string;
-  roleId?: string;
-  reportsTo?: number;
-  avatarUrl?: string;
-  salary?: number;
-  hourlyRate?: number;
-  weeklyHoursRequirement?: number;
-  daysOff?: number[];
+    name?: string;
+    email?: string;
+    password?: string;
+    roleId?: string;
+    reportsTo?: number;
+    avatarUrl?: string;
+    salary?: number;
+    hourlyRate?: number;
+    weeklyHoursRequirement?: number;
+    daysOff?: number[];
 }
 
-// --- PROJECTS & TASKS ---
 
+// PROJECTS & TASKS
 export type ProjectStatus = 'نشط' | 'مكتمل' | 'معلق';
 export type TaskStatus = 'todo' | 'inprogress' | 'done';
-export type ApprovalStatus = 'approved' | 'pending' | 'rejected' | 'needs-adjustment';
-
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'needs-adjustment';
 export type ContractStatus = 'pending' | 'approved' | 'rejected';
-export type BillingType = 'fixed' | 'hourly' | 'per-task';
 
-export type ProjectRole = 'Manager' | 'Member';
-
-export interface ProjectMember {
-  teamMemberId: number;
-  projectRole: ProjectRole;
+export interface SuggestedTask {
+    title: string;
+    suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
 }
 
-export interface FreelancerContract {
-  freelancerId: number;
-  type: BillingType;
-  amount?: number;
-  hourlyRate?: number;
-  status: ContractStatus;
-  notes?: string;
+export interface BillingProposalFormData {
+    type: 'fixed' | 'hourly' | 'per-task';
+    amount?: number;
+    hourlyRate?: number;
+}
+
+export interface FreelancerContract extends BillingProposalFormData {
+    freelancerId: number;
+    status: ContractStatus;
+    notes?: string;
+}
+
+export type ProjectRole = 'Manager' | 'Member';
+export interface ProjectMember {
+    teamMemberId: number;
+    projectRole: ProjectRole;
 }
 
 export interface Project {
@@ -121,9 +107,10 @@ export interface Project {
   budgetHours?: number;
   budgetAmount?: number;
   deadline?: string;
-  budgetNotificationSent?: number;
+  creatorId: number;
+  members: ProjectMember[];
   freelancerContract?: FreelancerContract;
-  members?: ProjectMember[];
+  budgetNotificationSent?: number;
 }
 
 export interface ProjectFormData {
@@ -133,6 +120,26 @@ export interface ProjectFormData {
   budgetHours?: number;
   budgetAmount?: number;
   deadline?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  projectId?: string;
+  assignedTo?: number;
+  dueDate?: string;
+  status: TaskStatus;
+  approvalStatus: ApprovalStatus;
+  approvalNotes?: string;
+  creatorId: number;
+}
+
+export interface TaskFormData {
+  title: string;
+  projectId?: string;
+  assignedTo?: number;
+  dueDate?: string;
+  status: TaskStatus;
 }
 
 export interface TaskAttachment {
@@ -152,160 +159,126 @@ export interface TaskComment {
     timestamp: string;
 }
 
-export interface Task {
-  id: string;
-  title: string;
-  projectId: string;
-  assignedTo?: number;
-  status: TaskStatus;
-  dueDate?: string;
-  approvalStatus: ApprovalStatus;
-  approvalNotes?: string;
-}
-
-export interface TaskFormData {
-  title: string;
-  projectId: string;
-  status: TaskStatus;
-  assignedTo?: number;
-  dueDate?: string;
-}
-
-export interface SuggestedTask {
-  title: string;
-  suggestedRole: 'employee' | 'manager' | 'freelancer' | 'any';
-}
-
-export interface BillingProposalFormData {
-    type: BillingType;
-    amount?: number;
-    hourlyRate?: number;
-}
-
-// --- TIME & LOGS ---
-
+// TIME & LOGS
 export interface DailyLog {
   id: string;
+  teamMemberId: number;
   date: string;
   hours: number;
   description: string;
-  teamMemberId: number;
   projectId?: string;
   taskId?: string;
 }
 
 export interface DailyLogFormData {
-  hours: number;
-  description: string;
-  projectId?: string;
-  taskId?: string;
+    hours: number;
+    description: string;
+    projectId?: string;
+    taskId?: string;
 }
 
-// --- REQUESTS (LEAVE, OVERTIME, EXPENSE) ---
-
+// REQUESTS
 export type LeaveType = 'regular' | 'emergency';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
-
 export interface LeaveRequest {
-    id: string;
-    teamMemberId: number;
-    type: LeaveType;
-    startDate: string;
-    endDate: string;
-    reason: string;
-    status: LeaveStatus;
-    managerNotes?: string;
-    createdAt: string;
+  id: string;
+  teamMemberId: number;
+  type: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: LeaveStatus;
+  managerNotes?: string;
+  createdAt: string;
 }
-
-export interface LeaveRequestFormData {
-    type: LeaveType;
-    startDate: string;
-    endDate: string;
-    reason: string;
-    createdAt: string;
-}
+export type LeaveRequestFormData = Omit<LeaveRequest, 'id' | 'teamMemberId' | 'status' | 'managerNotes'>;
 
 export type OvertimeStatus = 'pending' | 'approved' | 'rejected';
-
 export interface OvertimeRequest {
     id: string;
     teamMemberId: number;
     weekStartDate: string;
     requestedHours: number;
+    projectId?: string;
     status: OvertimeStatus;
     managerNotes?: string;
-    projectId?: string;
 }
-
-export interface OvertimeRequestFormData {
-    weekStartDate: string;
-    requestedHours: number;
-    projectId?: string;
-}
+export type OvertimeRequestFormData = Omit<OvertimeRequest, 'id' | 'teamMemberId' | 'status' | 'managerNotes'>;
 
 export type ExpenseClaimStatus = 'pending' | 'approved' | 'rejected';
-
 export interface ExpenseClaim {
-  id: string;
-  teamMemberId: number;
-  projectId?: string;
-  amount: number;
-  description: string;
-  date: string;
-  status: ExpenseClaimStatus;
+    id: string;
+    teamMemberId: number;
+    amount: number;
+    description: string;
+    date: string;
+    projectId?: string;
+    status: ExpenseClaimStatus;
 }
-
-export interface ExpenseClaimFormData {
-  teamMemberId: number;
-  projectId?: string;
-  amount: number;
-  description: string;
-  date: string;
-}
+export type ExpenseClaimFormData = Omit<ExpenseClaim, 'id' | 'status' | 'teamMemberId'>;
 
 export type WorkContractChangeStatus = 'pending' | 'approved' | 'rejected';
-
 export interface WorkContractChangeRequest {
+    id: string;
+    teamMemberId: number;
+    currentWeeklyHours?: number;
+    currentSalary?: number;
+    requestedWeeklyHours: number;
+    requestedSalary: number;
+    reason: string;
+    status: WorkContractChangeStatus;
+    managerNotes?: string;
+    approvedWeeklyHours?: number;
+    approvedSalary?: number;
+    createdAt: string;
+}
+export type WorkContractChangeRequestFormData = Pick<WorkContractChangeRequest, 'requestedWeeklyHours' | 'requestedSalary' | 'reason'>;
+
+export type PenaltyStatus = 'pending' | 'approved' | 'appealed' | 'rejected';
+export interface Penalty {
+    id: string;
+    teamMemberId: number;
+    issuerId: number;
+    amount: number;
+    reason: string;
+    date: string;
+    status: PenaltyStatus;
+    managerNotes?: string;
+    appealReason?: string;
+    createdAt: string;
+}
+export type PenaltyFormData = Omit<Penalty, 'id' | 'issuerId' | 'status' | 'managerNotes' | 'appealReason' | 'createdAt'>;
+
+export type DecisionItem = Task | Project | TeamMember | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty;
+
+
+// MEETINGS
+export interface Meeting {
   id: string;
-  teamMemberId: number;
-  currentWeeklyHours?: number;
-  requestedWeeklyHours: number;
-  currentSalary?: number;
-  requestedSalary: number;
-  reason: string;
-  status: WorkContractChangeStatus;
-  managerNotes?: string;
-  createdAt: string;
-  // These are set when a manager approves with different values
-  approvedWeeklyHours?: number;
-  approvedSalary?: number;
+  title: string;
+  roomName: string;
+  scheduledTime: string; // ISO string
+  startTime?: string; // ISO string
+  endTime?: string; // ISO string
+  creatorId: number;
+  members: number[];
+  attendees?: number[]; // who actually joined
+  projectId?: string;
 }
 
-export interface WorkContractChangeRequestFormData {
-  requestedWeeklyHours: number;
-  requestedSalary: number;
-  reason: string;
+export interface MeetingFormData {
+  title: string;
+  members: number[];
+  startTime: string;
+  duration: number; // in minutes
+  projectId?: string;
 }
 
-
-// --- MEETINGS & NOTIFICATIONS ---
-
-export type NotificationType = 
-    | 'task_assigned' 
-    | 'task_approval' 
-    | 'budget_alert' 
-    | 'freelancer_assigned' 
-    | 'comment_mention'
-    | 'meeting_scheduled'
-    | 'profile_update'
-    | 'overtime_request_submitted'
-    | 'overtime_request_resolved';
-
+// NOTIFICATIONS
 export interface Notification {
   id: string;
   recipientId: number;
-  type: NotificationType;
+  type: 'task_assigned' | 'task_approval' | 'budget_alert' | 'freelancer_assigned' | 'comment_mention' | 'meeting_scheduled' | 'profile_update' | 'overtime_request_submitted' | 'overtime_request_resolved';
   message?: string;
   taskTitle?: string;
   assignerName?: string;
@@ -317,51 +290,50 @@ export interface Notification {
   timestamp: string;
 }
 
-export interface Meeting {
-  id: string;
-  title: string;
-  scheduledTime: string;
-  members: number[];
-  jitsiRoomName: string;
+
+// SETTINGS
+export interface DatabaseSettings {
+    supabaseUrl: string;
+    supabaseAnonKey: string;
 }
 
-export interface MeetingFormData {
-  title: string;
-  scheduledTime: string;
-  members: number[];
+export interface MeetingSettings {
+    startWithAudioMuted: boolean;
+    startWithVideoMuted: boolean;
+    hideChat: boolean;
+    hidePeople: boolean;
+    defaultMeetingRoom: string;
+    wherebyHostRoomKey?: string;
 }
 
-// --- PENALTIES ---
-
-export type PenaltyStatus = 'pending' | 'approved' | 'appealed' | 'rejected';
-
-export interface Penalty {
-  id: string;
-  teamMemberId: number;
-  issuerId: number;
-  reason: string;
-  amount: number;
-  date: string;
-  status: PenaltyStatus;
-  appealReason?: string;
-  managerNotes?: string;
-  createdAt: string;
+export interface SiteSettings {
+    appName: string;
+    logoUrl: string;
+    themeColor: string;
+    currency: string;
+    overtimeRateMultiplier: number;
+    logEditingDaysLimit: number;
+    isFinanceModuleEnabled: boolean;
+    isMeetingsModuleEnabled: boolean;
+    isAnalyticsModuleEnabled: boolean;
+    isReportsModuleEnabled: boolean;
+    databaseSettings: DatabaseSettings;
+    meetingSettings?: MeetingSettings;
 }
 
-export interface PenaltyFormData {
-  teamMemberId: number;
-  reason: string;
-  amount: number;
-  date: string;
-}
-
-
-// --- MISC ---
-
+// MISC
 export interface GlobalSearchResults {
   projects: Pick<Project, 'id' | 'name'>[];
   tasks: Pick<Task, 'id' | 'title' | 'projectId'>[];
   teamMembers: Pick<TeamMember, 'id' | 'name'>[];
 }
 
-export type DecisionItem = TeamMember | Task | Project | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty;
+export interface SalarySlipData {
+    member: TeamMember;
+    month: Date;
+    baseSalary: number;
+    overtimePay: number;
+    expensesReimbursed: number;
+    penaltiesDeducted: number;
+    netSalary: number;
+}

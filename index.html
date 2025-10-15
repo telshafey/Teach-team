@@ -12,7 +12,6 @@
         darkMode: 'class',
       }
     </script>
-    <script src='https://meet.jit.si/external_api.js'></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
       body {
@@ -22,10 +21,11 @@
         body * {
           visibility: hidden;
         }
-        #print-area, #print-area * {
+        #print-area, #print-area *,
+        #salary-slip-print-area, #salary-slip-print-area * {
           visibility: visible;
         }
-        #print-area {
+        #print-area, #salary-slip-print-area {
           position: absolute;
           left: 0;
           top: 0;

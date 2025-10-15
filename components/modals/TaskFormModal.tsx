@@ -9,7 +9,7 @@ interface TaskFormModalProps {
   onSave: (taskData: TaskFormData) => Promise<void>;
   task: Task | null;
   projects: Project[];
-  defaultProjectId: string;
+  defaultProjectId?: string;
 }
 
 export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, task, projects, defaultProjectId }) => {
@@ -18,7 +18,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    projectId: defaultProjectId,
+    projectId: defaultProjectId || '',
     assignedTo: '',
     dueDate: '',
     status: 'todo' as TaskStatus,
@@ -28,7 +28,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
     if (task) {
       setFormData({
         title: task.title,
-        projectId: task.projectId,
+        projectId: task.projectId || '',
         assignedTo: task.assignedTo?.toString() || '',
         dueDate: task.dueDate || '',
         status: task.status,
@@ -36,7 +36,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
     } else {
       setFormData({
         title: '',
-        projectId: defaultProjectId,
+        projectId: defaultProjectId || '',
         assignedTo: '',
         dueDate: '',
         status: 'todo',
@@ -57,7 +57,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
     try {
         await onSave({
           title: formData.title,
-          projectId: formData.projectId,
+          projectId: formData.projectId || undefined,
           status: formData.status,
           assignedTo: formData.assignedTo ? parseInt(formData.assignedTo) : undefined,
           dueDate: formData.dueDate || undefined,
@@ -81,14 +81,13 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, o
               <input type="text" id="title" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" required />
             </div>
 
-            {projects.length > 1 && (
-              <div>
-                <label htmlFor="projectId" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع</label>
-                <select id="projectId" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-            )}
+            <div>
+              <label htmlFor="projectId" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع</label>
+              <select id="projectId" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
+                <option value="">-- بدون مشروع --</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>

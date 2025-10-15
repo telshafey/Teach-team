@@ -41,7 +41,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (supabaseClient && currentUser) {
       fetchData();
       const channel = supabaseClient
-        .channel(`public:notifications:recipient_id=eq.${currentUser.id}`)
+        .channel(`user-notifications-channel-${currentUser.id}`, { config: { broadcast: { self: true } } })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, () => fetchData())
         .subscribe();
       return () => {
