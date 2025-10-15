@@ -112,6 +112,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (!supabaseClient || !currentUser) return;
       try {
           const newProjectPayload = {
+              id: crypto.randomUUID(),
               ...projectData,
               creatorId: currentUser.id,
               members: [{ teamMemberId: currentUser.id, projectRole: 'Manager' }] as Project['members'],
@@ -120,7 +121,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           setProjects(prev => [...prev, createdProject]);
 
           if (suggestedTasks && suggestedTasks.length > 0) {
-              const newTasks: Omit<Task, 'id'>[] = suggestedTasks.map(st => ({
+              const newTasks: Task[] = suggestedTasks.map(st => ({
+                  id: crypto.randomUUID(),
                   title: st.title,
                   projectId: createdProject.id,
                   status: 'todo',
@@ -167,6 +169,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!supabaseClient || !currentUser) return;
     try {
         const newTaskPayload = {
+            id: crypto.randomUUID(),
             ...taskData,
             creatorId: currentUser.id,
             approvalStatus: 'approved' as ApprovalStatus

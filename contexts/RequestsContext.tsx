@@ -111,7 +111,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const submitLeaveRequest = async (formData: LeaveRequestFormData) => {
     if (!supabaseClient || !currentUser) return;
-    const newRequest = await api.insert<LeaveRequest>(supabaseClient, 'leave_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    const newRequest = await api.insert<LeaveRequest>(supabaseClient, 'leave_requests', { id: crypto.randomUUID(), ...formData, teamMemberId: currentUser.id, status: 'pending' });
     setLeaveRequests(prev => [...prev, newRequest]);
   };
   const cancelLeaveRequest = async (requestId: string) => {
@@ -126,7 +126,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
   const submitOvertimeRequest = async (formData: OvertimeRequestFormData) => {
     if (!supabaseClient || !currentUser) return;
-    const newRequest = await api.insert<OvertimeRequest>(supabaseClient, 'overtime_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
+    const newRequest = await api.insert<OvertimeRequest>(supabaseClient, 'overtime_requests', { id: crypto.randomUUID(), ...formData, teamMemberId: currentUser.id, status: 'pending' });
     setOvertimeRequests(prev => [...prev, newRequest]);
   };
   const cancelOvertimeRequest = async (requestId: string) => {
@@ -148,7 +148,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
   const handleSubmitExpenseClaim = async (claimData: Omit<ExpenseClaim, 'id' | 'status'>) => {
     if (!supabaseClient) return;
-    const newClaim = await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', { ...claimData, status: 'pending' });
+    const newClaim = await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', { id: crypto.randomUUID(), ...claimData, status: 'pending' });
     setExpenseClaims(prev => [...prev, newClaim]);
   };
   const handleUpdateExpenseClaimStatus = async (claimId: string, status: ExpenseClaimStatus) => {
@@ -159,9 +159,9 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const submitWorkContractChangeRequest = async (formData: WorkContractChangeRequestFormData) => {
      if (!supabaseClient || !currentUser) return;
      const reqData = { 
+        id: crypto.randomUUID(),
         ...formData, 
         teamMemberId: currentUser.id, 
-        // Fix: Explicitly cast 'pending' to the correct type to resolve TypeScript error.
         status: 'pending' as WorkContractChangeStatus,
         currentSalary: currentUser.salary,
         currentWeeklyHours: currentUser.weeklyHoursRequirement,
@@ -183,9 +183,9 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const handleIssuePenalty = async (formData: PenaltyFormData) => {
     if (!supabaseClient || !currentUser) return;
     const penaltyData = {
+        id: crypto.randomUUID(),
         ...formData,
         issuerId: currentUser.id,
-        // Fix: Explicitly cast 'pending' to the correct type to resolve TypeScript error.
         status: 'pending' as PenaltyStatus,
         createdAt: new Date().toISOString(),
     };

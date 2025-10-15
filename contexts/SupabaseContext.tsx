@@ -108,6 +108,16 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         (payload as any).id = 1;
     }
 
+    // Manually stringify JSONB fields for upsert, as it may not handle nested objects
+    // as gracefully as insert/update, leading to "invalid input syntax for type json".
+    if (payload.database_settings && typeof payload.database_settings === 'object') {
+      payload.database_settings = JSON.stringify(payload.database_settings);
+    }
+    if (payload.meeting_settings && typeof payload.meeting_settings === 'object') {
+      payload.meeting_settings = JSON.stringify(payload.meeting_settings);
+    }
+
+
     const { error } = await supabaseClient
       .from('site_settings')
       .upsert(payload, { onConflict: 'id' });
