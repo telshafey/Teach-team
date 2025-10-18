@@ -13,7 +13,7 @@ interface LogFormModalProps {
   memberId: number;
   initialData?: {
     hours: number;
-    taskId: string;
+    taskId?: string;
     projectId?: string;
   }
 }
@@ -58,7 +58,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
             hours: initialData.hours.toFixed(2),
             description: '',
             projectId: initialData.projectId || '',
-            taskId: initialData.taskId
+            taskId: initialData.taskId || ''
         });
     } else if (log) {
       setFormData({
@@ -105,16 +105,19 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
     }
   };
   
-  const isFromTimer = !!initialData;
+  const isFromTimer = !!initialData?.taskId;
+  const isPunchOutLog = !!initialData && !initialData.taskId;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">{log ? 'تعديل السجل' : `إضافة سجل ليوم ${date}`}</h2>
+        <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">
+            {log ? 'تعديل السجل' : isPunchOutLog ? 'تسجيل جلسة العمل' : `إضافة سجل ليوم ${date}`}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="hours" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">عدد الساعات</label>
-            <input type="number" step="0.1" id="hours" value={formData.hours} onChange={e => setFormData({...formData, hours: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 read-only:bg-slate-100 dark:read-only:bg-slate-900 read-only:cursor-not-allowed" required readOnly={isFromTimer} />
+            <input type="number" step="0.1" id="hours" value={formData.hours} onChange={e => setFormData({...formData, hours: e.target.value})} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 read-only:bg-slate-100 dark:read-only:bg-slate-900 read-only:cursor-not-allowed" required readOnly={isFromTimer || isPunchOutLog} />
           </div>
           
           <div>
@@ -146,7 +149,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onS
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الوصف</label>
-            <textarea id="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700" required></textarea>
+            <textarea id="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700" required placeholder={isPunchOutLog ? 'ماذا أنجزت خلال هذه الجلسة؟' : ''}></textarea>
           </div>
           <div className="flex justify-end space-x-2 rtl:space-x-reverse pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200">إلغاء</button>

@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const userProfile = await fetchUserProfile(session?.user ?? null);
         setCurrentUser(userProfile);
         if (userProfile) {
-            await refreshCache();
+            refreshCache(); // Don't await, let it run in the background
         }
       } catch (error) {
         console.error("Error during initial session fetch:", error);
@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentUser(userProfile);
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           if (userProfile) {
-            await refreshCache();
+            refreshCache(); // Don't await
           }
         }
         if (event === 'SIGNED_OUT') {

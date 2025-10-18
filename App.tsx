@@ -13,7 +13,8 @@ import { TimeLogProvider } from './contexts/TimeLogContext';
 import { RequestsProvider } from './contexts/RequestsContext';
 import { MeetingProvider } from './contexts/MeetingContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { AppContent, AppBootstrap, StaticLogo } from './AppContent'; // Moved to separate file for clarity
+import { AppContent, AppBootstrap } from './AppContent'; // Moved to separate file for clarity
+import { PunchClockProvider } from './contexts/PunchClockContext';
 
 const App: React.FC = () => {
   return (
@@ -29,7 +30,9 @@ const App: React.FC = () => {
                       <MeetingProvider>
                         <NotificationProvider>
                           <TimeTrackingProvider>
-                            <AppBootstrap />
+                            <PunchClockProvider>
+                              <AppBootstrap />
+                            </PunchClockProvider>
                           </TimeTrackingProvider>
                         </NotificationProvider>
                       </MeetingProvider>

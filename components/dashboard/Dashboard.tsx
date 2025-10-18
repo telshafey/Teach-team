@@ -18,8 +18,10 @@ import { ProfilePage } from '../profile/ProfilePage';
 import { useAuth } from '../../contexts/AuthContext';
 import { NavigationContext } from '../../contexts/NavigationContext';
 import { ActiveTimerBar } from '../shared/ActiveTimerBar';
+import { PunchClockBar } from '../shared/PunchClockBar';
 import { LogFormModal } from '../modals/LogFormModal';
 import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { usePunchClock } from '../../contexts/PunchClockContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { AllTasksPage } from '../tasks/AllTasksPage';
 import { ApprovalsPage } from '../approvals/ApprovalsPage';
@@ -77,6 +79,7 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
 export const Dashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { showLogModalFor, closeLogModal } = useTimeTracking();
+    const { showPunchOutLogModal, closePunchOutLogModal } = usePunchClock();
     const { handleAddDailyLog } = useTimeLogContext();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -120,12 +123,25 @@ export const Dashboard: React.FC = () => {
         closeLogModal();
     };
 
+    const handleSaveLogFromPunchOut = async (logData: any) => {
+        if (!currentUser || !showPunchOutLogModal) return;
+        await handleAddDailyLog({ ...logData, teamMemberId: currentUser.id, date: new Date().toISOString().split('T')[0] });
+        closePunchOutLogModal();
+    };
+
+    const isLogModalOpen = !!showLogModalFor || !!showPunchOutLogModal;
+    const logModalData = showLogModalFor || (showPunchOutLogModal ? { ...showPunchOutLogModal, taskId: '', projectId: '' } : null);
+    const handleModalSave = showLogModalFor ? handleSaveLogFromTimer : handleSaveLogFromPunchOut;
+    const handleModalClose = showLogModalFor ? closeLogModal : closePunchOutLogModal;
+
+
     return (
         <NavigationContext.Provider value={navigationContextValue}>
             <div className="flex h-screen bg-slate-100 dark:bg-slate-900" dir="rtl">
                 <Sidebar currentView={currentView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
                 <div className="flex flex-col flex-1 overflow-hidden">
                     <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+                    <PunchClockBar />
                     <ActiveTimerBar />
                     <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 lg:pb-0">
                         <ComponentToRender {...viewProps} />
@@ -134,15 +150,15 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {showLogModalFor && currentUser && (
+            {isLogModalOpen && currentUser && logModalData && (
                 <LogFormModal
-                    isOpen={!!showLogModalFor}
-                    onClose={closeLogModal}
-                    onSave={handleSaveLogFromTimer}
+                    isOpen={isLogModalOpen}
+                    onClose={handleModalClose}
+                    onSave={handleModalSave}
                     log={null}
                     date={new Date().toISOString().split('T')[0]}
                     memberId={currentUser.id}
-                    initialData={showLogModalFor}
+                    initialData={logModalData}
                 />
             )}
         </NavigationContext.Provider>

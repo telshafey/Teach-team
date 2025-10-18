@@ -16,6 +16,7 @@ import { FolderIcon, PlusIcon, ClockIcon, CalendarDaysIcon, ClipboardDocumentLis
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useMeetingContext } from '../../contexts/MeetingContext';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
+import { usePunchClock } from '../../contexts/PunchClockContext';
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
     <Card className="!p-4">
@@ -30,6 +31,37 @@ const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string |
         </div>
     </Card>
 );
+
+const PunchClockCard: React.FC = () => {
+    const { activePunchIn, handlePunchIn } = usePunchClock();
+    const isCheckedIn = !!activePunchIn;
+
+    return (
+        <Card title="تسجيل الحضور والانصراف" icon={<ClockIcon className="w-5 h-5" />}>
+            <div className="text-center p-4">
+                {isCheckedIn ? (
+                    <div>
+                        <p className="font-semibold text-green-600 dark:text-green-400">أنت مسجل حضورك حاليًا.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            بدأ في: {format(new Date(activePunchIn.startTime), 'p', { locale: arSA })}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-4">يمكنك تسجيل الخروج من الشريط العلوي.</p>
+                    </div>
+                ) : (
+                    <div>
+                        <p className="font-semibold text-slate-600 dark:text-slate-300 mb-4">أنت غير مسجل حضورك حاليًا.</p>
+                        <button 
+                            onClick={handlePunchIn}
+                            className="w-full px-4 py-3 text-lg font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-transform transform hover:scale-105"
+                        >
+                            تسجيل الحضور
+                        </button>
+                    </div>
+                )}
+            </div>
+        </Card>
+    );
+};
 
 
 export const PersonalDashboard: React.FC = () => {
@@ -48,6 +80,7 @@ export const PersonalDashboard: React.FC = () => {
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
     const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
     const myOpenTasks = useMemo(() => myTasks.filter(task => task.status !== 'done'), [myTasks]);
+    const isEmployee = currentUser?.employmentType === 'full-time' || currentUser?.employmentType === 'part-time';
 
     const isDateEditableForLogging = useCallback((date: Date): boolean => {
         if (isFuture(date)) return false;
@@ -146,6 +179,7 @@ export const PersonalDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
+                    {isEmployee && <PunchClockCard />}
                      <Card 
                         title="مهامي المفتوحة" 
                         headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
