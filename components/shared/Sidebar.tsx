@@ -1,6 +1,7 @@
 import React from 'react';
 import { Logo } from '../ui/Logo';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon } from '../ui/Icons';
 import { View } from '../dashboard/Dashboard';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -38,7 +39,8 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, isOpen, setIsOpen }) => {
     const { onNavigate } = useNavigation();
-    const { currentUser, handleLogout, hasPermission } = useAuth();
+    const { currentUser, handleLogout } = useAuth();
+    const { hasPermission } = useTeamContext();
     const { siteSettings } = useSettingsContext();
     
     const canApprove = hasPermission('approve_task_submissions') || hasPermission('approve_weekly_plans') || hasPermission('approve_leave_requests') || hasPermission('approve_overtime') || hasPermission('approve_freelancer_contracts') || hasPermission('approve_expense_claims') || hasPermission('approve_work_contract_changes') || hasPermission('approve_penalties');
@@ -47,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, isOpen, setIsOpen
         { id: 'dashboard', label: 'الرئيسية', icon: <HomeIcon className="w-6 h-6" />, permission: true },
         { id: 'approvals', label: 'الموافقات', icon: <ClipboardDocumentListIcon className="w-6 h-6" />, permission: canApprove },
         { id: 'projects', label: 'المشاريع', icon: <FolderIcon className="w-6 h-6" />, permission: true },
-        { id: 'myTasks', label: 'مهامي', icon: <ClipboardDocumentListIcon className="w-6 h-6" />, permission: true },
+        { id: 'myTasks', label: 'المهام', icon: <ClipboardDocumentListIcon className="w-6 h-6" />, permission: true },
         { id: 'team', label: 'الفريق', icon: <UsersIcon className="w-6 h-6" />, permission: true },
         { id: 'timesheet', label: 'أوقاتي', icon: <ClockIcon className="w-6 h-6" />, permission: true },
         { id: 'analytics', label: 'التحليلات', icon: <ChartBarIcon className="w-6 h-6" />, permission: hasPermission('view_analytics') && siteSettings?.isAnalyticsModuleEnabled },

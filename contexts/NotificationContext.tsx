@@ -1,14 +1,12 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { Notification } from '../types';
-import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
+import * as api from '../services/apiService';
 
 export interface NotificationContextType {
   notifications: Notification[];
-  isLoading: boolean;
   markNotificationAsRead: (notificationId: string) => Promise<void>;
-  fetchData: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -17,55 +15,52 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    if (!supabaseClient || !currentUser) {
-        setIsLoading(false);
-        setNotifications([]);
-        return;
-    };
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabaseClient.from('notifications').select('*').eq('recipient_id', currentUser.id);
-      if (error) throw new Error(error.message);
-      setNotifications(api.snakeToCamel(data) as Notification[]);
-    } catch (error: any) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabaseClient, currentUser]);
 
   useEffect(() => {
-    if (supabaseClient && currentUser) {
-      fetchData();
-      const channel = supabaseClient
-        .channel(`user-notifications-channel-${currentUser.id}`, { config: { broadcast: { self: true } } })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, () => fetchData())
-        .subscribe();
-      return () => {
-        supabaseClient.removeChannel(channel);
-      };
-    } else {
-        setNotifications([]);
-    }
-  }, [supabaseClient, currentUser, fetchData]);
+    if (!supabaseClient || !currentUser) return;
 
-  const markNotificationAsRead = async (notificationId: string) => {
+    const fetchNotifications = async () => {
+      const { data, error } = await supabaseClient
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', currentUser.id)
+        .order('timestamp', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching notifications:', error);
+      } else if (data) {
+        setNotifications(api.keysToCamel(data));
+      }
+    };
+
+    fetchNotifications();
+
+    const channel = supabaseClient
+      .channel(`public:notifications:recipient_id=eq.${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` },
+        (payload) => {
+          const newNotification = api.keysToCamel(payload.new) as Notification;
+          setNotifications(prev => [newNotification, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [supabaseClient, currentUser]);
+
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
     if (!supabaseClient) return;
-    // Optimistic update
-    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
-    try {
-        await api.update<Notification>(supabaseClient, 'notifications', notificationId, { read: true });
-    } catch(e) {
-        // Revert on failure
-        setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: false } : n));
-        console.error("Failed to mark notification as read", e);
-    }
-  };
+    const updatedNotification = await api.update<Notification>(supabaseClient, 'notifications', notificationId, { read: true });
+    setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? updatedNotification : n)
+    );
+  }, [supabaseClient]);
 
-  const value = { notifications, isLoading, markNotificationAsRead, fetchData };
+  const value = { notifications, markNotificationAsRead };
 
   return (
     <NotificationContext.Provider value={value}>

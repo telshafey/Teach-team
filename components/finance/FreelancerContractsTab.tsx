@@ -14,11 +14,11 @@ interface FreelancerContractsTabProps {
 }
 
 export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ onReview }) => {
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
     const { currency } = useSettingsContext();
     const { projects } = useProjectContext();
-    const { currentUser, hasPermission } = useAuth();
+    const { currentUser } = useAuth();
 
     if (currentUser?.roleId === 'freelancer') {
         const myContracts = projects.filter(p => p.freelancerContract?.freelancerId === currentUser.id);
@@ -64,7 +64,6 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ 
         )
     }
     
-    // Manager/GM View
     const projectsWithContracts = projects.filter(p => p.freelancerContract);
     if (projectsWithContracts.length === 0) {
         return <Card><EmptyState title="لا توجد عقود" message="لم يتم إنشاء عقود مع مستقلين بعد." /></Card>

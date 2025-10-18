@@ -1,214 +1,107 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { Meeting, MeetingFormData } from '../types';
-import * as api from '../services/apiService';
 import { useSupabase } from './SupabaseContext';
-import { useToast } from './ToastContext';
-import { createNotification } from '../services/notificationService';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
+import * as api from '../services/apiService';
 import { useSettingsContext } from './SettingsContext';
 
 export interface MeetingContextType {
   meetings: Meeting[];
   isLoading: boolean;
-  handleAddMeeting: (formData: MeetingFormData) => Promise<void>;
+  handleAddMeeting: (meetingData: MeetingFormData) => Promise<void>;
   handleDeleteMeeting: (meetingId: string) => Promise<void>;
   handleJoinMeeting: (meetingId: string) => Promise<void>;
-  fetchData: () => Promise<void>;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 
 export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { supabaseClient } = useSupabase();
-  const { addToast } = useToast();
   const { currentUser } = useAuth();
   const { siteSettings } = useSettingsContext();
+  const { addToast } = useToast();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    if (!supabaseClient || !currentUser) {
-        setMeetings([]);
-        setIsLoading(false);
-        return;
-    }
-    setIsLoading(true);
-    try {
-      const [meetingsRes, participantsRes] = await Promise.all([
-        supabaseClient.from('meetings').select('*'),
-        supabaseClient.from('meeting_participants').select('meeting_id, team_member_id')
-      ]);
-
-      if (meetingsRes.error) throw meetingsRes.error;
-      if (participantsRes.error) throw participantsRes.error;
-
-      const baseMeetings: Omit<Meeting, 'members'>[] = api.snakeToCamel(meetingsRes.data);
-      const participants = participantsRes.data as { meeting_id: string; team_member_id: number }[];
-      
-      const participantsByMeetingId = participants.reduce((acc, p) => {
-          if (!acc[p.meeting_id]) {
-              acc[p.meeting_id] = [];
-          }
-          acc[p.meeting_id].push(p.team_member_id);
-          return acc;
-      }, {} as Record<string, number[]>);
-
-      const meetingsWithMembers = baseMeetings.map(meeting => ({
-          ...meeting,
-          members: participantsByMeetingId[meeting.id] || [],
-      }));
-
-      setMeetings(meetingsWithMembers);
-
-    } catch (error: any) {
-      console.error('Error fetching meetings:', error);
-      addToast('فشل تحميل الاجتماعات.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabaseClient, addToast, currentUser]);
-
   useEffect(() => {
-    if (supabaseClient && currentUser) {
-      fetchData();
-
-      const handleDataChange = () => {
-        // Refetch all meeting data when either meetings or participants change.
-        // This is simpler and more robust for a many-to-many relationship.
-        fetchData();
-      };
-
-      const meetingsChannel = supabaseClient.channel('meetings_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, handleDataChange).subscribe();
-      const participantsChannel = supabaseClient.channel('meeting_participants_channel', { config: { broadcast: { self: true } } }).on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_participants' }, handleDataChange).subscribe();
-      
-      return () => {
-        supabaseClient.removeChannel(meetingsChannel);
-        supabaseClient.removeChannel(participantsChannel);
-      };
-    } else {
-        setMeetings([]);
-    }
-  }, [supabaseClient, currentUser, fetchData]);
-
-  const handleAddMeeting = async (formData: MeetingFormData) => {
     if (!supabaseClient || !currentUser) return;
-    try {
-      const { title, members, startTime, duration, projectId } = formData;
-      const defaultRoom = siteSettings?.meetingSettings?.defaultMeetingRoom;
-      
-      if (!defaultRoom || defaultRoom.trim() === '') {
-          addToast('خطأ: لم يتم تحديد غرفة الاجتماعات الافتراضية في الإعدادات.', 'error');
-          throw new Error('Default meeting room is not configured or is empty.');
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const data = await api.getAll<Meeting>(supabaseClient, 'meetings');
+        setMeetings(data);
+      } catch (error: any) {
+        addToast(`Failed to fetch meetings: ${error.message}`, 'error');
+      } finally {
+        setIsLoading(false);
       }
+    };
+    fetchData();
+  }, [supabaseClient, currentUser, addToast]);
 
-      const roomName = defaultRoom;
-      const meetingId = crypto.randomUUID();
-      
-      const startDate = new Date(startTime);
-      const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+  const handleAddMeeting = useCallback(async (meetingData: MeetingFormData) => {
+    if (!supabaseClient || !currentUser) return;
 
-      // 1. Create meeting record without members array
-      const newMeetingPayload = {
-        id: meetingId,
-        title,
-        roomName,
-        scheduledTime: startDate.toISOString(),
-        startTime: startDate.toISOString(),
-        endTime: endDate.toISOString(),
+    const defaultRoom = siteSettings?.meetingSettings?.defaultMeetingRoom;
+
+    if (!defaultRoom) {
+      addToast('فشل جدولة الاجتماع. لم يتم تكوين غرفة الاجتماعات الافتراضية في الإعدادات.', 'error');
+      throw new Error('Default meeting room not configured.');
+    }
+    
+    const startTime = new Date(meetingData.startTime);
+    const endTime = new Date(startTime.getTime() + meetingData.duration * 60000);
+
+    const newMeetingData = {
+        title: meetingData.title,
+        roomName: defaultRoom,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
         creatorId: currentUser.id,
-        projectId: projectId || null,
-      };
+        members: [...new Set([...meetingData.members, currentUser.id])], // Ensure creator is a member
+        projectId: meetingData.projectId,
+    };
 
-      const { data: createdMeetingData, error: meetingError } = await supabaseClient
-        .from('meetings')
-        .insert(api.camelToSnake(newMeetingPayload))
-        .select()
-        .single();
-      
-      if (meetingError) throw meetingError;
-
-      const createdMeeting = api.snakeToCamel(createdMeetingData);
-
-      // 2. Insert members into the join table
-      if (members && members.length > 0) {
-        const participantsData = members.map(memberId => ({
-            meeting_id: createdMeeting.id,
-            team_member_id: memberId,
-        }));
-        const { error: participantsError } = await supabaseClient
-            .from('meeting_participants')
-            .insert(participantsData);
-        if (participantsError) {
-            console.error("Failed to add participants:", participantsError);
-            addToast('تم إنشاء الاجتماع ولكن فشلت إضافة المشاركين.', 'error');
-        }
-      }
-      
-      // Local state update
-      const newMeetingForState: Meeting = { ...createdMeeting, members: members };
-      setMeetings(prev => [...prev, newMeetingForState]);
-      
-      // 3. Send notifications
-      for (const memberId of members) {
-          if (memberId !== currentUser.id) {
-              await createNotification(supabaseClient, {
-                  recipientId: memberId,
-                  type: 'meeting_scheduled',
-                  taskTitle: title,
-                  assignerName: currentUser.name,
-                  projectId: projectId,
-              });
-          }
-      }
-      addToast('تم جدولة الاجتماع بنجاح.', 'success');
-    } catch (e: any) {
-      addToast(`فشل جدولة الاجتماع: ${e.message}`, 'error'); throw e;
-    }
-  };
-
-  const handleDeleteMeeting = async (meetingId: string) => {
-    if (!supabaseClient) return;
     try {
-      // Deleting from `meetings` should cascade to `meeting_participants` if FK is set up correctly.
-      await api.deleteById(supabaseClient, 'meetings', meetingId);
-      // Local state update
-      setMeetings(prev => prev.filter(m => m.id !== meetingId));
-      addToast('تم حذف الاجتماع بنجاح.', 'success');
-    } catch (e: any) {
-      addToast(`فشل حذف الاجتماع: ${e.message}`, 'error'); throw e;
+        // Use the new RPC function to bypass PostgREST cache issues
+        const newMeeting = await api.callRpcSingle<Meeting>(
+            supabaseClient, 
+            'meetings_insert', 
+            { new_meeting: newMeetingData }
+        );
+        setMeetings(prev => [...prev, newMeeting]);
+        addToast('تم جدولة الاجتماع بنجاح.', 'success');
+    } catch (error: any) {
+        console.error("Failed to add meeting via RPC:", error);
+        addToast(`فشل جدولة الاجتماع: ${error.message}`, 'error');
+        throw error;
     }
-  };
+  }, [supabaseClient, currentUser, siteSettings, addToast]);
 
-  const handleJoinMeeting = async (meetingId: string) => {
+  const handleDeleteMeeting = useCallback(async (meetingId: string) => {
+    if (!supabaseClient) return;
+    await api.deleteById(supabaseClient, 'meetings', meetingId);
+    setMeetings(prev => prev.filter(m => m.id !== meetingId));
+    addToast('تم حذف الاجتماع بنجاح.', 'success');
+  }, [supabaseClient, addToast]);
+
+  const handleJoinMeeting = useCallback(async (meetingId: string) => {
     if (!supabaseClient || !currentUser) return;
-
     const meeting = meetings.find(m => m.id === meetingId);
     if (!meeting) return;
 
     const currentAttendees = meeting.attendees || [];
-    if (currentAttendees.includes(currentUser.id)) {
-        return; // Already recorded
-    }
-
-    const newAttendees = [...currentAttendees, currentUser.id];
-    
-    try {
-        const updatedMeeting = { ...meeting, attendees: newAttendees };
+    if (!currentAttendees.includes(currentUser.id)) {
+        const updatedAttendees = [...currentAttendees, currentUser.id];
+        const updatedMeeting = await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: updatedAttendees });
         setMeetings(prev => prev.map(m => m.id === meetingId ? updatedMeeting : m));
-        await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: newAttendees });
-    } catch (error: any) {
-        setMeetings(prev => prev.map(m => m.id === meetingId ? meeting : m));
-        console.error("Failed to record attendance:", error.message);
     }
-  };
+  }, [supabaseClient, currentUser, meetings]);
 
-  const value = { meetings, isLoading, handleAddMeeting, handleDeleteMeeting, handleJoinMeeting, fetchData };
+  const value = { meetings, isLoading, handleAddMeeting, handleDeleteMeeting, handleJoinMeeting };
 
-  return (
-    <MeetingContext.Provider value={value}>
-      {children}
-    </MeetingContext.Provider>
-  );
+  return <MeetingContext.Provider value={value}>{children}</MeetingContext.Provider>;
 };
 
 export const useMeetingContext = () => {

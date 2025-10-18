@@ -11,9 +11,8 @@ interface SalariesTabProps {
 }
 
 export const SalariesTab: React.FC<SalariesTabProps> = ({ onEdit }) => {
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission } = useTeamContext();
     const { currency } = useSettingsContext();
-    const { hasPermission } = useAuth();
     
     return (
         <Card>

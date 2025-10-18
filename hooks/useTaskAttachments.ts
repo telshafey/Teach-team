@@ -12,15 +12,11 @@ export const useTaskAttachments = (
 
     const handleAddTaskAttachment = useCallback(async (attachmentData: Omit<TaskAttachment, 'id'>) => {
         if (!supabaseClient) throw new Error("Supabase client not available");
-        const tempId = crypto.randomUUID();
-        const newAttachment: TaskAttachment = { id: tempId, ...attachmentData };
-        setTaskAttachments(prev => [...prev, newAttachment]);
         try {
-            const createdAttachment = await api.insert<TaskAttachment>(supabaseClient, 'task_attachments', { ...attachmentData, id: crypto.randomUUID() });
-            setTaskAttachments(prev => prev.map(a => a.id === tempId ? createdAttachment : a));
+            const createdAttachment = await api.insert<TaskAttachment>(supabaseClient, 'task_attachments', attachmentData);
+            setTaskAttachments(prev => [...prev, createdAttachment]);
             return createdAttachment;
         } catch (e: any) {
-            setTaskAttachments(prev => prev.filter(a => a.id !== tempId));
             addToast(`فشل حفظ المرفق: ${e.message}`, 'error');
             throw e;
         }

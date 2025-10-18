@@ -16,9 +16,9 @@ import { PenaltiesTab } from './PenaltiesTab';
 import { SalarySlipsTab } from './SalarySlipsTab';
 
 export const FinancePage: React.FC = () => {
-    const { handleUpdateMember } = useTeamContext();
+    const { handleUpdateMember, hasPermission } = useTeamContext();
     const { penalties, handleIssuePenalty, handleSubmitExpenseClaim } = useRequestsContext();
-    const { hasPermission, currentUser } = useAuth();
+    const { currentUser } = useAuth();
     
     const getDefaultTab = () => {
         if (currentUser?.roleId === 'freelancer') return 'freelancer';

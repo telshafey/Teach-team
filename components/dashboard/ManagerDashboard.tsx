@@ -6,148 +6,127 @@ import { useMeetingContext } from '../../contexts/MeetingContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { BarChart } from '../ui/Charts';
-import { UsersIcon, ClipboardDocumentListIcon, FolderIcon } from '../ui/Icons';
-import { Meeting, Task, TaskFormData } from '../../types';
+import { Meeting, Task } from '../../types';
 import { EmptyState } from '../ui/EmptyState';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { UnassignedTasksCard } from './UnassignedTasksCard';
-import { TaskFormModal } from '../modals/TaskFormModal';
+import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { PlusIcon, UsersIcon, ClockIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, BellIcon } from '../ui/Icons';
+import { usePendingApprovals } from '../../hooks/usePendingApprovals';
+import { isToday, parseISO, isPast, isSameDay } from 'date-fns';
+import { ApprovalItemCard } from '../approvals/ApprovalItemCard';
 
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
+    <Card className="!p-4">
+        <div className="flex items-center">
+            <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
+            <div className="mr-4 rtl:mr-0 rtl:ml-4">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
+            </div>
+        </div>
+    </Card>
+);
 
 export const ManagerDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, visibleMemberIds } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
-    const { overtimeRequests, leaveRequests, workContractChangeRequests, penalties } = useRequestsContext();
     const { meetings } = useMeetingContext();
     const { projects, tasks, handleUpdateTask } = useProjectContext();
+    const { pendingItems } = usePendingApprovals();
 
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-
-    const myTeam = useMemo(() => {
-        if (!currentUser) return [];
-        return teamMembers.filter(m => m.reportsTo === currentUser.id);
-    }, [teamMembers, currentUser]);
-
+    const [taskForModal, setTaskForModal] = useState<Task | null>(null);
+    
+    // Manager's team is everyone they are responsible for, excluding themself.
+    const myTeam = useMemo(() => teamMembers.filter(m => m.id !== currentUser?.id), [teamMembers, currentUser]);
     const myTeamIds = useMemo(() => myTeam.map(m => m.id), [myTeam]);
 
-    const myTeamTasks = useMemo(() => {
-        return tasks.filter(t => t.assignedTo && myTeamIds.includes(t.assignedTo));
-    }, [tasks, myTeamIds]);
-    
     const myProjects = useMemo(() => {
-        if (!currentUser) return [];
-        // A manager's projects are any project they are a member of, or any project their team members have tasks in.
-        const teamProjectIds = new Set(tasks.filter(t => t.assignedTo && myTeamIds.includes(t.assignedTo)).map(t => t.projectId));
-        const myProjectIds = new Set(projects.filter(p => p.members.some(m => m.teamMemberId === currentUser.id)).map(p => p.id));
-        const allRelevantIds = new Set([...teamProjectIds, ...myProjectIds]);
-        return projects.filter(p => allRelevantIds.has(p.id));
-    }, [projects, tasks, myTeamIds, currentUser]);
+        return projects.filter(p => p.members?.some(m => visibleMemberIds.has(m.teamMemberId)));
+    }, [projects, visibleMemberIds]);
 
-    const meetingsForMyTeam = useMemo(() => {
-        if (!currentUser) return [];
-        const allMyTeamIds = [...myTeamIds, currentUser.id];
-        return meetings.filter(m => m.members.some(memberId => allMyTeamIds.includes(memberId)));
-    }, [meetings, myTeamIds, currentUser]);
-
-    const totalPendingApprovals = useMemo(() => {
-        const pendingTasks = myTeamTasks.filter(t => t.approvalStatus === 'pending').length;
-        const pendingPlans = myTeam.filter(m => m.weeklyPlan.status === 'pending').length;
-        const pendingOvertime = overtimeRequests.filter(r => r.status === 'pending' && myTeamIds.includes(r.teamMemberId)).length;
-        const pendingLeave = leaveRequests.filter(r => r.status === 'pending' && myTeamIds.includes(r.teamMemberId)).length;
-        const pendingContractChanges = workContractChangeRequests.filter(r => r.status === 'pending' && myTeamIds.includes(r.teamMemberId)).length;
-        const pendingPenalties = penalties.filter(p => p.status === 'pending' && myTeamIds.includes(p.teamMemberId)).length;
-        return pendingTasks + pendingPlans + pendingOvertime + pendingLeave + pendingContractChanges + pendingPenalties;
-    }, [myTeamTasks, myTeam, overtimeRequests, leaveRequests, workContractChangeRequests, penalties, myTeamIds]);
-
-
-    const teamProductivityData = useMemo(() => {
-        return myTeam.map(member => ({
-            label: member.name,
-            value: dailyLogs.filter(log => log.teamMemberId === member.id).reduce((sum, log) => sum + log.hours, 0)
-        })).sort((a, b) => b.value - a.value).slice(0, 10);
-    }, [myTeam, dailyLogs]);
+    const { teamHoursToday, overdueTasksCount } = useMemo(() => {
+        const now = new Date();
+        const teamLogsToday = dailyLogs.filter(l => visibleMemberIds.has(l.teamMemberId) && isSameDay(parseISO(l.date), now));
+        const teamTasks = tasks.filter(t => t.assignedTo && visibleMemberIds.has(t.assignedTo));
+        return {
+            teamHoursToday: teamLogsToday.reduce((sum, l) => sum + l.hours, 0),
+            overdueTasksCount: teamTasks.filter(t => t.status !== 'done' && t.dueDate && isPast(parseISO(t.dueDate)) && !isToday(parseISO(t.dueDate))).length
+        };
+    }, [dailyLogs, tasks, visibleMemberIds]);
     
     const unassignedTasksInMyProjects = useMemo(() => {
         const myProjectIds = new Set(myProjects.map(p => p.id));
         return tasks.filter(t => !t.assignedTo && t.projectId && myProjectIds.has(t.projectId));
     }, [tasks, myProjects]);
     
-    const handleJoinMeeting = (meeting: Meeting) => {
-        onNavigate('meetingRoom', { meeting });
-    };
+    const handleJoinMeeting = (meeting: Meeting) => onNavigate('meetingRoom', { meeting });
 
-    const handleOpenAssignModal = (task: Task) => {
-        setEditingTask(task);
-        setIsTaskModalOpen(true);
+    const handleSaveTask = async (taskData: Partial<Task>) => {
+        if (taskForModal) await handleUpdateTask({ ...taskForModal, ...taskData });
     };
-
-    const handleSaveTask = async (taskData: TaskFormData) => {
-        if (editingTask) {
-            await handleUpdateTask({ ...editingTask, ...taskData });
-        }
-    };
-
 
     return (
         <div className="p-6" dir="rtl">
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">لوحة تحكم المدير</h2>
-                <p className="text-md text-slate-500 dark:text-slate-400">مرحباً {currentUser?.name}، إليك نظرة على فريقك والموافقات المعلقة.</p>
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                 <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">لوحة تحكم المدير</h2>
+                    <p className="text-md text-slate-500 dark:text-slate-400">مرحباً {currentUser?.name}، إليك نظرة على فريقك.</p>
+                </div>
+                <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
+                    <button onClick={() => onNavigate('approvals')} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
+                        <ClipboardDocumentListIcon className="w-5 h-5"/><span>عرض الموافقات</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                <StatCard icon={<BellIcon className="w-8 h-8 text-sky-500"/>} label="موافقات معلقة" value={pendingItems.length} />
+                <StatCard icon={<ClockIcon className="w-8 h-8 text-indigo-500"/>} label="ساعات الفريق اليوم" value={teamHoursToday.toFixed(1)} />
+                <StatCard icon={<ExclamationTriangleIcon className="w-8 h-8 text-amber-500"/>} label="مهام متأخرة" value={overdueTasksCount} />
+                <StatCard icon={<ClipboardDocumentListIcon className="w-8 h-8 text-green-500"/>} label="مهام غير مسندة" value={unassignedTasksInMyProjects.length} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                     <UnassignedTasksCard tasks={unassignedTasksInMyProjects} onAssign={handleOpenAssignModal} />
-                    <Card title="مشاريع فريقي" icon={<FolderIcon className="w-5 h-5"/>}>
-                         {myProjects.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {myProjects.map(p => (
-                                    <div key={p.id} onClick={() => onNavigate('projectDetail', { projectId: p.id })} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
-                                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{p.name}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">الحالة: {p.status}</p>
+                     <Card title="نشاط الفريق الحالي" icon={<UsersIcon className="w-5 h-5"/>}>
+                         <div className="space-y-3">
+                             {myTeam.map(member => {
+                                const memberTasks = tasks.filter(t => t.assignedTo === member.id && t.status === 'inprogress');
+                                return (
+                                <div key={member.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+                                    <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                                        <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full"/>
+                                        <div>
+                                            <p className="font-semibold text-sm">{member.name}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">{memberTasks.length > 0 ? `يعمل على: ${memberTasks[0].title}` : 'لا توجد مهام نشطة'}</p>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                         ) : (
-                             <EmptyState icon={<FolderIcon className="w-8 h-8"/>} title="لا توجد مشاريع" message="لم يتم إسناد مهام لأعضاء فريقك في أي مشروع بعد." />
-                         )}
-                    </Card>
-                    <Card title="إنتاجية الفريق" icon={<UsersIcon className="w-5 h-5"/>}>
-                        <BarChart title="" data={teamProductivityData} />
-                    </Card>
+                                </div>
+                                )
+                             })}
+                         </div>
+                     </Card>
+                     <UnassignedTasksCard tasks={unassignedTasksInMyProjects} onAssign={setTaskForModal} />
                 </div>
                 <div className="lg:col-span-1 space-y-6">
-                     <UpcomingMeetingsCard title="اجتماعات الفريق القادمة" meetings={meetingsForMyTeam} onJoinMeeting={handleJoinMeeting} />
-                    <Card 
-                        title="الموافقات المعلقة" 
-                        icon={<ClipboardDocumentListIcon className="w-5 h-5"/>}
-                        headerActions={totalPendingApprovals > 0 ? <button onClick={() => onNavigate('approvals')} className="text-sm font-semibold text-sky-600">عرض الكل</button> : null}
-                    >
-                        {totalPendingApprovals > 0 ? (
-                            <div className="text-center py-4 cursor-pointer" onClick={() => onNavigate('approvals')}>
-                                <p className="text-4xl font-bold text-sky-600 dark:text-sky-400">{totalPendingApprovals}</p>
-                                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">طلبات بانتظار المراجعة</p>
-                            </div>
-                        ) : (
-                            <EmptyState icon={<ClipboardDocumentListIcon className="w-8 h-8"/>} title="لا توجد موافقات" message="لا توجد طلبات معلقة للمراجعة حاليًا." />
-                        )}
+                    <Card title="موافقات بانتظارك" headerActions={<a onClick={() => onNavigate('approvals')} className="text-sm font-semibold text-sky-600 cursor-pointer">عرض الكل</a>}>
+                        <div className="space-y-2">
+                            {pendingItems.slice(0, 5).map((item, i) => <ApprovalItemCard key={(item as any).id || i} item={item} onReview={() => onNavigate('approvals')} />)}
+                            {pendingItems.length === 0 && <EmptyState icon={<ClipboardDocumentListIcon className="w-8 h-8"/>} title="لا توجد موافقات" message="كل شيء على ما يرام." />}
+                        </div>
                     </Card>
+                    <UpcomingMeetingsCard title="اجتماعات الفريق القادمة" meetings={meetings} onJoinMeeting={handleJoinMeeting} />
                 </div>
             </div>
 
-             {isTaskModalOpen && (
-                <TaskFormModal 
-                    isOpen={isTaskModalOpen}
-                    onClose={() => setIsTaskModalOpen(false)}
-                    onSave={handleSaveTask}
-                    task={editingTask}
-                    projects={projects}
-                    defaultProjectId={editingTask?.projectId}
+             {taskForModal && (
+                <TaskDetailModal 
+                    isOpen={!!taskForModal} onClose={() => setTaskForModal(null)} task={taskForModal}
+                    onSave={handleSaveTask} initialMode="edit"
                 />
             )}
         </div>

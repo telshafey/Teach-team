@@ -21,8 +21,10 @@ import { ActiveTimerBar } from '../shared/ActiveTimerBar';
 import { LogFormModal } from '../modals/LogFormModal';
 import { useTimeTracking } from '../../contexts/TimeTrackingContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { MyTasksPage } from '../tasks/MyTasksPage';
+import { AllTasksPage } from '../tasks/AllTasksPage';
 import { ApprovalsPage } from '../approvals/ApprovalsPage';
+import { AuthPage } from '../auth/AuthPage';
+import { BottomNavBar } from './BottomNavBar';
 
 
 export type View =
@@ -44,17 +46,19 @@ export type View =
   | 'database' // from settings
   | 'profile';
 
+const DashboardContent = () => {
+    const { currentUser } = useAuth();
+    if (currentUser?.roleId === 'gm') return <GeneralManagerDashboard />;
+    if (currentUser?.roleId === 'manager') return <ManagerDashboard />;
+    return <PersonalDashboard />;
+};
+
 const componentMap: { [key in View]: React.ComponentType<any> } = {
-    dashboard: () => {
-        const { currentUser } = useAuth();
-        if (currentUser?.roleId === 'gm') return <GeneralManagerDashboard />;
-        if (currentUser?.roleId === 'manager') return <ManagerDashboard />;
-        return <PersonalDashboard />;
-    },
+    dashboard: DashboardContent,
     approvals: ApprovalsPage,
     projects: ProjectsPage,
     projectDetail: ProjectDetailPage,
-    myTasks: MyTasksPage,
+    myTasks: AllTasksPage, // Use the new AllTasksPage
     team: TeamManagementPage,
     teamDetail: TeamManagementPage, // same component, different initial state
     timesheet: TimeSheetPage,
@@ -72,7 +76,7 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
 
 export const Dashboard: React.FC = () => {
     const { currentUser } = useAuth();
-    const { activeTimer, showLogModalFor, closeLogModal } = useTimeTracking();
+    const { showLogModalFor, closeLogModal } = useTimeTracking();
     const { handleAddDailyLog } = useTimeLogContext();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -101,6 +105,10 @@ export const Dashboard: React.FC = () => {
     
     const ComponentToRender = componentMap[currentView] || componentMap.dashboard;
 
+    if (!currentUser) {
+        return <AuthPage />;
+    }
+
     // The MeetingRoom component needs to take over the whole screen
     if (currentView === 'meetingRoom') {
         return <MeetingRoom {...viewProps} />;
@@ -119,9 +127,10 @@ export const Dashboard: React.FC = () => {
                 <div className="flex flex-col flex-1 overflow-hidden">
                     <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
                     <ActiveTimerBar />
-                    <main className="flex-1 overflow-x-hidden overflow-y-auto">
+                    <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 lg:pb-0">
                         <ComponentToRender {...viewProps} />
                     </main>
+                    <BottomNavBar currentView={currentView} onNavigate={handleNavigate} />
                 </div>
             </div>
 

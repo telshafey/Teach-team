@@ -62,26 +62,31 @@ export const ProfileSidebar: React.FC = () => {
                 </div>
 
                  <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4 space-y-3">
-                    {currentUser.salary != null && (
-                        <div className="flex items-center text-sm">
-                            <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
-                            <span className="font-medium text-slate-600 dark:text-slate-300">الراتب الشهري:</span>
-                            <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.salary.toLocaleString()} {currency}</span>
-                        </div>
-                    )}
-                    {currentUser.weeklyHoursRequirement != null && (
-                        <div className="flex items-center text-sm">
-                            <ClockIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
-                            <span className="font-medium text-slate-600 dark:text-slate-300">ساعات العمل الأسبوعية:</span>
-                            <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.weeklyHoursRequirement} ساعة</span>
-                        </div>
-                    )}
-                    {currentUser.hourlyRate != null && (
-                        <div className="flex items-center text-sm">
-                            <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
-                            <span className="font-medium text-slate-600 dark:text-slate-300">سعر الساعة:</span>
-                            <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.hourlyRate.toLocaleString()} {currency}</span>
-                        </div>
+                    {currentUser.employmentType === 'freelancer' ? (
+                        currentUser.hourlyRate != null && (
+                            <div className="flex items-center text-sm">
+                                <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
+                                <span className="font-medium text-slate-600 dark:text-slate-300">سعر الساعة:</span>
+                                <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.hourlyRate.toLocaleString()} {currency}</span>
+                            </div>
+                        )
+                    ) : (
+                        <>
+                            {currentUser.salary != null && (
+                                <div className="flex items-center text-sm">
+                                    <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
+                                    <span className="font-medium text-slate-600 dark:text-slate-300">الراتب الشهري:</span>
+                                    <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.salary.toLocaleString()} {currency}</span>
+                                </div>
+                            )}
+                            {currentUser.weeklyHoursRequirement != null && (
+                                <div className="flex items-center text-sm">
+                                    <ClockIcon className="w-5 h-5 text-slate-400 ml-2 rtl:ml-0 rtl:mr-2" />
+                                    <span className="font-medium text-slate-600 dark:text-slate-300">ساعات العمل الأسبوعية:</span>
+                                    <span className="mr-auto font-bold text-slate-800 dark:text-slate-100">{currentUser.weeklyHoursRequirement} ساعة</span>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 

@@ -16,9 +16,8 @@ interface PenaltiesTabProps {
 }
 
 export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({ penalties, onReview, onNew }) => {
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission } = useTeamContext();
     const { currency } = useSettingsContext();
-    const { hasPermission } = useAuth();
     const [statusFilter, setStatusFilter] = useState<'all' | PenaltyStatus>('all');
 
     const filteredPenalties = useMemo(() => {

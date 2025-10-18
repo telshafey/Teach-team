@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon } from '../ui/Icons';
 import { fileToBase64 } from '../../utils/files';
 import { scanReceipt } from '../../services/geminiService';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 
 interface ExpenseClaimFormModalProps {
@@ -19,7 +20,8 @@ interface ExpenseClaimFormModalProps {
 
 export const ExpenseClaimFormModal: React.FC<ExpenseClaimFormModalProps> = ({ isOpen, onClose, onSave }) => {
   const { projects } = useProjectContext();
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser } = useAuth();
+  const { hasPermission } = useTeamContext();
   const { addToast } = useToast();
 
   const [isSaving, setIsSaving] = useState(false);

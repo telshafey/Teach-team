@@ -1,10 +1,11 @@
 import React from 'react';
 import { DecisionItem } from '../../types';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember } from '../../utils/typeGuards';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 interface ApprovalItemCardProps {
     item: DecisionItem;
@@ -14,6 +15,7 @@ interface ApprovalItemCardProps {
 export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = ({ item, onReview }) => {
     const { teamMembers } = useTeamContext();
     const { projects } = useProjectContext();
+    const { currency } = useSettingsContext();
     
     let title = 'طلب غير معروف';
     let details = '';
@@ -37,6 +39,10 @@ export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = ({ item, onRevi
         const member = teamMembers.find(m => m.id === item.teamMemberId);
         title = `طلب إجازة`;
         details = `بواسطة ${member?.name || 'غير معروف'}, من ${format(parseISO(item.startDate), 'd MMM', { locale: arSA })} إلى ${format(parseISO(item.endDate), 'd MMM', { locale: arSA })}`;
+    } else if (isExpenseClaim(item)) {
+        const member = teamMembers.find(m => m.id === item.teamMemberId);
+        title = `طلب صرف`;
+        details = `بواسطة ${member?.name || 'غير معروف'}, مبلغ ${item.amount} ${currency}`;
     } else if (isWorkContractChangeRequest(item)) {
         const member = teamMembers.find(m => m.id === item.teamMemberId);
         title = `طلب تعديل عقد عمل`;

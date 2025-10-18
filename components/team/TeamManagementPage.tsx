@@ -1,136 +1,120 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { TeamMember, TeamMemberFormData } from '../../types';
-import { TeamTreeView } from './TeamTreeView';
-import { TeamMemberDetailPage } from './TeamMemberDetailPage';
+import { TeamMember, Role, TeamMemberFormData } from '../../types';
 import { Card } from '../ui/Card';
-import { PlusIcon, UserPlusIcon } from '../ui/Icons';
+import { TeamOrgChart } from './TeamOrgChart';
+import { TeamMemberDetailPage } from './TeamMemberDetailPage';
 import { TeamMemberFormModal } from '../modals/TeamMemberFormModal';
+import { PlusIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
+import { useToast } from '../../contexts/ToastContext';
 
 interface TeamManagementPageProps {
-    initialMemberId?: number;
+  initialMemberId?: number;
 }
 
 export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialMemberId }) => {
-    const { teamMembers, handleAddMember, handleUpdateMember } = useTeamContext();
-    const { currentUser, hasPermission } = useAuth();
-    
-    const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialMemberId || null);
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const { teamMembers: allTeamMembers, roles, handleAddMember, handleUpdateMember, handleDeleteMember, hasPermission, visibleMemberIds } = useTeamContext();
+  const { addToast } = useToast();
 
-    useEffect(() => {
-        if (initialMemberId) {
-            setSelectedMemberId(initialMemberId);
-        } else if (currentUser && (currentUser.roleId === 'employee' || currentUser.roleId === 'freelancer')) {
-            // Default to selecting self if user is not a manager
-            setSelectedMemberId(currentUser.id);
-        }
-    }, [initialMemberId, currentUser]);
-    
-    const visibleTeam = useMemo(() => {
-        if (!currentUser) return { visibleMembers: [], rootMembers: [] };
+  const visibleTeamMembers = useMemo(() => {
+    return allTeamMembers.filter(m => visibleMemberIds.has(m.id));
+  }, [allTeamMembers, visibleMemberIds]);
+  
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialMemberId || (visibleTeamMembers.length > 0 ? visibleTeamMembers.find(m => !m.reportsTo)?.id ?? visibleTeamMembers[0].id : null));
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-        // GM sees everyone
-        if (currentUser.roleId === 'gm') {
-            const memberIds = new Set(teamMembers.map(m => m.id));
-            const roots = teamMembers.filter(m => !m.reportsTo || !memberIds.has(m.reportsTo));
-            return { visibleMembers: teamMembers, rootMembers: roots };
-        }
+  const canManageTeam = hasPermission('manage_team');
+  const canEditMembers = hasPermission('edit_team_members');
 
-        // Manager sees themself and their reports (direct and indirect)
-        if (currentUser.roleId === 'manager') {
-            const managedTeam: TeamMember[] = [];
-            const findReports = (managerId: number) => {
-                const directReports = teamMembers.filter(m => m.reportsTo === managerId);
-                for (const report of directReports) {
-                    managedTeam.push(report);
-                    findReports(report.id); // Recursively find reports of reports
-                }
-            };
+  const selectedMember = useMemo(() => {
+    // A member can be selected even if not in the visible list (e.g., via search), so search all members
+    return allTeamMembers.find(m => m.id === selectedMemberId);
+  }, [allTeamMembers, selectedMemberId]);
 
-            findReports(currentUser.id);
-            const visible = [currentUser, ...managedTeam];
-            const roots = [currentUser]; // The manager is the root of their own tree
-            
-            return { visibleMembers: visible, rootMembers: roots };
-        }
+  const selectedMemberRole = useMemo(() => {
+    if (!selectedMember) return undefined;
+    return roles.find(r => r.id === selectedMember.roleId);
+  }, [roles, selectedMember]);
 
-        // Employee/Freelancer sees only themself
-        return { visibleMembers: [currentUser], rootMembers: [currentUser] };
+  const selectedMemberManager = useMemo(() => {
+    if (!selectedMember || !selectedMember.reportsTo) return undefined;
+    return allTeamMembers.find(m => m.id === selectedMember.reportsTo);
+  }, [allTeamMembers, selectedMember]);
 
-    }, [currentUser, teamMembers]);
-    
-    const selectedMember = useMemo(() => {
-        // Ensure the selected member is within the visible team
-        return visibleTeam.visibleMembers.find(m => m.id === selectedMemberId);
-    }, [visibleTeam.visibleMembers, selectedMemberId]);
+  const handleSaveMember = async (formData: TeamMemberFormData, memberToUpdate: TeamMember | null) => {
+    if (memberToUpdate) {
+      await handleUpdateMember(memberToUpdate.id, formData);
+    } else {
+      await handleAddMember(formData);
+    }
+  };
+  
+  const handleOpenEditModal = (member: TeamMember) => {
+      setEditingMember(member);
+      setIsModalOpen(true);
+  }
 
+  const openAddModal = () => {
+      setEditingMember(null);
+      setIsModalOpen(true);
+  }
+  
+  const handleMoveMember = async (memberId: number, newManagerId: number | null) => {
+      await handleUpdateMember(memberId, { reportsTo: newManagerId });
+      addToast('تم تحديث الهيكل التنظيمي بنجاح.', 'success');
+  }
 
-    const handleSaveMember = async (memberData: TeamMemberFormData, isNew: boolean) => {
-        if (isNew) {
-            await handleAddMember(memberData);
-        } else if (editingMember) {
-            await handleUpdateMember(editingMember.id, memberData);
-        }
-    };
-
-    const handleOpenForm = (member: TeamMember | null) => {
-        setEditingMember(member);
-        setIsFormOpen(true);
-    };
-
-    return (
-        <div className="p-6">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">إدارة الفريق</h2>
-                    <p className="text-md text-slate-500 dark:text-slate-400">عرض الهيكل التنظيمي وإدارة أعضاء الفريق.</p>
-                </div>
-                {hasPermission('manage_team') && (
-                    <button onClick={() => handleOpenForm(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
-                        <PlusIcon className="w-5 h-5"/><span>إضافة عضو جديد</span>
-                    </button>
-                )}
+  return (
+    <div className="p-6">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">إدارة الفريق</h2>
+                <p className="text-md text-slate-500 dark:text-slate-400">عرض وإدارة أعضاء الفريق والهيكل التنظيمي.</p>
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                    <TeamTreeView 
-                        rootMembers={visibleTeam.rootMembers} 
-                        allMembers={visibleTeam.visibleMembers}
-                        onSelectMember={setSelectedMemberId}
-                        selectedMemberId={selectedMemberId}
-                    />
-                </div>
-                <div className="lg:col-span-2">
-                    {selectedMember ? (
-                        <TeamMemberDetailPage 
-                            member={selectedMember} 
-                            onEdit={() => handleOpenForm(selectedMember)}
-                        />
-                    ) : (
-                        <Card>
-                            <EmptyState
-                                icon={<UserPlusIcon className="w-12 h-12" />}
-                                title="عرض تفاصيل العضو"
-                                message="اختر عضواً من الهيكل التنظيمي لعرض بياناته التفصيلية."
-                            />
-                        </Card>
-                    )}
-                </div>
-            </div>
-
-            {isFormOpen && (
-                <TeamMemberFormModal 
-                    isOpen={isFormOpen}
-                    onClose={() => setIsFormOpen(false)}
-                    onSave={handleSaveMember}
-                    member={editingMember}
-                />
+            {canManageTeam && (
+                <button onClick={openAddModal} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                    <PlusIcon className="w-5 h-5"/><span>إضافة عضو جديد</span>
+                </button>
             )}
         </div>
-    );
+        <div className="space-y-6">
+            <div>
+                <Card title="الهيكل التنظيمي">
+                    <TeamOrgChart 
+                        members={visibleTeamMembers} 
+                        onMemberClick={setSelectedMemberId} 
+                        selectedMemberId={selectedMemberId}
+                        onMoveMember={handleMoveMember}
+                        canManage={canManageTeam}
+                    />
+                </Card>
+            </div>
+            <div>
+                {selectedMember ? (
+                    <TeamMemberDetailPage 
+                        member={selectedMember} 
+                        role={selectedMemberRole} 
+                        manager={selectedMemberManager} 
+                        onEdit={handleOpenEditModal}
+                        canEdit={canManageTeam || canEditMembers}
+                    />
+                ) : (
+                    <Card>
+                        <EmptyState title="اختر عضو فريق" message="اختر عضوًا من القائمة لعرض تفاصيله." />
+                    </Card>
+                )}
+            </div>
+        </div>
+        {isModalOpen && (
+            <TeamMemberFormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSaveMember}
+                member={editingMember}
+            />
+        )}
+    </div>
+  );
 };

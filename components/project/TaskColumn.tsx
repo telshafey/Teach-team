@@ -1,58 +1,77 @@
 import React, { useState, useMemo } from 'react';
-import { Task, TaskStatus } from '../../types';
+import { Task, TaskStatus, TeamMember } from '../../types';
 import { TaskCard } from './TaskCard';
 import { useProjectContext } from '../../contexts/ProjectContext';
+import { useTeamContext } from '../../contexts/TeamContext';
+import { QuickAddTask } from './QuickAddTask';
 
 interface TaskColumnProps {
     title: string;
     tasks: Task[];
     status: TaskStatus;
-    onEdit: (task: Task) => void;
     onDelete: (task: Task) => void;
     onCardClick: (task: Task) => void;
     onDrop: (status: TaskStatus) => void;
     onDragStart: (e: React.DragEvent<HTMLDivElement>, taskId: string) => void;
     onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
     draggingTaskId: string | null;
-    canEditTasks: boolean;
-    canDeleteTasks: boolean;
+    canManageTasks: boolean;
+    onAddTask: (title: string) => void;
 }
 
-export const TaskColumn: React.FC<TaskColumnProps> = ({ title, tasks, status, onEdit, onDelete, onCardClick, onDrop, onDragStart, onDragEnd, draggingTaskId, canEditTasks, canDeleteTasks }) => {
+export const TaskColumn: React.FC<TaskColumnProps> = ({ 
+    title, tasks, status, onDelete, onCardClick, 
+    onDrop, onDragStart, onDragEnd, draggingTaskId, 
+    canManageTasks, onAddTask 
+}) => {
   const [isOver, setIsOver] = useState(false);
   const { taskAttachments, taskComments } = useProjectContext();
+  const { teamMembers } = useTeamContext();
+
+  const membersMap = useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m }), {} as Record<number, TeamMember>), [teamMembers]);
   
   const placeholder = useMemo(() => {
     if (!draggingTaskId) return null;
-    return <div className="h-24 w-full bg-sky-200/50 dark:bg-sky-800/50 border-2 border-dashed border-sky-400 rounded-lg" />;
+    return <div className="h-24 w-full bg-sky-100/50 dark:bg-sky-900/50 border-2 border-dashed border-sky-400 rounded-lg" />;
   }, [draggingTaskId]);
-  
+
   return (
-    <div 
-        onDragOver={(e) => { e.preventDefault(); setIsOver(true); }}
-        onDragLeave={() => setIsOver(false)}
-        onDrop={() => { onDrop(status); setIsOver(false); }}
-        className={`bg-slate-100 dark:bg-slate-800/50 p-3 rounded-lg flex-1 transition-colors`}
-    >
-        <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-4 px-1">{title} ({tasks.length})</h3>
-        <div className="space-y-3 min-h-[60vh]">
-            {tasks.map(task => (
-                <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    attachmentCount={taskAttachments.filter(a => a.taskId === task.id).length}
-                    commentCount={taskComments.filter(c => c.taskId === task.id).length}
-                    onEdit={onEdit} 
-                    onDelete={onDelete}
-                    onCardClick={onCardClick}
-                    onDragStart={onDragStart}
-                    onDragEnd={onDragEnd}
-                    isDragging={draggingTaskId === task.id}
-                    canEdit={canEditTasks}
-                    canDelete={canDeleteTasks}
-                />
-            ))}
-            {isOver && placeholder}
+    <div className="flex flex-col w-80 flex-shrink-0">
+        <div 
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setIsOver(true); }}
+            onDragLeave={() => setIsOver(false)}
+            onDrop={(e) => { e.preventDefault(); onDrop(status); setIsOver(false); }}
+            className={`bg-slate-100 dark:bg-slate-800/50 rounded-lg flex flex-col transition-colors ${isOver ? 'bg-sky-100 dark:bg-sky-900/30' : ''}`}
+        >
+            <div className="p-3 sticky top-0 bg-slate-100 dark:bg-slate-800/50 rounded-t-lg z-10 border-b border-slate-200 dark:border-slate-700/50">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-200 flex justify-between items-center">
+                    {title}
+                    <span className="text-sm font-normal bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">{tasks.length}</span>
+                </h3>
+            </div>
+            <div className="p-3 space-y-3">
+                {tasks.map(task => (
+                    <TaskCard 
+                        key={task.id} 
+                        task={task}
+                        assignedMember={task.assignedTo ? membersMap[task.assignedTo] : undefined}
+                        attachmentCount={taskAttachments.filter(a => a.taskId === task.id).length}
+                        commentCount={taskComments.filter(c => c.taskId === task.id).length}
+                        onDelete={onDelete}
+                        onCardClick={onCardClick}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        isDragging={draggingTaskId === task.id}
+                        canDrag={canManageTasks}
+                    />
+                ))}
+                {isOver && placeholder}
+            </div>
+             {canManageTasks && (
+                <div className="p-3 mt-auto border-t border-slate-200 dark:border-slate-700/50">
+                    <QuickAddTask onAdd={onAddTask} />
+                </div>
+             )}
         </div>
     </div>
   );

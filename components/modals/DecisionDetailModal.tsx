@@ -4,7 +4,6 @@ import { useTeamContext } from '../../contexts/TeamContext';
 import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { DAYS_OF_WEEK } from '../../constants';
-import { useAuth } from '../../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -18,11 +17,10 @@ interface DecisionDetailModalProps {
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen, onClose, item }) => {
-  const { handleUpdatePlanStatus, teamMembers } = useTeamContext();
+  const { handleUpdatePlanStatus, teamMembers, hasPermission } = useTeamContext();
   const { handleUpdateOvertimeStatus, handleUpdateLeaveStatus, handleUpdateWorkContractChangeRequestStatus, handleUpdatePenaltyStatus } = useRequestsContext();
   const { currency } = useSettingsContext();
   const { handleUpdateTaskApproval, projects, handleUpdateProject } = useProjectContext();
-  const { hasPermission } = useAuth();
 
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
@@ -87,7 +85,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
                 status === 'approved' && isModified ? mods : undefined
             );
         } else if (isTeamMember(item)) {
-            await handleUpdatePlanStatus(item.id, status as PlanStatus);
+            await handleUpdatePlanStatus(item.id, status as 'approved' | 'rejected' | 'needs-adjustment');
         }
         onClose();
     } catch (e) {

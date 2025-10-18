@@ -17,10 +17,10 @@ interface ExpenseClaimsTabProps {
 
 export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }) => {
     const { expenseClaims, handleUpdateExpenseClaimStatus } = useRequestsContext();
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission } = useTeamContext();
     const { projects } = useProjectContext();
     const { currency } = useSettingsContext();
-    const { currentUser, hasPermission } = useAuth();
+    const { currentUser } = useAuth();
     const [statusFilter, setStatusFilter] = useState<'all' | ExpenseClaimStatus>('all');
 
     const claimsToDisplay = useMemo(() => {

@@ -1,8 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SuggestedTask, Project, Task, DailyLog, TeamMember, DecisionItem, LeaveRequest, WorkContractChangeRequest, OvertimeRequest, Penalty } from '../types';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember } from '../utils/typeGuards';
-import { format, parseISO } from 'date-fns';
-import { arSA } from 'date-fns/locale';
+import { SuggestedTask, Project, Task, DailyLog, TeamMember } from '../types';
 
 let ai: GoogleGenAI | null = null;
 
@@ -123,8 +120,10 @@ export const generateProjectSummary = async (
   try {
     const client = getAiClient();
     
+    const teamMembersMap = new Map(teamMembers.map(m => [m.id, m]));
+
     const taskSummary = tasks.map(t => {
-        const assignee = teamMembers.find(m => m.id === t.assignedTo);
+        const assignee = t.assignedTo ? teamMembersMap.get(t.assignedTo) : undefined;
         return `- ${t.title} (Status: ${t.status}, Assigned to: ${assignee?.name || 'Unassigned'})`;
     }).join('\n');
     

@@ -5,190 +5,141 @@ import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useMeetingContext } from '../../contexts/MeetingContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
-import { BarChart, PieChart, PieChartData } from '../ui/Charts';
-import { UsersIcon, FolderIcon, ClipboardDocumentListIcon, ClockIcon } from '../ui/Icons';
-import { ProjectStatus, Meeting, Task, TaskFormData } from '../../types';
-import { EmptyState } from '../ui/EmptyState';
-import { isThisWeek, parseISO, isToday } from 'date-fns';
+import { BarChart, LineChart } from '../ui/Charts';
+import { UsersIcon, FolderIcon, ClipboardDocumentListIcon, ClockIcon, BellIcon, ExclamationTriangleIcon, CurrencyDollarIcon, PlusIcon } from '../ui/Icons';
+import { Project, Meeting, Task } from '../../types';
+import { isThisWeek, parseISO, isPast, isToday, eachDayOfInterval, subDays, format, startOfWeek, endOfWeek } from 'date-fns';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { UnassignedTasksCard } from './UnassignedTasksCard';
-import { TaskFormModal } from '../modals/TaskFormModal';
-import { TodaysFocusCard } from './TodaysFocusCard';
+import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { usePendingApprovals } from '../../hooks/usePendingApprovals';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { StatusBadge } from '../ui/StatusBadge';
+
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
+    <Card className="!p-4">
+        <div className="flex items-center">
+            <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
+            <div className="mr-4 rtl:mr-0 rtl:ml-4">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
+            </div>
+        </div>
+    </Card>
+);
+
 
 export const GeneralManagerDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
     const { teamMembers } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
-    const { overtimeRequests, leaveRequests, workContractChangeRequests, penalties } = useRequestsContext();
     const { meetings } = useMeetingContext();
     const { projects, tasks, handleUpdateTask } = useProjectContext();
+    const { pendingItems } = usePendingApprovals();
+    const { currency } = useSettingsContext();
     
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [taskForModal, setTaskForModal] = useState<Task | null>(null);
 
-    const totalHoursLogged = useMemo(() => dailyLogs.reduce((sum, log) => sum + log.hours, 0), [dailyLogs]);
+    const { activeProjects, weeklyHours, totalBudget, totalCost } = useMemo(() => {
+        const now = new Date();
+        const startOfCurrentWeek = startOfWeek(now, { weekStartsOn: 0 });
+        const endOfCurrentWeek = endOfWeek(now, { weekStartsOn: 0 });
 
-    const projectStatusData = useMemo((): PieChartData[] => {
-        const counts = projects.reduce((acc, p) => {
-            acc[p.status] = (acc[p.status] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+        const logsThisWeek = dailyLogs.filter(l => isThisWeek(parseISO(l.date), { weekStartsOn: 0 }));
+        
+        const totalProjectCost = projects.reduce((sum, p) => sum + (p.budgetAmount || 0), 0);
+        
+        return {
+            activeProjects: projects.filter(p => p.status === 'نشط').length,
+            weeklyHours: logsThisWeek.reduce((sum, l) => sum + l.hours, 0),
+            totalBudget: projects.reduce((sum,p) => sum + (p.budgetAmount || 0), 0),
+            totalCost: 0,
+        };
+    }, [projects, dailyLogs]);
 
-        return [
-            { label: 'نشط', value: counts['نشط'] || 0, color: '#38bdf8' },
-            { label: 'مكتمل', value: counts['مكتمل'] || 0, color: '#22c55e' },
-            { label: 'معلق', value: counts['معلق'] || 0, color: '#f59e0b' },
-        ];
-    }, [projects]);
+    const dailyProductivityData = useMemo(() => {
+        const endDate = new Date();
+        const startDate = subDays(endDate, 29);
+        const rangeDays = eachDayOfInterval({ start: startDate, end: endDate });
+        const productivityMap: Record<string, number> = {};
+        rangeDays.forEach(day => { productivityMap[format(day, 'yyyy-MM-dd')] = 0; });
+        dailyLogs.forEach(log => {
+            if (productivityMap.hasOwnProperty(log.date)) productivityMap[log.date] += log.hours;
+        });
+        return Object.entries(productivityMap).map(([date, hours]) => ({ label: format(new Date(date), 'd MMM'), value: hours }));
+    }, [dailyLogs]);
     
-    const allTimeProductivityData = useMemo(() => {
-        return teamMembers.map(member => ({
-            label: member.name,
-            value: dailyLogs.filter(log => log.teamMemberId === member.id).reduce((sum, log) => sum + log.hours, 0)
-        })).sort((a, b) => b.value - a.value).slice(0, 10); // Top 10 All Time
-    }, [teamMembers, dailyLogs]);
+    const teamProductivityData = useMemo(() => teamMembers.map(member => ({ 
+        label: member.name, 
+        value: dailyLogs.filter(log => log.teamMemberId === member.id && isThisWeek(parseISO(log.date))).reduce((sum, log) => sum + log.hours, 0) 
+    })).sort((a, b) => b.value - a.value).slice(0, 10), [teamMembers, dailyLogs]);
 
-    const weeklyProductivityData = useMemo(() => {
-        const logsThisWeek = dailyLogs.filter(log => isThisWeek(parseISO(log.date), { weekStartsOn: 0 }));
-        const memberHours = logsThisWeek.reduce((acc, log) => {
-            acc[log.teamMemberId] = (acc[log.teamMemberId] || 0) + log.hours;
-            return acc;
-        }, {} as Record<number, number>);
-
-        const membersMap = teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m.name }), {} as Record<number, string>);
-
-        return Object.entries(memberHours)
-            .map(([memberId, hours]: [string, number]) => ({
-                label: membersMap[Number(memberId)] || `User ${memberId}`,
-                value: hours
-            }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 7); // Top 7 for the week
-    }, [dailyLogs, teamMembers]);
-    
-    const projectHoursData = useMemo(() => {
-        const hoursByProject = dailyLogs.reduce((acc, log) => {
-            if (log.projectId) {
-                acc[log.projectId] = (acc[log.projectId] || 0) + log.hours;
-            }
-            return acc;
-        }, {} as Record<string, number>);
-
-        const projectsMap = projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {} as Record<string, string>);
-
-        return Object.entries(hoursByProject)
-            .map(([projectId, hours]: [string, number]) => ({
-                label: projectsMap[projectId] || `Project ${projectId}`,
-                value: hours,
-            }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 7); // Top 7 projects
-    }, [dailyLogs, projects]);
-
-    const totalPendingApprovals = useMemo(() => {
-        const pendingTasks = tasks.filter(t => t.approvalStatus === 'pending').length;
-        const pendingPlans = teamMembers.filter(m => m.weeklyPlan.status === 'pending').length;
-        const pendingContracts = projects.filter(p => p.freelancerContract?.status === 'pending').length;
-        const pendingOvertime = overtimeRequests.filter(r => r.status === 'pending').length;
-        const pendingLeave = leaveRequests.filter(r => r.status === 'pending').length;
-        const pendingContractChanges = workContractChangeRequests.filter(r => r.status === 'pending').length;
-        const pendingPenalties = penalties.filter(p => p.status === 'pending').length;
-        return pendingTasks + pendingPlans + pendingContracts + pendingOvertime + pendingLeave + pendingContractChanges + pendingPenalties;
-    }, [tasks, teamMembers, projects, overtimeRequests, leaveRequests, workContractChangeRequests, penalties]);
-
-    const unassignedTasks = useMemo(() => tasks.filter(t => !t.assignedTo), [tasks]);
-    
-    const { inProgressTasks, dueTodayTasks } = useMemo(() => {
-        const inProgress = tasks.filter(t => t.status === 'inprogress');
-        const dueToday = tasks.filter(t => t.dueDate && isToday(parseISO(t.dueDate)) && t.status !== 'done');
-        return { inProgressTasks: inProgress, dueTodayTasks: dueToday };
-    }, [tasks]);
-
-    const handlePieItemClick = (item: PieChartData) => {
-        onNavigate('projects', { initialState: { statusFilter: item.label as ProjectStatus } });
+    const handleJoinMeeting = (meeting: Meeting) => onNavigate('meetingRoom', { meeting });
+    const handleSaveTask = async (taskData: Partial<Task>) => {
+        if (taskForModal) await handleUpdateTask({ ...taskForModal, ...taskData });
     };
-    
-    const handleJoinMeeting = (meeting: Meeting) => {
-        onNavigate('meetingRoom', { meeting });
-    };
-    
-    const handleOpenAssignModal = (task: Task) => {
-        setEditingTask(task);
-        setIsTaskModalOpen(true);
-    };
-
-    const handleSaveTask = async (taskData: TaskFormData) => {
-        if (editingTask) {
-            await handleUpdateTask({ ...editingTask, ...taskData });
-        }
-        // This dashboard doesn't create new tasks, only assigns existing ones.
-    };
-
 
     return (
         <div className="p-6" dir="rtl">
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">لوحة تحكم المدير العام</h2>
-                <p className="text-md text-slate-500 dark:text-slate-400">نظرة شاملة على أداء المؤسسة.</p>
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                 <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">لوحة تحكم المدير العام</h2>
+                    <p className="text-md text-slate-500 dark:text-slate-400">نظرة عامة على أداء المنظومة.</p>
+                </div>
+                <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
+                    <button onClick={() => onNavigate('projects', {isModalOpen: true})} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
+                        <PlusIcon className="w-5 h-5"/><span>مشروع جديد</span>
+                    </button>
+                </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div onClick={() => onNavigate('projects')} className="cursor-pointer hover:shadow-lg transition-shadow rounded-lg"><Card className="text-center h-full"><p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{projects.length}</p><p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">إجمالي المشاريع</p></Card></div>
-                <div onClick={() => onNavigate('team')} className="cursor-pointer hover:shadow-lg transition-shadow rounded-lg"><Card className="text-center h-full"><p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{teamMembers.length}</p><p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">إجمالي الأعضاء</p></Card></div>
-                <Card className="text-center"><p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{tasks.length}</p><p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">إجمالي المهام</p></Card>
-                <Card className="text-center"><p className="text-3xl font-bold text-sky-600 dark:text-sky-400">{totalHoursLogged.toFixed(1)}</p><p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">إجمالي الساعات</p></Card>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                <StatCard icon={<FolderIcon className="w-8 h-8 text-sky-500"/>} label="مشاريع نشطة" value={activeProjects} />
+                <StatCard icon={<ClockIcon className="w-8 h-8 text-indigo-500"/>} label="ساعات العمل (الأسبوع)" value={weeklyHours.toFixed(1)} />
+                <StatCard icon={<BellIcon className="w-8 h-8 text-amber-500"/>} label="موافقات معلقة" value={pendingItems.length} />
+                <StatCard icon={<CurrencyDollarIcon className="w-8 h-8 text-green-500"/>} label="إجمالي الميزانيات" value={`${(totalBudget / 1000).toFixed(1)}k`} />
             </div>
-            
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column (Main) */}
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3 space-y-6">
+                    <Card title="إنتاجية الشركة (آخر 30 يوم)">
+                        <LineChart data={dailyProductivityData} />
+                    </Card>
+                    <Card title="نظرة عامة على المشاريع النشطة">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-right">
+                                <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50"><tr>
+                                    <th className="px-4 py-2">المشروع</th><th className="px-4 py-2">الحالة</th><th className="px-4 py-2">تقدم الساعات</th><th className="px-4 py-2">التكلفة</th>
+                                </tr></thead>
+                                <tbody>
+                                    {projects.filter(p => p.status === 'نشط').slice(0,5).map(p => {
+                                        const hours = dailyLogs.filter(l=>l.projectId === p.id).reduce((s,l)=>s+l.hours, 0);
+                                        const progress = p.budgetHours ? (hours / p.budgetHours) * 100 : 0;
+                                        return (
+                                        <tr key={p.id} className="border-b dark:border-slate-700">
+                                            <td className="px-4 py-2 font-medium">{p.name}</td>
+                                            <td className="px-4 py-2"><StatusBadge status={p.status} type="project" /></td>
+                                            <td className="px-4 py-2">{hours.toFixed(1)} / {p.budgetHours || '∞'}</td>
+                                            <td className="px-4 py-2">{p.budgetAmount?.toLocaleString() || '-'} {currency}</td>
+                                        </tr>
+                                    )})}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
                 <div className="lg:col-span-2 space-y-6">
-                    <TodaysFocusCard inProgressTasks={inProgressTasks} dueTodayTasks={dueTodayTasks} />
-                    <UnassignedTasksCard tasks={unassignedTasks} onAssign={handleOpenAssignModal} />
-                    <Card title="إنتاجية الفريق (إجمالي الساعات)" icon={<UsersIcon className="w-5 h-5"/>}>
-                        <BarChart title="" data={allTimeProductivityData} />
+                    <Card title="أداء أفضل 10 موظفين (الأسبوع)">
+                        <BarChart title="" data={teamProductivityData} />
                     </Card>
-                     <Card title="توزيع ساعات المشاريع (الأعلى)" icon={<FolderIcon className="w-5 h-5"/>}>
-                        <BarChart title="" data={projectHoursData} />
-                    </Card>
-                </div>
-
-                {/* Right Column (Side) */}
-                <div className="lg:col-span-1 space-y-6">
-                    <UpcomingMeetingsCard title="الاجتماعات القادمة" meetings={meetings} onJoinMeeting={handleJoinMeeting} />
-                    <Card 
-                        title="الموافقات المعلقة" 
-                        icon={<ClipboardDocumentListIcon className="w-5 h-5"/>}
-                        headerActions={totalPendingApprovals > 0 ? <button onClick={() => onNavigate('approvals')} className="text-sm font-semibold text-sky-600">عرض الكل</button> : null}
-                    >
-                        {totalPendingApprovals > 0 ? (
-                            <div className="text-center py-4 cursor-pointer" onClick={() => onNavigate('approvals')}>
-                                <p className="text-4xl font-bold text-sky-600 dark:text-sky-400">{totalPendingApprovals}</p>
-                                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">طلبات بانتظار المراجعة</p>
-                            </div>
-                        ) : (
-                            <EmptyState icon={<ClipboardDocumentListIcon className="w-8 h-8"/>} title="لا توجد موافقات" message="لا توجد طلبات معلقة للمراجعة حاليًا." />
-                        )}
-                    </Card>
-                    <Card title="حالة المشاريع" icon={<FolderIcon className="w-5 h-5"/>}>
-                        <div className="flex justify-center"> <PieChart data={projectStatusData} onItemClick={handlePieItemClick} /> </div>
-                    </Card>
-                     <Card title="حمل العمل (هذا الأسبوع)" icon={<ClockIcon className="w-5 h-5"/>}>
-                        <BarChart title="" data={weeklyProductivityData} />
-                    </Card>
+                    <UpcomingMeetingsCard title="الاجتماعات القادمة" meetings={meetings} onJoinMeeting={handleJoinMeeting}/>
                 </div>
             </div>
             
-            {isTaskModalOpen && (
-                <TaskFormModal 
-                    isOpen={isTaskModalOpen}
-                    onClose={() => setIsTaskModalOpen(false)}
-                    onSave={handleSaveTask}
-                    task={editingTask}
-                    projects={projects}
-                    defaultProjectId={editingTask?.projectId}
+            {taskForModal && (
+                <TaskDetailModal 
+                    isOpen={!!taskForModal} onClose={() => setTaskForModal(null)} task={taskForModal}
+                    onSave={handleSaveTask} initialMode={'edit'}
                 />
             )}
         </div>

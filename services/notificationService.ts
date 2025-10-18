@@ -8,24 +8,17 @@ export const createNotification = async (
 ): Promise<void> => {
   try {
     const notificationPayload = {
-      id: crypto.randomUUID(),
       ...notificationData,
       timestamp: new Date().toISOString(),
       read: false,
     };
 
-    // Bypass generic insert for a direct, more controlled call to definitively fix the null ID issue.
-    const { error } = await supabaseClient
-        .from('notifications')
-        .insert([api.camelToSnake(notificationPayload)]);
-    
-    if (error) {
-        // Rethrow to be caught by the outer catch block
-        throw new Error(error.message);
-    }
+    // Use the generic api.insert which now correctly handles ID generation by the database
+    // and returns the created object. This removes the inconsistent bypass.
+    await api.insert<Notification>(supabaseClient, 'notifications', notificationPayload);
 
   } catch (error: any) {
     console.error("Failed to create notification:", error.message);
-    // Don't show toast for this background task as it's a background process.
+    // Do not re-throw, as notification creation is often non-critical
   }
 };

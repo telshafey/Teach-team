@@ -4,8 +4,7 @@ import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Project, Task, TaskStatus, TaskFormData, BillingProposalFormData } from '../../types';
-import { TaskFormModal } from '../modals/TaskFormModal';
-import { PlusIcon, PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon, UsersIcon } from '../ui/Icons';
+import { PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon, UsersIcon } from '../ui/Icons';
 import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { GanttChart } from './GanttChart';
@@ -29,14 +28,12 @@ interface ProjectDetailPageProps {
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, initialTaskIdToOpen }) => {
     const { onNavigate } = useNavigation();
     const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleDeleteProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission: hasGlobalPermission } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
-    const { currentUser, hasPermission: hasGlobalPermission } = useAuth();
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const { currentUser } = useAuth();
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [viewingTask, setViewingTask] = useState<Task | null>(null);
+    const [taskForModal, setTaskForModal] = useState<Task | null>(null);
     const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -46,7 +43,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(projectId);
     const canDeleteEntireProject = hasGlobalPermission('manage_projects');
 
-    // New state for AI summary
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [projectSummary, setProjectSummary] = useState('');
     const { addToast } = useToast();
@@ -59,7 +55,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         if (initialTaskIdToOpen) {
             const taskToOpen = projectTasks.find(t => t.id === initialTaskIdToOpen);
             if (taskToOpen) {
-                setViewingTask(taskToOpen);
+                setTaskForModal(taskToOpen);
             }
         }
     }, [initialTaskIdToOpen, projectTasks]);
@@ -101,16 +97,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         await handleFreelancerProposal(project.id, proposalData);
     };
     
-    const openTaskModal = (task: Task | null) => {
-        setEditingTask(task);
-        setIsTaskModalOpen(true);
-    };
-
-    const handleSaveTask = async (taskData: TaskFormData) => {
-        if (editingTask) {
-            await handleUpdateTask({ ...editingTask, ...taskData });
+    const handleSaveTask = async (taskData: Partial<Task>, isNew: boolean) => {
+        if (isNew) {
+            await handleAddTask(taskData as TaskFormData);
         } else {
-            await handleAddTask(taskData);
+            await handleUpdateTask({ ...taskForModal as Task, ...taskData });
         }
     };
     
@@ -146,139 +137,91 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         try {
             await handleDeleteProject(project.id);
             setIsProjectDeleteConfirmOpen(false);
-            onNavigate('projects'); // Navigate on success
+            onNavigate('projects'); 
         } catch (error) {
-            // Toast is already handled by the context
             setIsProjectDeleteConfirmOpen(false);
         }
     };
 
 
     return (
-        <div className="p-6">
-            <div className="flex flex-col md:flex-row justify-between md:items-start mb-6 gap-4">
-                <div>
-                    <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
-                    <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
-                         {canEditProjectSettings && (
-                            <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
-                         )}
-                    </div>
-                    <p className="text-md text-slate-500 dark:text-slate-400 mt-1">{project.description}</p>
-                </div>
-                <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
-                    {canManageTasks && (
-                        <button onClick={() => openTaskModal(null)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
-                            <PlusIcon className="w-5 h-5"/><span>إضافة مهمة</span>
-                        </button>
-                    )}
-                    {canPropose && (
-                        <button onClick={() => setIsBillingModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
-                            <span>تقديم اقتراح للمشروع</span>
-                        </button>
-                    )}
-                    {canDeleteEntireProject && (
-                        <button onClick={() => setIsProjectDeleteConfirmOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
-                            <TrashIcon className="w-5 h-5"/><span>حذف المشروع</span>
-                        </button>
-                    )}
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                        <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                            <ListBulletIcon className="w-5 h-5" /> <span>كانبان</span>
-                        </button>
-                        <button onClick={() => setViewMode('gantt')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'gantt' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                            <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
-                        </button>
-                        <button onClick={() => setViewMode('members')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'members' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                            <UsersIcon className="w-5 h-5" /> <span>الفريق</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            {hasGlobalPermission('use_ai_features') && (
-                <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
-                    {projectSummary ? (
-                         <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
-                    ) : isGeneratingSummary ? (
-                        <div className="flex justify-center items-center p-4">
-                            <LoadingSpinner className="text-sky-500 w-5 h-5" />
-                            <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
+        <div className="p-6 flex flex-col h-full">
+            <div className="flex-shrink-0">
+                <div className="flex flex-col md:flex-row justify-between md:items-start mb-6 gap-4">
+                    <div>
+                        <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
+                        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
+                            {canEditProjectSettings && (
+                                <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
+                            )}
                         </div>
-                    ) : (
-                        <div className="text-center p-4">
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
-                            <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
-                               <SparklesIcon className="w-5 h-5" />
-                               <span>إنشاء ملخص ذكي</span>
+                        <p className="text-md text-slate-500 dark:text-slate-400 mt-1">{project.description}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
+                        {canPropose && (
+                            <button onClick={() => setIsBillingModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                                <span>تقديم اقتراح للمشروع</span>
+                            </button>
+                        )}
+                        {canDeleteEntireProject && (
+                            <button onClick={() => setIsProjectDeleteConfirmOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
+                                <TrashIcon className="w-5 h-5"/><span>حذف المشروع</span>
+                            </button>
+                        )}
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+                            <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                                <ListBulletIcon className="w-5 h-5" /> <span>كانبان</span>
+                            </button>
+                            <button onClick={() => setViewMode('gantt')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'gantt' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                                <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
+                            </button>
+                            <button onClick={() => setViewMode('members')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'members' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
+                                <UsersIcon className="w-5 h-5" /> <span>الفريق</span>
                             </button>
                         </div>
-                    )}
-                </Card>
-            )}
-
-            {viewMode === 'kanban' ? (
-                <div className="flex flex-col md:flex-row gap-4">
-                    <TaskColumn 
-                        title="مهام لم تبدأ" 
-                        tasks={tasksByStatus.todo}
-                        status="todo"
-                        onEdit={openTaskModal}
-                        onDelete={handleDeleteClick}
-                        onCardClick={setViewingTask}
-                        onDrop={handleDrop}
-                        onDragStart={handleDragStart}
-                        onDragEnd={() => setDraggingTaskId(null)}
-                        draggingTaskId={draggingTaskId}
-                        canEditTasks={canManageTasks}
-                        canDeleteTasks={canManageTasks}
-                    />
-                    <TaskColumn 
-                        title="قيد التنفيذ" 
-                        tasks={tasksByStatus.inprogress}
-                        status="inprogress"
-                        onEdit={openTaskModal}
-                        onDelete={handleDeleteClick}
-                        onCardClick={setViewingTask}
-                        onDrop={handleDrop}
-                        onDragStart={handleDragStart}
-                        onDragEnd={() => setDraggingTaskId(null)}
-                        draggingTaskId={draggingTaskId}
-                        canEditTasks={canManageTasks}
-                        canDeleteTasks={canManageTasks}
-                    />
-                    <TaskColumn 
-                        title="مكتملة" 
-                        tasks={tasksByStatus.done}
-                        status="done"
-                        onEdit={openTaskModal}
-                        onDelete={handleDeleteClick}
-                        onCardClick={setViewingTask}
-                        onDrop={handleDrop}
-                        onDragStart={handleDragStart}
-                        onDragEnd={() => setDraggingTaskId(null)}
-                        draggingTaskId={draggingTaskId}
-                        canEditTasks={canManageTasks}
-                        canDeleteTasks={canManageTasks}
-                    />
+                    </div>
                 </div>
-            ) : viewMode === 'gantt' ? (
-                <GanttChart project={project} tasks={projectTasks} />
-            ) : (
-                <ProjectMembers project={project} canManageMembers={canManageMembers} />
-            )}
-            
-            {isTaskModalOpen && (
-                <TaskFormModal 
-                    isOpen={isTaskModalOpen}
-                    onClose={() => setIsTaskModalOpen(false)}
-                    onSave={handleSaveTask}
-                    task={editingTask}
-                    projects={[project]}
-                    defaultProjectId={project.id}
-                />
-            )}
+                
+                {hasGlobalPermission('use_ai_features') && (
+                    <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
+                        {projectSummary ? (
+                            <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
+                        ) : isGeneratingSummary ? (
+                            <div className="flex justify-center items-center p-4">
+                                <LoadingSpinner className="text-sky-500 w-5 h-5" />
+                                <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
+                            </div>
+                        ) : (
+                            <div className="text-center p-4">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
+                                <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                                <SparklesIcon className="w-5 h-5" />
+                                <span>إنشاء ملخص ذكي</span>
+                                </button>
+                            </div>
+                        )}
+                    </Card>
+                )}
+            </div>
+
+            <div className="flex-1 min-h-0">
+                {viewMode === 'kanban' ? (
+                    <div className="flex flex-row gap-4 overflow-x-auto pb-4">
+                        <TaskColumn title="مهام لم تبدأ" tasks={tasksByStatus.todo} status="todo" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'todo' })} />
+                        <TaskColumn title="قيد التنفيذ" tasks={tasksByStatus.inprogress} status="inprogress" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'inprogress' })} />
+                        <TaskColumn title="مكتملة" tasks={tasksByStatus.done} status="done" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'done' })} />
+                    </div>
+                ) : viewMode === 'gantt' ? (
+                     <div className="h-full overflow-y-auto">
+                        <GanttChart project={project} tasks={projectTasks} />
+                    </div>
+                ) : (
+                     <div>
+                        <ProjectMembers project={project} canManageMembers={canManageMembers} />
+                    </div>
+                )}
+            </div>
 
             {isProjectModalOpen && (
                 <ProjectFormModal 
@@ -289,11 +232,12 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                 />
             )}
 
-            {viewingTask && (
+            {taskForModal && (
                 <TaskDetailModal
-                    isOpen={!!viewingTask}
-                    onClose={() => setViewingTask(null)}
-                    task={viewingTask}
+                    isOpen={!!taskForModal}
+                    onClose={() => setTaskForModal(null)}
+                    task={taskForModal}
+                    onSave={handleSaveTask}
                 />
             )}
 

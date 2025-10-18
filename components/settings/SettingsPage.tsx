@@ -2,11 +2,11 @@ import React, { useState, lazy, useMemo, Suspense } from 'react';
 import { SiteSettingsPage } from './SiteSettingsPage';
 import { RoleManagementPage } from './RoleManagementPage';
 import { View } from '../dashboard/Dashboard';
-import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { Card } from '../ui/Card';
 import { LockClosedIcon } from '../ui/Icons';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
 
@@ -17,7 +17,7 @@ interface SettingsPageProps {
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initialProps }) => {
     const { onNavigate } = useNavigation();
-    const { hasPermission } = useAuth();
+    const { hasPermission } = useTeamContext();
 
     const canManageSite = hasPermission('manage_site_settings');
     const canManageRoles = hasPermission('manage_roles');

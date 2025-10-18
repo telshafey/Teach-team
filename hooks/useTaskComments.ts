@@ -19,13 +19,12 @@ export const useTaskComments = (
         if (!supabaseClient || !currentUser) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
-        const tempId = crypto.randomUUID();
-        const newComment: TaskComment = { id: tempId, taskId, authorId: currentUser.id, text, timestamp: new Date().toISOString() };
-        setTaskComments(prev => [...prev, newComment]);
+        
+        const newCommentData = { taskId, authorId: currentUser.id, text, timestamp: new Date().toISOString() };
 
         try {
-            const createdComment = await api.insert<TaskComment>(supabaseClient, 'task_comments', { ...newComment, id: crypto.randomUUID() });
-            setTaskComments(prev => prev.map(c => c.id === tempId ? createdComment : c));
+            const createdComment = await api.insert<TaskComment>(supabaseClient, 'task_comments', newCommentData);
+            setTaskComments(prev => [...prev, createdComment]);
             addToast('تم إضافة التعليق بنجاح.', 'success');
 
             const mentionedUsers = parseMentions(text, teamMembers);
@@ -35,7 +34,6 @@ export const useTaskComments = (
                 }
             }
         } catch (e: any) {
-            setTaskComments(prev => prev.filter(c => c.id !== tempId));
             addToast(`فشل إضافة التعليق: ${e.message}`, 'error');
             throw e;
         }

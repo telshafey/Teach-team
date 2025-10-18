@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProjectContext } from '../contexts/ProjectContext';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export const useProjectPermissions = (projectId?: string) => {
-    const { currentUser, hasPermission: hasGlobalPermission } = useAuth();
+    const { currentUser } = useAuth();
+    const { hasPermission: hasGlobalPermission } = useTeamContext();
     const { projects } = useProjectContext();
 
     const permissions = useMemo(() => {

@@ -6,10 +6,10 @@ import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { ClipboardDocumentListIcon } from '../ui/Icons';
 import { ApprovalItemCard } from './ApprovalItemCard';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember } from '../../utils/typeGuards';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
 import { ApprovalGroup } from './ApprovalGroup';
 
-type ApprovalCategory = 'tasks' | 'plans' | 'contracts' | 'overtime' | 'leave' | 'contractChanges' | 'penalties';
+type ApprovalCategory = 'tasks' | 'plans' | 'contracts' | 'overtime' | 'leave' | 'contractChanges' | 'penalties' | 'expenses';
 
 const categoryMap: { [key in ApprovalCategory]: { title: string; check: (item: DecisionItem) => boolean } } = {
     tasks: { title: 'تسليمات المهام', check: isTask },
@@ -17,6 +17,7 @@ const categoryMap: { [key in ApprovalCategory]: { title: string; check: (item: D
     contracts: { title: 'عقود المستقلين', check: (item): item is Project => isProject(item) && !!item.freelancerContract },
     overtime: { title: 'طلبات الساعات الإضافية', check: isOvertimeRequest },
     leave: { title: 'طلبات الإجازات', check: isLeaveRequest },
+    expenses: { title: 'طلبات الصرف', check: isExpenseClaim },
     contractChanges: { title: 'طلبات تعديل العقود', check: isWorkContractChangeRequest },
     penalties: { title: 'الجزاءات', check: isPenalty },
 };
@@ -43,7 +44,7 @@ export const ApprovalsPage: React.FC = () => {
         return groups;
     }, [pendingItems]);
 
-    const groupOrder: ApprovalCategory[] = ['tasks', 'plans', 'leave', 'overtime', 'contractChanges', 'penalties', 'contracts'];
+    const groupOrder: ApprovalCategory[] = ['tasks', 'plans', 'leave', 'overtime', 'expenses', 'contractChanges', 'penalties', 'contracts'];
     const hasPendingItems = pendingItems.length > 0;
     const firstGroupWithItems = hasPendingItems ? groupOrder.find(key => groupedApprovals[key] && groupedApprovals[key]!.length > 0) : undefined;
 

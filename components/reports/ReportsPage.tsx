@@ -23,12 +23,12 @@ type ReportType =
 const ROWS_PER_PAGE = 20;
 
 export const ReportsPage: React.FC = () => {
-    const { teamMembers } = useTeamContext();
+    const { teamMembers, hasPermission } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
     const { expenseClaims } = useRequestsContext();
     const { currency } = useSettingsContext();
     const { projects, tasks } = useProjectContext();
-    const { currentUser, hasPermission } = useAuth();
+    const { currentUser } = useAuth();
 
     // State
     const [reportType, setReportType] = useState<ReportType>('projects_summary');

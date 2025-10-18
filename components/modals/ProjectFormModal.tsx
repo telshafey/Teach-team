@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon, TrashIcon } from '../ui/Icons';
 import { ConfirmationModal } from './ConfirmationModal';
 import { useToast } from '../../contexts/ToastContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ interface ProjectFormModalProps {
 export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onClose, onSave, project }) => {
   const { currency } = useSettingsContext();
   const { addToast } = useToast();
-  const { hasPermission } = useAuth();
+  const { hasPermission } = useTeamContext();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
@@ -112,7 +112,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
         onClose(); // Close main modal only on success
     } catch (error) {
         console.error("Failed to save project", error);
-        addToast('فشل حفظ المشروع. يرجى المحاولة مرة أخرى.', 'error');
     } finally {
         setIsSaving(false);
     }

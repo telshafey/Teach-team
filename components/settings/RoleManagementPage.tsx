@@ -38,15 +38,12 @@ export const RoleManagementPage: React.FC<RoleManagementPageProps> = ({ initialR
             ? currentPermissions.filter(p => p !== permission)
             : [...currentPermissions, permission];
         
-        handleUpdateRole({ ...selectedRole, permissions: newPermissions });
+        handleUpdateRole(selectedRole.id, { permissions: newPermissions });
     };
 
     const handleSaveRole = async (roleData: { id?: string, name: string }) => {
         if (roleData.id) {
-            const roleToUpdate = roles.find(r => r.id === roleData.id);
-            if (roleToUpdate) {
-                await handleUpdateRole({ ...roleToUpdate, name: roleData.name });
-            }
+            await handleUpdateRole(roleData.id, { name: roleData.name });
         } else {
             await handleAddRole(roleData);
         }
