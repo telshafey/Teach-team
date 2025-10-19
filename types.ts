@@ -266,7 +266,7 @@ export interface Notification {
 }
 
 // --- REQUESTS (Leave, Overtime, Expense) ---
-export type LeaveType = 'regular' | 'emergency';
+export type LeaveType = 'regular' | 'emergency' | 'work-from-home';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface LeaveRequest {

@@ -225,11 +225,21 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const handleUpdateTask = useCallback(async (taskData: Partial<Task>) => {
     if (!supabaseClient || !taskData.id) return;
 
-    try {
-        const originalTask = tasks.find(t => t.id === taskData.id);
-        await api.update<Task>(supabaseClient, 'tasks', taskData.id, taskData);
-        addToast('تم تحديث المهمة بنجاح.', 'success');
+    const originalTasks = tasks;
+    const originalTask = originalTasks.find(t => t.id === taskData.id);
+    const updatedTasks = originalTasks.map(t =>
+        t.id === taskData.id ? { ...t, ...taskData } : t
+    );
+    
+    // Optimistically update the UI
+    setTasks(updatedTasks);
 
+    try {
+        // Asynchronously update the database
+        await api.update<Task>(supabaseClient, 'tasks', taskData.id, taskData);
+        // On success, no need to show a toast for this type of action, the UI change is feedback enough.
+
+        // Side-effects (notifications, etc.) should still run after successful API call
         if (taskData.projectId && taskData.assignedTo) {
             await ensureProjectMember(taskData.projectId, taskData.assignedTo);
         }
@@ -247,6 +257,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           }
         }
     } catch (error: any) {
+        // On failure, revert the UI and show an error toast
+        setTasks(originalTasks);
         addToast(`فشل تحديث المهمة: ${error.message}`, 'error');
         console.error("Failed to update task:", error);
         throw error;

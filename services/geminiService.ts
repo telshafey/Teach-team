@@ -90,7 +90,8 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
                 description: "The suggested role for the task ('employee', 'manager', 'freelancer', 'any').",
               },
             },
-            propertyOrdering: ['title', 'suggestedRole'],
+            // FIX: propertyOrdering is required for object properties.
+            required: ['title', 'suggestedRole'],
           },
         },
       },
@@ -202,7 +203,8 @@ export const scanReceipt = async (
               description: 'A concise description of the purchase.',
             },
           },
-          propertyOrdering: ['amount', 'description']
+          // FIX: propertyOrdering is required for object properties.
+          required: ['amount', 'description']
         },
       },
     });

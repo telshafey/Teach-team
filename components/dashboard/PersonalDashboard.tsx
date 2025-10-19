@@ -17,6 +17,7 @@ import { useNavigation } from '../../contexts/NavigationContext';
 import { useMeetingContext } from '../../contexts/MeetingContext';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { usePunchClock } from '../../contexts/PunchClockContext';
+import { TaskCardSkeleton } from '../project/TaskCardSkeleton';
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
     <Card className="!p-4">
@@ -184,7 +185,10 @@ export const PersonalDashboard: React.FC = () => {
                         title="مهامي المفتوحة" 
                         headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
                      >
-                        {isTasksLoading ? ( <div className="space-y-3"><div className="h-16 bg-slate-100 dark:bg-slate-700 animate-pulse rounded-md"></div><div className="h-16 bg-slate-100 dark:bg-slate-700 animate-pulse rounded-md"></div></div>
+                        {isTasksLoading ? (
+                            <div className="space-y-3">
+                                {[...Array(3)].map((_, i) => <TaskCardSkeleton key={i} />)}
+                            </div>
                         ) : myOpenTasks.length > 0 ? (
                             <div className="space-y-3 max-h-96 overflow-y-auto">
                                 {myOpenTasks.slice(0, 10).map(task => (

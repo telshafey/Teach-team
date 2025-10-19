@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -11,7 +11,11 @@ import { Card } from '../ui/Card';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { PlusIcon } from '../ui/Icons';
 
-export const TimeSheetPage: React.FC = () => {
+interface TimeSheetPageProps {
+  openLogModal?: boolean;
+}
+
+export const TimeSheetPage: React.FC<TimeSheetPageProps> = ({ openLogModal }) => {
     const { currentUser } = useAuth();
     const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
     const { siteSettings } = useSettingsContext();
@@ -20,6 +24,18 @@ export const TimeSheetPage: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [editingLog, setEditingLog] = useState<DailyLog | null>(null);
     const [isLogFormOpen, setIsLogFormOpen] = useState(false);
+
+    const handleAddClick = () => {
+        setEditingLog(null);
+        setIsLogFormOpen(true);
+        if(selectedDate) setSelectedDate(null);
+    };
+
+    useEffect(() => {
+        if (openLogModal) {
+            handleAddClick();
+        }
+    }, [openLogModal]);
 
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
     const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
@@ -81,12 +97,6 @@ export const TimeSheetPage: React.FC = () => {
         setIsLogFormOpen(false);
         setEditingLog(null);
         setSelectedDate(null);
-    };
-    
-    const handleAddClick = () => {
-        setEditingLog(null);
-        setIsLogFormOpen(true);
-        if(selectedDate) setSelectedDate(null);
     };
     
     const handleEditClick = (log: DailyLog) => {

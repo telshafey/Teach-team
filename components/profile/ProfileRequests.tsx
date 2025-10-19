@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { StatusBadge } from '../ui/StatusBadge';
+import { LeaveType } from '../../types';
 
 const RequestTable: React.FC<{
     title: string;
@@ -54,10 +55,16 @@ export const ProfileRequests: React.FC<ProfileRequestsProps> = ({ onNewLeave, on
         }
     }, [leaveRequests, expenseClaims, overtimeRequests, currentUser]);
 
+    const leaveTypeMap: Record<LeaveType, string> = {
+        'regular': 'عادية',
+        'emergency': 'طارئة',
+        'work-from-home': 'عمل من المنزل'
+    };
+
     return (
         <div className="space-y-6">
             <RequestTable title="طلبات الإجازات" data={myData.leaves} onNew={onNewLeave} columns={[
-                { header: 'النوع', accessor: (r:any) => r.type === 'regular' ? 'عادية' : 'طارئة' },
+                { header: 'النوع', accessor: (r:any) => leaveTypeMap[r.type] || r.type },
                 { header: 'من', accessor: (r:any) => format(parseISO(r.startDate), 'd MMM yyyy', { locale: arSA }) },
                 { header: 'إلى', accessor: (r:any) => format(parseISO(r.endDate), 'd MMM yyyy', { locale: arSA }) },
                 { header: 'الحالة', accessor: (r:any) => <StatusBadge status={r.status} type="request" /> },

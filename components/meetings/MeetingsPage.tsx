@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMeetingContext } from '../../contexts/MeetingContext';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -94,8 +94,11 @@ const SortableHeader: React.FC<{
     );
 };
 
+interface MeetingsPageProps {
+  openMeetingModal?: boolean;
+}
 
-export const MeetingsPage: React.FC = () => {
+export const MeetingsPage: React.FC<MeetingsPageProps> = ({ openMeetingModal }) => {
     const { onNavigate } = useNavigation();
     const { meetings, handleAddMeeting, handleDeleteMeeting } = useMeetingContext();
     const { teamMembers, hasPermission } = useTeamContext();
@@ -104,6 +107,12 @@ export const MeetingsPage: React.FC = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'startTime', direction: 'descending' });
+
+    useEffect(() => {
+        if (openMeetingModal) {
+            setIsFormOpen(true);
+        }
+    }, [openMeetingModal]);
 
     const projectsMap = useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p }), {} as Record<string, Project>), [projects]);
     const membersMap = useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m }), {} as Record<number, TeamMember>), [teamMembers]);
