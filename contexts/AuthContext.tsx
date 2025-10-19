@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const refreshCache = async () => {
-        await api.refreshSchemaCache(supabaseClient, ['team_members', 'meetings', 'projects', 'tasks']);
+        await api.refreshSchemaCache(supabaseClient, ['team_members', 'meetings', 'projects', 'tasks', 'support_tickets', 'ticket_comments']);
     };
 
     const getSession = async () => {

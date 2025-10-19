@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { useSettingsContext } from './SettingsContext';
+import { useRealtime } from './RealtimeContext';
 
 export interface MeetingContextType {
   meetings: Meeting[];
@@ -21,6 +22,7 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { currentUser } = useAuth();
   const { siteSettings } = useSettingsContext();
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,23 +40,21 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     fetchData();
-
-    const channel = supabaseClient.channel('public:meetings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          setMeetings(prev => [...prev, api.keysToCamel(payload.new)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setMeetings(prev => prev.map(m => m.id === payload.new.id ? api.keysToCamel(payload.new) : m));
-        } else if (payload.eventType === 'DELETE') {
-          setMeetings(prev => prev.filter(m => m.id !== payload.old.id));
-        }
-      }).subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
-
   }, [supabaseClient, currentUser, addToast]);
+
+  useEffect(() => {
+    const handleMeetingChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        setMeetings(prev => [payload.new, ...prev.filter(m => m.id !== payload.new.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        setMeetings(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      } else if (payload.eventType === 'DELETE') {
+        setMeetings(prev => prev.filter(m => m.id !== payload.old.id));
+      }
+    };
+    const unsubscribe = subscribe('meetings', handleMeetingChange);
+    return () => unsubscribe();
+  }, [subscribe]);
 
   const handleAddMeeting = useCallback(async (meetingData: MeetingFormData) => {
     if (!supabaseClient || !currentUser) return;

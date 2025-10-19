@@ -12,7 +12,7 @@ interface ApprovalItemCardProps {
     onReview: (item: DecisionItem) => void;
 }
 
-export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = ({ item, onReview }) => {
+export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = React.memo(({ item, onReview }) => {
     const { teamMembers } = useTeamContext();
     const { projects } = useProjectContext();
     const { currency } = useSettingsContext();
@@ -64,4 +64,4 @@ export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = ({ item, onRevi
             </button>
         </div>
     );
-};
+});

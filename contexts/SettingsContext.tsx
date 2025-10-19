@@ -5,6 +5,7 @@ import * as api from '../services/apiService';
 import { initialData } from '../data/initialData';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { useRealtime } from './RealtimeContext';
 
 export interface SettingsContextType {
   siteSettings: SiteSettings | null;
@@ -19,6 +20,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const { currentUser } = useAuth();
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(initialData.siteSettings);
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   
   useEffect(() => {
     if (!supabaseClient || !currentUser) return;
@@ -40,18 +42,21 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     };
     fetchSettings();
+  }, [supabaseClient, currentUser]);
 
-    const channel = supabaseClient.channel('public:site_settings')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'site_settings', filter: 'id=eq.1' }, payload => {
-          setSiteSettings(api.keysToCamel(payload.new));
-      })
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
+  useEffect(() => {
+    const handleSettingsChange = (payload: any) => {
+        if (payload.eventType === 'UPDATE' && payload.new.id === '1') {
+            setSiteSettings(payload.new);
+        }
     };
 
-  }, [supabaseClient, currentUser]);
+    const unsubscribe = subscribe('site_settings', handleSettingsChange);
+
+    return () => {
+        unsubscribe();
+    };
+  }, [subscribe]);
 
 
   const handleUpdateSiteSettings = useCallback(async (settings: Partial<SiteSettings>) => {

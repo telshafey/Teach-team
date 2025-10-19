@@ -4,6 +4,7 @@ import * as api from '../services/apiService';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createNotification } from '../services/notificationService';
 import { parseMentions } from '../utils/mentions';
+import { useRealtime } from '../contexts/RealtimeContext';
 
 export const useTaskComments = (
     initialComments: TaskComment[],
@@ -14,26 +15,31 @@ export const useTaskComments = (
     addToast: (message: string, type: 'success' | 'error' | 'info') => void
 ) => {
     const [taskComments, setTaskComments] = useState<TaskComment[]>(initialComments);
+    const { subscribe } = useRealtime();
 
     useEffect(() => {
-        if (!supabaseClient) return;
+        setTaskComments(initialComments);
+    }, [initialComments]);
 
-        const channel = supabaseClient.channel('public:task_comments')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, payload => {
-                if (payload.eventType === 'INSERT') {
-                    setTaskComments(prev => [...prev, api.keysToCamel(payload.new)]);
-                } else if (payload.eventType === 'UPDATE') {
-                    setTaskComments(prev => prev.map(c => c.id === payload.new.id ? api.keysToCamel(payload.new) : c));
-                } else if (payload.eventType === 'DELETE') {
-                    setTaskComments(prev => prev.filter(c => c.id !== payload.old.id));
-                }
-            }).subscribe();
+    useEffect(() => {
+        if (!supabaseClient) return () => {};
+
+        const handleCommentChange = (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+                setTaskComments(prev => [payload.new, ...prev.filter(c => c.id !== payload.new.id)]);
+            } else if (payload.eventType === 'UPDATE') {
+                setTaskComments(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
+            } else if (payload.eventType === 'DELETE') {
+                setTaskComments(prev => prev.filter(c => c.id !== payload.old.id));
+            }
+        };
+
+        const unsubscribe = subscribe('task_comments', handleCommentChange);
 
         return () => {
-            supabaseClient.removeChannel(channel);
+            unsubscribe();
         };
-    }, [supabaseClient]);
-
+    }, [supabaseClient, subscribe]);
 
     const handleAddTaskComment = useCallback(async (taskId: string, text: string) => {
         if (!supabaseClient || !currentUser) return;
@@ -43,8 +49,7 @@ export const useTaskComments = (
         const newCommentData = { taskId, authorId: currentUser.id, text, timestamp: new Date().toISOString() };
 
         try {
-            const createdComment = await api.insert<TaskComment>(supabaseClient, 'task_comments', newCommentData);
-            // State is updated via real-time subscription
+            await api.insert<TaskComment>(supabaseClient, 'task_comments', newCommentData);
             addToast('تم إضافة التعليق بنجاح.', 'success');
 
             const mentionedUsers = parseMentions(text, teamMembers);
@@ -63,7 +68,6 @@ export const useTaskComments = (
         if (!supabaseClient) return;
         try {
             await api.deleteById(supabaseClient, 'task_comments', commentId);
-            // State is updated via real-time subscription
             addToast('تم حذف التعليق بنجاح.', 'success');
         } catch (e: any) {
             addToast(`فشل حذف التعليق: ${e.message}`, 'error');
@@ -73,7 +77,7 @@ export const useTaskComments = (
 
     return {
         taskComments,
-        setTaskComments, // allow direct setting from the context fetch
+        setTaskComments,
         handleAddTaskComment,
         handleDeleteTaskComment
     };

@@ -6,6 +6,7 @@ import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { createNotification } from '../services/notificationService';
 import { useTeamContext } from './TeamContext';
+import { useRealtime } from './RealtimeContext';
 
 export interface RequestsContextType {
   leaveRequests: LeaveRequest[];
@@ -36,6 +37,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const { currentUser } = useAuth();
   const { teamMembers, handleUpdateMember } = useTeamContext();
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[]>([]);
@@ -68,22 +70,23 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
     };
     fetchData();
+  }, [supabaseClient, currentUser, addToast]);
 
-    // Generic function to handle real-time updates for a table
+  useEffect(() => {
     const setupSubscription = <T extends { id: string }>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-      return supabaseClient.channel(`public:${table}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
-          if (payload.eventType === 'INSERT') {
-            setter(prev => [...prev, api.keysToCamel(payload.new) as T]);
-          } else if (payload.eventType === 'UPDATE') {
-            setter(prev => prev.map(item => item.id === payload.new.id ? api.keysToCamel(payload.new) as T : item));
-          } else if (payload.eventType === 'DELETE') {
-            setter(prev => prev.filter(item => item.id !== (payload.old as any).id));
-          }
-        }).subscribe();
+        const handler = (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+                setter(prev => [payload.new, ...prev.filter(i => i.id !== payload.new.id)]);
+            } else if (payload.eventType === 'UPDATE') {
+                setter(prev => prev.map(item => item.id === payload.new.id ? payload.new as T : item));
+            } else if (payload.eventType === 'DELETE') {
+                setter(prev => prev.filter(item => item.id !== (payload.old as any).id));
+            }
+        };
+        return subscribe(table, handler);
     };
 
-    const channels = [
+    const unsubs = [
         setupSubscription('leave_requests', setLeaveRequests),
         setupSubscription('overtime_requests', setOvertimeRequests),
         setupSubscription('expense_claims', setExpenseClaims),
@@ -92,10 +95,9 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     ];
 
     return () => {
-      channels.forEach(channel => supabaseClient.removeChannel(channel));
+        unsubs.forEach(unsub => unsub());
     };
-
-  }, [supabaseClient, currentUser, addToast]);
+  }, [subscribe]);
   
  const updateRequest = async <T extends {id: string}>(
       table: string,

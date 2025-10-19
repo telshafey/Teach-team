@@ -5,7 +5,7 @@ export const PERMISSION_GROUPS: Record<string, Permission[]> = {
     'المشاريع والمهام': ['manage_projects', 'edit_projects', 'create_tasks', 'edit_tasks', 'delete_tasks', 'approve_task_submissions'],
     'الفريق والموظفين': ['manage_team', 'edit_team_members', 'approve_weekly_plans', 'approve_overtime', 'approve_leave_requests', 'approve_work_contract_changes', 'issue_penalties', 'approve_penalties'],
     'المالية': ['view_finances', 'view_all_salaries', 'submit_expenses', 'approve_expense_claims', 'approve_freelancer_contracts'],
-    'النظام والإعدادات': ['manage_roles', 'manage_site_settings', 'manage_db_settings'],
+    'النظام والإعدادات': ['manage_roles', 'manage_site_settings', 'manage_db_settings', 'manage_support_tickets'],
     'أخرى': ['manage_meetings', 'view_reports', 'view_analytics', 'use_ai_features'],
 };
 
@@ -37,4 +37,5 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
     approve_work_contract_changes: 'اعتماد طلبات تعديل عقد العمل',
     issue_penalties: 'إصدار جزاءات',
     approve_penalties: 'اعتماد/رفض الجزاءات',
+    manage_support_tickets: 'إدارة تذاكر الدعم الفني',
 };

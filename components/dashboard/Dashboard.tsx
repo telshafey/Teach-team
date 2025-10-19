@@ -31,7 +31,8 @@ export type View =
   | 'settings'
   | 'roles' // from settings
   | 'database' // from settings
-  | 'profile';
+  | 'profile'
+  | 'support';
 
 // Lazy load page components for code splitting
 const GeneralManagerDashboard = lazy(() => import('./GeneralManagerDashboard').then(module => ({ default: module.GeneralManagerDashboard })));
@@ -50,6 +51,7 @@ const SettingsPage = lazy(() => import('../settings/SettingsPage').then(module =
 const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const AllTasksPage = lazy(() => import('../tasks/AllTasksPage').then(module => ({ default: module.AllTasksPage })));
 const ApprovalsPage = lazy(() => import('../approvals/ApprovalsPage').then(module => ({ default: module.ApprovalsPage })));
+const SupportPage = lazy(() => import('../support/SupportPage').then(module => ({ default: module.SupportPage })));
 
 
 const DashboardContent = () => {
@@ -77,6 +79,7 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
     roles: SettingsPage,
     database: SettingsPage,
     profile: ProfilePage,
+    support: SupportPage,
 };
 
 

@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatusType = 'project' | 'task' | 'approval' | 'request' | 'penalty' | 'contract' | 'plan';
+type StatusType = 'project' | 'task' | 'approval' | 'request' | 'penalty' | 'contract' | 'plan' | 'support_ticket_status' | 'support_ticket_priority';
 type StatusValue = string;
 
 interface StatusBadgeProps {
@@ -47,7 +47,18 @@ const statusMaps: Record<StatusType, Record<StatusValue, { text: string, classNa
     approved: { text: 'معتمدة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
     rejected: { text: 'مرفوضة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
     'needs-adjustment': { text: 'تحتاج تعديل', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' },
-  }
+  },
+  support_ticket_status: {
+    open: { text: 'مفتوحة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' },
+    'in-progress': { text: 'قيد المعالجة', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
+    closed: { text: 'مغلقة', className: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200' },
+  },
+  support_ticket_priority: {
+    low: { text: 'منخفضة', className: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200' },
+    medium: { text: 'متوسطة', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
+    high: { text: 'عالية', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
+    urgent: { text: 'عاجلة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
+  },
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, inline }) => {

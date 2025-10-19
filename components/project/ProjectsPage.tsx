@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
 import { PlusIcon, SearchIcon, FolderIcon } from '../ui/Icons';
@@ -59,9 +59,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ initialState }) => {
         }
     };
 
-    const handleProjectSelect = (projectId: string) => {
+    const handleProjectSelect = useCallback((projectId: string) => {
         onNavigate('projectDetail', { projectId });
-    };
+    }, [onNavigate]);
 
     const projectStatuses: ProjectStatus[] = ['نشط', 'مكتمل', 'معلق'];
 

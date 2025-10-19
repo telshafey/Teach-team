@@ -55,7 +55,8 @@ export type Permission =
   | 'manage_meetings'
   | 'view_reports'
   | 'view_analytics'
-  | 'use_ai_features';
+  | 'use_ai_features'
+  | 'manage_support_tickets';
 
 export interface Role {
     id: string;
@@ -366,6 +367,34 @@ export interface PenaltyFormData {
     reason: string;
     date: string;
 }
+
+// --- SUPPORT TICKETS ---
+export type TicketStatus = 'open' | 'in-progress' | 'closed';
+export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TicketCategory = 'technical' | 'billing' | 'general';
+
+export interface SupportTicket {
+    id: string;
+    subject: string;
+    description: string;
+    category: TicketCategory;
+    priority: TicketPriority;
+    status: TicketStatus;
+    creatorId: number;
+    assigneeId?: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface TicketComment {
+    id: string;
+    ticketId: string;
+    authorId: number;
+    text: string;
+    isInternal: boolean;
+    createdAt: string;
+}
+
 
 // --- MISC ---
 export type DecisionItem = Task | Project | TeamMember | OvertimeRequest | LeaveRequest | WorkContractChangeRequest | Penalty | ExpenseClaim;

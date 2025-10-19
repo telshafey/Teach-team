@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { TaskAttachment } from '../types';
 import * as api from '../services/apiService';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { useRealtime } from '../contexts/RealtimeContext';
 
 export const useTaskAttachments = (
     initialAttachments: TaskAttachment[],
@@ -9,32 +10,36 @@ export const useTaskAttachments = (
     addToast: (message: string, type: 'success' | 'error' | 'info') => void
 ) => {
     const [taskAttachments, setTaskAttachments] = useState<TaskAttachment[]>(initialAttachments);
+    const { subscribe } = useRealtime();
 
     useEffect(() => {
-        if (!supabaseClient) return;
+        setTaskAttachments(initialAttachments);
+    }, [initialAttachments]);
 
-        const channel = supabaseClient.channel('public:task_attachments')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_attachments' }, payload => {
-                if (payload.eventType === 'INSERT') {
-                    setTaskAttachments(prev => [...prev, api.keysToCamel(payload.new)]);
-                } else if (payload.eventType === 'UPDATE') {
-                    setTaskAttachments(prev => prev.map(a => a.id === payload.new.id ? api.keysToCamel(payload.new) : a));
-                } else if (payload.eventType === 'DELETE') {
-                    setTaskAttachments(prev => prev.filter(a => a.id !== payload.old.id));
-                }
-            }).subscribe();
+    useEffect(() => {
+        if (!supabaseClient) return () => {};
+
+        const handleAttachmentChange = (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+                setTaskAttachments(prev => [payload.new, ...prev.filter(a => a.id !== payload.new.id)]);
+            } else if (payload.eventType === 'UPDATE') {
+                setTaskAttachments(prev => prev.map(a => a.id === payload.new.id ? payload.new : a));
+            } else if (payload.eventType === 'DELETE') {
+                setTaskAttachments(prev => prev.filter(a => a.id !== payload.old.id));
+            }
+        };
+
+        const unsubscribe = subscribe('task_attachments', handleAttachmentChange);
 
         return () => {
-            supabaseClient.removeChannel(channel);
+            unsubscribe();
         };
-    }, [supabaseClient]);
-
+    }, [supabaseClient, subscribe]);
 
     const handleAddTaskAttachment = useCallback(async (attachmentData: Omit<TaskAttachment, 'id'>) => {
         if (!supabaseClient) throw new Error("Supabase client not available");
         try {
             const createdAttachment = await api.insert<TaskAttachment>(supabaseClient, 'task_attachments', attachmentData);
-            // State is updated via real-time subscription
             return createdAttachment;
         } catch (e: any) {
             addToast(`فشل حفظ المرفق: ${e.message}`, 'error');

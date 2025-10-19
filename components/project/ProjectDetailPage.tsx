@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
@@ -97,32 +97,36 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         await handleFreelancerProposal(project.id, proposalData);
     };
     
-    const handleSaveTask = async (taskData: Partial<Task>, isNew: boolean) => {
+    const handleSaveTask = useCallback(async (taskData: Partial<Task>, isNew: boolean) => {
         if (isNew) {
             await handleAddTask(taskData as TaskFormData);
         } else {
             await handleUpdateTask({ ...taskForModal as Task, ...taskData });
         }
-    };
+    }, [handleAddTask, handleUpdateTask, taskForModal]);
     
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, taskId: string) => {
+    const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, taskId: string) => {
         setDraggingTaskId(taskId);
         e.dataTransfer.effectAllowed = "move";
-    };
+    }, []);
 
-    const handleDrop = async (newStatus: TaskStatus) => {
+    const handleDrop = useCallback(async (newStatus: TaskStatus) => {
         if (draggingTaskId) {
             const task = tasks.find(t => t.id === draggingTaskId);
             if (task && task.status !== newStatus) {
                 await handleUpdateTaskStatus(draggingTaskId, newStatus);
             }
         }
-    };
+    }, [draggingTaskId, tasks, handleUpdateTaskStatus]);
 
-    const handleDeleteClick = (task: Task) => {
+    const handleDeleteClick = useCallback((task: Task) => {
         setTaskToDelete(task);
         setIsDeleteConfirmOpen(true);
-    };
+    }, []);
+    
+    const handleOpenTaskModal = useCallback((task: Task) => {
+        setTaskForModal(task);
+    }, []);
 
     const confirmDelete = async () => {
         if (taskToDelete) {
@@ -208,9 +212,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
             <div className="flex-1 min-h-0">
                 {viewMode === 'kanban' ? (
                     <div className="flex flex-row gap-4 overflow-x-auto pb-4">
-                        <TaskColumn title="مهام لم تبدأ" tasks={tasksByStatus.todo} status="todo" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'todo' })} />
-                        <TaskColumn title="قيد التنفيذ" tasks={tasksByStatus.inprogress} status="inprogress" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'inprogress' })} />
-                        <TaskColumn title="مكتملة" tasks={tasksByStatus.done} status="done" onDelete={handleDeleteClick} onCardClick={setTaskForModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'done' })} />
+                        <TaskColumn title="مهام لم تبدأ" tasks={tasksByStatus.todo} status="todo" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'todo' })} />
+                        <TaskColumn title="قيد التنفيذ" tasks={tasksByStatus.inprogress} status="inprogress" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'inprogress' })} />
+                        <TaskColumn title="مكتملة" tasks={tasksByStatus.done} status="done" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'done' })} />
                     </div>
                 ) : viewMode === 'gantt' ? (
                      <div className="h-full overflow-y-auto">

@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { TeamMember } from '../types';
 
 // Helper to convert snake_case to camelCase
 const snakeToCamel = (str: string) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
@@ -88,6 +89,33 @@ export const update = async <T>(client: SupabaseClient, table: string, id: strin
     if (error) throw error;
     return keysToCamel(data) as T;
 };
+
+// Special handler for updating team members which might include a password change (admin operation)
+type TeamMemberUpdateData = Partial<TeamMember & { password?: string }>;
+export const updateTeamMemberWithPassword = async (
+    client: SupabaseClient, 
+    member: TeamMember, 
+    updates: TeamMemberUpdateData
+): Promise<TeamMember> => {
+    const { password, ...memberData } = updates;
+
+    if (password) {
+        const { error: authError } = await client.auth.admin.updateUserById(
+            member.authUserId,
+            { password: password }
+        );
+        if (authError) throw authError;
+    }
+
+    if (Object.keys(memberData).length > 0) {
+        return await update<TeamMember>(client, 'team_members', member.id, memberData);
+    }
+    
+    // If only password was updated, nothing is returned from the 'update' call.
+    // Return the member object merged with the non-password updates to reflect the new state.
+    return { ...member, ...memberData };
+};
+
 
 export const deleteById = async (client: SupabaseClient, table: string, id: string | number): Promise<void> => {
     // For projects, deletion is handled via RPC due to cascading deletes.

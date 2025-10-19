@@ -4,6 +4,7 @@ import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
 import * as api from '../services/apiService';
 import { useToast } from './ToastContext';
+import { useRealtime } from './RealtimeContext';
 
 export interface NotificationContextType {
   notifications: Notification[];
@@ -16,6 +17,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
@@ -41,31 +43,37 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     fetchNotifications();
+  }, [supabaseClient, currentUser, addToast]);
 
-    const channel = supabaseClient
-      .channel(`public:notifications:recipient_id=eq.${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotification = api.keysToCamel(payload.new) as Notification;
-            setNotifications(prev => [newNotification, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedNotification = api.keysToCamel(payload.new) as Notification;
-            setNotifications(prev => prev.map(n => n.id === updatedNotification.id ? updatedNotification : n));
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = (payload.old as any).id;
-            setNotifications(prev => prev.filter(n => n.id !== deletedId));
-          }
+  useEffect(() => {
+    if (!currentUser) return () => {};
+
+    const handleNotificationChange = (payload: any) => {
+        // Realtime event might arrive before currentUser is set, so check again.
+        if (!currentUser) return;
+        
+        const relevantNew = payload.new && payload.new.recipientId === currentUser.id;
+        const relevantOld = payload.old && payload.old.recipientId === currentUser.id;
+
+        if (!relevantNew && !relevantOld) {
+            return;
         }
-      )
-      .subscribe();
+
+        if (payload.eventType === 'INSERT') {
+            setNotifications(prev => [payload.new, ...prev.filter(n => n.id !== payload.new.id)]);
+        } else if (payload.eventType === 'UPDATE') {
+            setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
+        } else if (payload.eventType === 'DELETE') {
+            setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+        }
+    };
+
+    const unsubscribe = subscribe('notifications', handleNotificationChange);
 
     return () => {
-      supabaseClient.removeChannel(channel);
+        unsubscribe();
     };
-  }, [supabaseClient, currentUser, addToast]);
+  }, [currentUser, subscribe]);
 
   const markNotificationAsRead = useCallback(async (notificationId: string) => {
     if (!supabaseClient) return;

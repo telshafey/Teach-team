@@ -8,6 +8,7 @@ import { createNotification } from '../services/notificationService';
 import { useTaskAttachments } from '../hooks/useTaskAttachments';
 import { useTaskComments } from '../hooks/useTaskComments';
 import { useTeamContext } from './TeamContext';
+import { useRealtime } from './RealtimeContext';
 
 export interface ProjectContextType {
   projects: Project[];
@@ -37,6 +38,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { currentUser } = useAuth();
   const { teamMembers } = useTeamContext();
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -68,36 +70,37 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     fetchData();
+  }, [supabaseClient, currentUser, addToast, setTaskAttachments, setTaskComments]);
 
-    // Set up real-time subscriptions
-    const projectsChannel = supabaseClient.channel('public:projects')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setProjects(prev => [api.keysToCamel(payload.new), ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setProjects(prev => prev.map(p => p.id === payload.new.id ? api.keysToCamel(payload.new) : p));
-        } else if (payload.eventType === 'DELETE') {
-          setProjects(prev => prev.filter(p => p.id !== payload.old.id));
-        }
-      }).subscribe();
-
-    const tasksChannel = supabaseClient.channel('public:tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
-         if (payload.eventType === 'INSERT') {
-          setTasks(prev => [api.keysToCamel(payload.new), ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setTasks(prev => prev.map(t => t.id === payload.new.id ? api.keysToCamel(payload.new) : t));
-        } else if (payload.eventType === 'DELETE') {
-          setTasks(prev => prev.filter(t => t.id !== payload.old.id));
-        }
-      }).subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(projectsChannel);
-      supabaseClient.removeChannel(tasksChannel);
+  useEffect(() => {
+    const handleProjectChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        setProjects(prev => [payload.new, ...prev.filter(p => p.id !== payload.new.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        setProjects(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+      } else if (payload.eventType === 'DELETE') {
+        setProjects(prev => prev.filter(p => p.id !== payload.old.id));
+      }
+    };
+    
+    const handleTaskChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        setTasks(prev => [payload.new, ...prev.filter(t => t.id !== payload.new.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        setTasks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
+      } else if (payload.eventType === 'DELETE') {
+        setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+      }
     };
 
-  }, [supabaseClient, currentUser, addToast, setTaskAttachments, setTaskComments]);
+    const unsubscribeProjects = subscribe('projects', handleProjectChange);
+    const unsubscribeTasks = subscribe('tasks', handleTaskChange);
+
+    return () => {
+      unsubscribeProjects();
+      unsubscribeTasks();
+    };
+  }, [subscribe]);
 
   const handleUpdateProject = useCallback(async (projectData: Partial<Project>) => {
     if (!supabaseClient || !projectData.id) return;

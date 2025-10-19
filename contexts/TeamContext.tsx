@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import * as api from '../services/apiService';
 import { useToast } from './ToastContext';
 import { slugify } from '../utils/slugify';
+import { useRealtime } from './RealtimeContext';
 
 // Helper to get all direct and indirect report IDs recursively
 const getReportIds = (managerId: number, allMembers: TeamMember[]): number[] => {
@@ -50,6 +51,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,35 +74,37 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
     fetchData();
+  }, [supabaseClient, currentUser, addToast]);
 
-    const membersChannel = supabaseClient.channel('public:team_members')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, payload => {
+  useEffect(() => {
+    const handleMembersChange = (payload: any) => {
         if (payload.eventType === 'INSERT') {
-          setTeamMembers(prev => [...prev, api.keysToCamel(payload.new)]);
+            setTeamMembers(prev => [...prev.filter(m => m.id !== payload.new.id), payload.new]);
         } else if (payload.eventType === 'UPDATE') {
-          setTeamMembers(prev => prev.map(m => m.id === payload.new.id ? api.keysToCamel(payload.new) : m));
+            setTeamMembers(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
         } else if (payload.eventType === 'DELETE') {
-          setTeamMembers(prev => prev.filter(m => m.id !== payload.old.id));
+            setTeamMembers(prev => prev.filter(m => m.id !== payload.old.id));
         }
-      }).subscribe();
-      
-    const rolesChannel = supabaseClient.channel('public:roles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'roles' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          setRoles(prev => [...prev, api.keysToCamel(payload.new)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setRoles(prev => prev.map(r => r.id === payload.new.id ? api.keysToCamel(payload.new) : r));
-        } else if (payload.eventType === 'DELETE') {
-          setRoles(prev => prev.filter(r => r.id !== payload.old.id));
-        }
-      }).subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(membersChannel);
-      supabaseClient.removeChannel(rolesChannel);
     };
 
-  }, [supabaseClient, currentUser, addToast]);
+    const handleRolesChange = (payload: any) => {
+        if (payload.eventType === 'INSERT') {
+            setRoles(prev => [...prev.filter(r => r.id !== payload.new.id), payload.new]);
+        } else if (payload.eventType === 'UPDATE') {
+            setRoles(prev => prev.map(r => r.id === payload.new.id ? payload.new : r));
+        } else if (payload.eventType === 'DELETE') {
+            setRoles(prev => prev.filter(r => r.id !== payload.old.id));
+        }
+    };
+
+    const unsubMembers = subscribe('team_members', handleMembersChange);
+    const unsubRoles = subscribe('roles', handleRolesChange);
+
+    return () => {
+        unsubMembers();
+        unsubRoles();
+    };
+  }, [subscribe]);
 
   const visibleMemberIds = useMemo(() => {
     if (!currentUser) return new Set<number>();
@@ -126,31 +130,17 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
  const handleUpdateMember = useCallback(async (memberId: number, data: TeamMemberUpdateData) => {
     if (!supabaseClient) return;
 
-    const { password, ...memberData } = data;
     const memberToUpdate = teamMembers.find(m => m.id === memberId);
     if (!memberToUpdate) {
+        addToast("لم يتم العثور على العضو", 'error');
         throw new Error("لم يتم العثور على العضو");
     }
 
     try {
-        let passwordUpdated = false;
-        if (password) {
-            const { error: authError } = await supabaseClient.auth.admin.updateUserById(
-                memberToUpdate.authUserId,
-                { password: password }
-            );
-            if (authError) throw authError;
-            passwordUpdated = true;
-        }
-
-        if (Object.keys(memberData).length > 0) {
-            await api.update<TeamMember>(supabaseClient, 'team_members', memberId, memberData);
-        }
-        
-        if (Object.keys(memberData).length > 0 || passwordUpdated) {
+        await api.updateTeamMemberWithPassword(supabaseClient, memberToUpdate, data);
+        if (Object.keys(data).length > 0) {
             addToast('تم تحديث بيانات العضو بنجاح.', 'success');
         }
-
     } catch (error: any) {
         console.error("Failed to update member:", error);
         const message = (error?.message && typeof error.message === 'string') ? error.message : JSON.stringify(error);

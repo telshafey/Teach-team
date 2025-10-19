@@ -4,6 +4,7 @@ import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
+import { useRealtime } from './RealtimeContext';
 
 export interface TimeLogContextType {
   dailyLogs: DailyLog[];
@@ -19,6 +20,7 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth(); // Depend on user
   const { addToast } = useToast();
+  const { subscribe } = useRealtime();
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,24 +38,21 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     fetchData();
-
-    const channel = supabaseClient.channel('public:daily_logs')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setDailyLogs(prev => [...prev, api.keysToCamel(payload.new)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setDailyLogs(prev => prev.map(log => log.id === payload.new.id ? api.keysToCamel(payload.new) : log));
-        } else if (payload.eventType === 'DELETE') {
-          setDailyLogs(prev => prev.filter(log => log.id !== payload.old.id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabaseClient.removeChannel(channel);
-    };
-
   }, [supabaseClient, currentUser, addToast]); 
+
+  useEffect(() => {
+    const handleLogChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        setDailyLogs(prev => [payload.new, ...prev.filter(l => l.id !== payload.new.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        setDailyLogs(prev => prev.map(log => log.id === payload.new.id ? payload.new : log));
+      } else if (payload.eventType === 'DELETE') {
+        setDailyLogs(prev => prev.filter(log => log.id !== payload.old.id));
+      }
+    };
+    const unsubscribe = subscribe('daily_logs', handleLogChange);
+    return () => unsubscribe();
+  }, [subscribe]);
 
   const handleAddDailyLog = useCallback(async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;
