@@ -90,6 +90,13 @@ export const update = async <T>(client: SupabaseClient, table: string, id: strin
 };
 
 export const deleteById = async (client: SupabaseClient, table: string, id: string | number): Promise<void> => {
+    // For projects, deletion is handled via RPC due to cascading deletes.
+    if (table === 'projects') {
+        const { error } = await client.rpc('delete_project_and_related_data', { p_id: id });
+        if (error) throw error;
+        return;
+    }
+    
     const { error } = await client.from(table).delete().eq('id', id);
     if (error) throw error;
 };

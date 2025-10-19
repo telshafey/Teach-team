@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { TaskComment, Task, TeamMember } from '../types';
 import * as api from '../services/apiService';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -15,6 +15,26 @@ export const useTaskComments = (
 ) => {
     const [taskComments, setTaskComments] = useState<TaskComment[]>(initialComments);
 
+    useEffect(() => {
+        if (!supabaseClient) return;
+
+        const channel = supabaseClient.channel('public:task_comments')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, payload => {
+                if (payload.eventType === 'INSERT') {
+                    setTaskComments(prev => [...prev, api.keysToCamel(payload.new)]);
+                } else if (payload.eventType === 'UPDATE') {
+                    setTaskComments(prev => prev.map(c => c.id === payload.new.id ? api.keysToCamel(payload.new) : c));
+                } else if (payload.eventType === 'DELETE') {
+                    setTaskComments(prev => prev.filter(c => c.id !== payload.old.id));
+                }
+            }).subscribe();
+
+        return () => {
+            supabaseClient.removeChannel(channel);
+        };
+    }, [supabaseClient]);
+
+
     const handleAddTaskComment = useCallback(async (taskId: string, text: string) => {
         if (!supabaseClient || !currentUser) return;
         const task = tasks.find(t => t.id === taskId);
@@ -24,7 +44,7 @@ export const useTaskComments = (
 
         try {
             const createdComment = await api.insert<TaskComment>(supabaseClient, 'task_comments', newCommentData);
-            setTaskComments(prev => [...prev, createdComment]);
+            // State is updated via real-time subscription
             addToast('تم إضافة التعليق بنجاح.', 'success');
 
             const mentionedUsers = parseMentions(text, teamMembers);
@@ -41,17 +61,15 @@ export const useTaskComments = (
 
     const handleDeleteTaskComment = useCallback(async (commentId: string) => {
         if (!supabaseClient) return;
-        const originalComments = taskComments;
-        setTaskComments(prev => prev.filter(c => c.id !== commentId));
         try {
             await api.deleteById(supabaseClient, 'task_comments', commentId);
+            // State is updated via real-time subscription
             addToast('تم حذف التعليق بنجاح.', 'success');
         } catch (e: any) {
-            setTaskComments(originalComments);
             addToast(`فشل حذف التعليق: ${e.message}`, 'error');
             throw e;
         }
-    }, [supabaseClient, taskComments, addToast]);
+    }, [supabaseClient, addToast]);
 
     return {
         taskComments,

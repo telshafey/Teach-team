@@ -38,6 +38,22 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     fetchData();
+
+    const channel = supabaseClient.channel('public:meetings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setMeetings(prev => [...prev, api.keysToCamel(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setMeetings(prev => prev.map(m => m.id === payload.new.id ? api.keysToCamel(payload.new) : m));
+        } else if (payload.eventType === 'DELETE') {
+          setMeetings(prev => prev.filter(m => m.id !== payload.old.id));
+        }
+      }).subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+
   }, [supabaseClient, currentUser, addToast]);
 
   const handleAddMeeting = useCallback(async (meetingData: MeetingFormData) => {
@@ -64,16 +80,10 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     try {
-        // Use the new RPC function to bypass PostgREST cache issues
-        const newMeeting = await api.callRpcSingle<Meeting>(
-            supabaseClient, 
-            'meetings_insert', 
-            { new_meeting: newMeetingData }
-        );
-        setMeetings(prev => [...prev, newMeeting]);
+        await api.insert<Meeting>(supabaseClient, 'meetings', newMeetingData);
         addToast('تم جدولة الاجتماع بنجاح.', 'success');
     } catch (error: any) {
-        console.error("Failed to add meeting via RPC:", error);
+        console.error("Failed to add meeting:", error);
         addToast(`فشل جدولة الاجتماع: ${error.message}`, 'error');
         throw error;
     }
@@ -81,9 +91,14 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleDeleteMeeting = useCallback(async (meetingId: string) => {
     if (!supabaseClient) return;
-    await api.deleteById(supabaseClient, 'meetings', meetingId);
-    setMeetings(prev => prev.filter(m => m.id !== meetingId));
-    addToast('تم حذف الاجتماع بنجاح.', 'success');
+    try {
+        await api.deleteById(supabaseClient, 'meetings', meetingId);
+        addToast('تم حذف الاجتماع بنجاح.', 'success');
+    } catch (error: any) {
+        addToast(`فشل حذف الاجتماع: ${error.message}`, 'error');
+        console.error("Failed to delete meeting:", error);
+        throw error;
+    }
   }, [supabaseClient, addToast]);
 
   const handleJoinMeeting = useCallback(async (meetingId: string) => {
@@ -93,9 +108,13 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const currentAttendees = meeting.attendees || [];
     if (!currentAttendees.includes(currentUser.id)) {
-        const updatedAttendees = [...currentAttendees, currentUser.id];
-        const updatedMeeting = await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: updatedAttendees });
-        setMeetings(prev => prev.map(m => m.id === meetingId ? updatedMeeting : m));
+        try {
+            const updatedAttendees = [...currentAttendees, currentUser.id];
+            await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: updatedAttendees });
+        } catch (error) {
+            console.error("Failed to mark user as attendee:", error);
+            // We don't toast here as it might disrupt the user joining the meeting room.
+        }
     }
   }, [supabaseClient, currentUser, meetings]);
 

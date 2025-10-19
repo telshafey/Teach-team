@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { TaskAttachment } from '../types';
 import * as api from '../services/apiService';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -10,11 +10,31 @@ export const useTaskAttachments = (
 ) => {
     const [taskAttachments, setTaskAttachments] = useState<TaskAttachment[]>(initialAttachments);
 
+    useEffect(() => {
+        if (!supabaseClient) return;
+
+        const channel = supabaseClient.channel('public:task_attachments')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_attachments' }, payload => {
+                if (payload.eventType === 'INSERT') {
+                    setTaskAttachments(prev => [...prev, api.keysToCamel(payload.new)]);
+                } else if (payload.eventType === 'UPDATE') {
+                    setTaskAttachments(prev => prev.map(a => a.id === payload.new.id ? api.keysToCamel(payload.new) : a));
+                } else if (payload.eventType === 'DELETE') {
+                    setTaskAttachments(prev => prev.filter(a => a.id !== payload.old.id));
+                }
+            }).subscribe();
+
+        return () => {
+            supabaseClient.removeChannel(channel);
+        };
+    }, [supabaseClient]);
+
+
     const handleAddTaskAttachment = useCallback(async (attachmentData: Omit<TaskAttachment, 'id'>) => {
         if (!supabaseClient) throw new Error("Supabase client not available");
         try {
             const createdAttachment = await api.insert<TaskAttachment>(supabaseClient, 'task_attachments', attachmentData);
-            setTaskAttachments(prev => [...prev, createdAttachment]);
+            // State is updated via real-time subscription
             return createdAttachment;
         } catch (e: any) {
             addToast(`فشل حفظ المرفق: ${e.message}`, 'error');
@@ -24,8 +44,6 @@ export const useTaskAttachments = (
 
     const handleDeleteTaskAttachment = useCallback(async (attachment: TaskAttachment) => {
         if (!supabaseClient) return;
-        const originalAttachments = taskAttachments;
-        setTaskAttachments(prev => prev.filter(a => a.id !== attachment.id));
         
         try {
             await api.deleteById(supabaseClient, 'task_attachments', attachment.id);
@@ -42,11 +60,10 @@ export const useTaskAttachments = (
                  console.warn(`An error occurred during storage file deletion:`, storageError);
             }
         } catch (e: any) {
-            setTaskAttachments(originalAttachments);
             addToast(`فشل حذف المرفق: ${e.message}`, 'error');
             throw e;
         }
-    }, [supabaseClient, taskAttachments, addToast]);
+    }, [supabaseClient, addToast]);
 
     return {
         taskAttachments,

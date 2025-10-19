@@ -36,7 +36,7 @@ export const SalarySlipModal: React.FC<SalarySlipModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" dir="rtl">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[calc(var(--vh,1vh)*90)] flex flex-col">
                 <div id="salary-slip-print-area" className="p-8 overflow-y-auto">
                     <div className="flex justify-between items-start pb-4 border-b border-slate-300 dark:border-slate-600">
                         <div>

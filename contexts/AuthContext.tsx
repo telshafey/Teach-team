@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { useSupabase } from './SupabaseContext';
 import { TeamMember } from '../types';
 import * as api from '../services/apiService';
+import { useToast } from './ToastContext';
 
 export interface AuthContextType {
   currentUser: TeamMember | null;
@@ -18,6 +19,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { supabaseClient } = useSupabase();
   const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { addToast } = useToast();
 
   const fetchUserProfile = useCallback(async (user: User | null): Promise<TeamMember | null> => {
     if (!user || !supabaseClient) return null;
@@ -30,10 +32,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [supabaseClient]);
 
   useEffect(() => {
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      setIsLoading(false);
+      return;
+    }
 
     const refreshCache = async () => {
-        // Attempt to refresh schema for tables that have caused issues.
         await api.refreshSchemaCache(supabaseClient, ['team_members', 'meetings', 'projects', 'tasks']);
     };
 
@@ -60,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentUser(userProfile);
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           if (userProfile) {
-            refreshCache(); // Don't await
+            refreshCache();
           }
         }
         if (event === 'SIGNED_OUT') {
@@ -88,8 +92,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateCurrentUser = async (updates: Partial<TeamMember>) => {
       if (!currentUser || !supabaseClient) return;
-      const updatedUser = await api.update<TeamMember>(supabaseClient, 'team_members', currentUser.id, updates);
-      setCurrentUser(updatedUser);
+      try {
+        const updatedUser = await api.update<TeamMember>(supabaseClient, 'team_members', currentUser.id, updates);
+        setCurrentUser(updatedUser);
+      } catch (error: any) {
+        addToast(`فشل تحديث الملف الشخصي: ${error.message}`, 'error');
+        console.error("Failed to update current user:", error);
+      }
   };
 
 

@@ -68,10 +68,36 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
     };
     fetchData();
+
+    // Generic function to handle real-time updates for a table
+    const setupSubscription = <T extends { id: string }>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+      return supabaseClient.channel(`public:${table}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
+          if (payload.eventType === 'INSERT') {
+            setter(prev => [...prev, api.keysToCamel(payload.new) as T]);
+          } else if (payload.eventType === 'UPDATE') {
+            setter(prev => prev.map(item => item.id === payload.new.id ? api.keysToCamel(payload.new) as T : item));
+          } else if (payload.eventType === 'DELETE') {
+            setter(prev => prev.filter(item => item.id !== (payload.old as any).id));
+          }
+        }).subscribe();
+    };
+
+    const channels = [
+        setupSubscription('leave_requests', setLeaveRequests),
+        setupSubscription('overtime_requests', setOvertimeRequests),
+        setupSubscription('expense_claims', setExpenseClaims),
+        setupSubscription('work_contract_change_requests', setWorkContractChangeRequests),
+        setupSubscription('penalties', setPenalties),
+    ];
+
+    return () => {
+      channels.forEach(channel => supabaseClient.removeChannel(channel));
+    };
+
   }, [supabaseClient, currentUser, addToast]);
   
  const updateRequest = async <T extends {id: string}>(
-      setState: React.Dispatch<React.SetStateAction<T[]>>,
       table: string,
       id: string,
       updates: Partial<T>
@@ -79,7 +105,6 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!supabaseClient) throw new Error("Supabase client is not available");
       try {
         const updatedItem = await api.update<T>(supabaseClient, table, id, updates);
-        setState(prev => prev.map(item => item.id === id ? updatedItem : item));
         addToast('تم تحديث حالة الطلب.', 'success');
         return updatedItem;
       } catch (error: any) {
@@ -93,8 +118,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const submitLeaveRequest = async (formData: LeaveRequestFormData) => {
     if(!supabaseClient || !currentUser) return;
     try {
-        const newRequest = await api.insert<LeaveRequest>(supabaseClient, 'leave_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
-        setLeaveRequests(prev => [...prev, newRequest]);
+        await api.insert<LeaveRequest>(supabaseClient, 'leave_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
         addToast('تم إرسال طلب الإجازة.', 'success');
     } catch (error: any) {
         console.error("Failed to submit leave request:", error);
@@ -106,7 +130,6 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     if(!supabaseClient) return;
     try {
         await api.deleteById(supabaseClient, 'leave_requests', id);
-        setLeaveRequests(prev => prev.filter(r => r.id !== id));
         addToast('تم إلغاء طلب الإجازة.', 'success');
     } catch (error: any) {
         console.error("Failed to cancel leave request:", error);
@@ -115,15 +138,14 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }
   const handleUpdateLeaveStatus = async (id: string, status: LeaveRequest['status'], managerNotes: string) => {
-    await updateRequest<LeaveRequest>(setLeaveRequests, 'leave_requests', id, { status, managerNotes });
+    await updateRequest<LeaveRequest>('leave_requests', id, { status, managerNotes });
   };
 
   // Overtime Requests
   const submitOvertimeRequest = async (formData: OvertimeRequestFormData) => {
     if(!supabaseClient || !currentUser) return;
     try {
-        const newRequest = await api.insert<OvertimeRequest>(supabaseClient, 'overtime_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
-        setOvertimeRequests(prev => [...prev, newRequest]);
+        await api.insert<OvertimeRequest>(supabaseClient, 'overtime_requests', { ...formData, teamMemberId: currentUser.id, status: 'pending' });
         addToast('تم إرسال طلب الساعات الإضافية.', 'success');
     } catch (error: any) {
         console.error("Failed to submit overtime request:", error);
@@ -135,7 +157,6 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     if(!supabaseClient) return;
     try {
         await api.deleteById(supabaseClient, 'overtime_requests', id);
-        setOvertimeRequests(prev => prev.filter(r => r.id !== id));
         addToast('تم إلغاء طلب الساعات الإضافية.', 'success');
     } catch (error: any) {
         console.error("Failed to cancel overtime request:", error);
@@ -144,15 +165,14 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }
   const handleUpdateOvertimeStatus = async (id: string, status: OvertimeRequest['status'], managerNotes: string) => {
-      await updateRequest<OvertimeRequest>(setOvertimeRequests, 'overtime_requests', id, { status, managerNotes });
+      await updateRequest<OvertimeRequest>('overtime_requests', id, { status, managerNotes });
   };
 
   // Expense Claims
   const handleSubmitExpenseClaim = async (formData: Omit<ExpenseClaim, 'id' | 'status'>) => {
     if(!supabaseClient) return;
     try {
-        const newClaim = await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', { ...formData, status: 'pending' });
-        setExpenseClaims(prev => [...prev, newClaim]);
+        await api.insert<ExpenseClaim>(supabaseClient, 'expense_claims', { ...formData, status: 'pending' });
         addToast('تم تقديم طلب الصرف.', 'success');
     } catch (error: any) {
         console.error("Failed to submit expense claim:", error);
@@ -161,7 +181,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }
   const handleUpdateExpenseClaimStatus = async (id: string, status: ExpenseClaim['status']) => {
-      await updateRequest<ExpenseClaim>(setExpenseClaims, 'expense_claims', id, { status });
+      await updateRequest<ExpenseClaim>('expense_claims', id, { status });
   };
 
   // Work Contract Change Requests
@@ -170,8 +190,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
         const currentContract = { currentWeeklyHours: currentUser.weeklyHoursRequirement, currentSalary: currentUser.salary };
         const newRequestData = { ...formData, ...currentContract, teamMemberId: currentUser.id, status: 'pending' as WorkContractChangeStatus, createdAt: new Date().toISOString() };
-        const newRequest = await api.insert<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests', newRequestData);
-        setWorkContractChangeRequests(prev => [...prev, newRequest]);
+        await api.insert<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests', newRequestData);
         addToast('تم تقديم طلب تعديل العقد.', 'success');
     } catch (error: any) {
         console.error("Failed to submit work contract change request:", error);
@@ -198,7 +217,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
           updates.approvedSalary = request.requestedSalary;
       }
       
-      await updateRequest<WorkContractChangeRequest>(setWorkContractChangeRequests, 'work_contract_change_requests', id, updates);
+      await updateRequest<WorkContractChangeRequest>('work_contract_change_requests', id, updates);
 
       if (status === 'approved') {
           await handleUpdateMember(request.teamMemberId, {
@@ -214,8 +233,7 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (!supabaseClient || !currentUser) return;
     try {
         const newPenaltyData: Omit<Penalty, 'id'|'createdAt'> = { ...formData, issuerId: currentUser.id, status: 'pending' };
-        const newPenalty = await api.insert<Penalty>(supabaseClient, 'penalties', newPenaltyData);
-        setPenalties(prev => [...prev, newPenalty]);
+        await api.insert<Penalty>(supabaseClient, 'penalties', newPenaltyData);
         addToast('تم إصدار الجزاء وهو الآن قيد المراجعة.', 'success');
     } catch (error: any) {
         console.error("Failed to issue penalty:", error);
@@ -225,10 +243,10 @@ export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const handleAppealPenalty = async (id: string, appealReason: string) => {
-      await updateRequest<Penalty>(setPenalties, 'penalties', id, { status: 'appealed', appealReason });
+      await updateRequest<Penalty>('penalties', id, { status: 'appealed', appealReason });
   };
   const handleUpdatePenaltyStatus = async (id: string, status: Penalty['status'], notes: string) => {
-      await updateRequest<Penalty>(setPenalties, 'penalties', id, { status, managerNotes: notes });
+      await updateRequest<Penalty>('penalties', id, { status, managerNotes: notes });
   };
 
 

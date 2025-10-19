@@ -318,7 +318,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
-        <div ref={modalContentRef} className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div ref={modalContentRef} className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[calc(var(--vh,1vh)*90)] flex flex-col">
           <div className="flex justify-between items-start mb-4 flex-shrink-0">
               <div>
                   <h2 className="text-xl font-bold">{isNew ? 'مهمة جديدة' : isEditing ? 'تعديل المهمة' : task?.title}</h2>

@@ -72,6 +72,34 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
     fetchData();
+
+    const membersChannel = supabaseClient.channel('public:team_members')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setTeamMembers(prev => [...prev, api.keysToCamel(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setTeamMembers(prev => prev.map(m => m.id === payload.new.id ? api.keysToCamel(payload.new) : m));
+        } else if (payload.eventType === 'DELETE') {
+          setTeamMembers(prev => prev.filter(m => m.id !== payload.old.id));
+        }
+      }).subscribe();
+      
+    const rolesChannel = supabaseClient.channel('public:roles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'roles' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setRoles(prev => [...prev, api.keysToCamel(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setRoles(prev => prev.map(r => r.id === payload.new.id ? api.keysToCamel(payload.new) : r));
+        } else if (payload.eventType === 'DELETE') {
+          setRoles(prev => prev.filter(r => r.id !== payload.old.id));
+        }
+      }).subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(membersChannel);
+      supabaseClient.removeChannel(rolesChannel);
+    };
+
   }, [supabaseClient, currentUser, addToast]);
 
   const visibleMemberIds = useMemo(() => {
@@ -115,19 +143,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             passwordUpdated = true;
         }
 
-        let otherDataUpdated = false;
         if (Object.keys(memberData).length > 0) {
-            // Use the new RPC function to bypass PostgREST cache issues
-            const updatedMember = await api.callRpcSingle<TeamMember>(
-                supabaseClient,
-                'team_members_update',
-                { member_id: memberId, updates: memberData }
-            );
-            setTeamMembers(prev => prev.map(m => (m.id === memberId ? updatedMember : m)));
-            otherDataUpdated = true;
+            await api.update<TeamMember>(supabaseClient, 'team_members', memberId, memberData);
         }
         
-        if (otherDataUpdated || passwordUpdated) {
+        if (Object.keys(memberData).length > 0 || passwordUpdated) {
             addToast('تم تحديث بيانات العضو بنجاح.', 'success');
         }
 
@@ -150,11 +170,10 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const handleAddMember = useCallback(async (formData: TeamMemberFormData) => {
     if (!supabaseClient) return;
     try {
-        // Supabase Auth requires a password for user creation via admin API
         const { data: { user }, error: authError } = await supabaseClient.auth.admin.createUser({
             email: formData.email,
             password: formData.password,
-            email_confirm: true, // Auto-confirm user
+            email_confirm: true,
         });
         
         if (authError || !user) throw authError || new Error("User creation failed.");
@@ -165,8 +184,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             weeklyPlan: { status: 'approved' as PlanStatus, hours: {} },
         };
         delete newMemberData.password;
-        const newMember = await api.insert<TeamMember>(supabaseClient, 'team_members', newMemberData);
-        setTeamMembers(prev => [...prev, newMember]);
+        await api.insert<TeamMember>(supabaseClient, 'team_members', newMemberData);
         addToast("تمت إضافة العضو بنجاح", "success");
     } catch (error: any) {
         console.error("Failed to add member:", error);
@@ -196,10 +214,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (authError) {
             throw authError;
         }
-
-        await api.deleteById(supabaseClient, 'team_members', memberId);
         
-        setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+        await api.deleteById(supabaseClient, 'team_members', memberId);
+
         addToast("تم حذف العضو بنجاح", "success");
     } catch (error: any) {
         console.error("Failed to delete member:", error);
@@ -220,8 +237,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-      const newRole = await api.insert<Role>(supabaseClient, 'roles', { name: roleData.name, id: newRoleId, permissions: [] });
-      setRoles(prev => [...prev, newRole]);
+      await api.insert<Role>(supabaseClient, 'roles', { name: roleData.name, id: newRoleId, permissions: [] });
       addToast('تم إضافة الدور بنجاح.', 'success');
     } catch (error: any) {
         console.error("Failed to add role:", error);
@@ -237,8 +253,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const handleUpdateRole = useCallback(async (roleId: string, updates: Partial<Role>) => {
     if (!supabaseClient) return;
     try {
-      const updatedRole = await api.update<Role>(supabaseClient, 'roles', roleId, updates);
-      setRoles(prev => prev.map(r => r.id === roleId ? updatedRole : r));
+      await api.update<Role>(supabaseClient, 'roles', roleId, updates);
       addToast('تم تحديث الدور بنجاح.', 'success');
     } catch (error: any) {
       console.error("Failed to update role:", error);
@@ -258,7 +273,6 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       await api.deleteById(supabaseClient, 'roles', roleId);
-      setRoles(prev => prev.filter(r => r.id !== roleId));
       addToast('تم حذف الدور بنجاح.', 'success');
     } catch (error: any) {
       addToast(`فشل حذف الدور: ${error.message}`, 'error');

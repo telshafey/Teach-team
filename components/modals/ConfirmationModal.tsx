@@ -39,6 +39,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             إلغاء
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             className={`px-4 py-2 text-sm font-semibold text-white rounded-md transition-colors ${confirmButtonClass}`}
           >

@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useMeetingContext } from '../../contexts/MeetingContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useNavigation } from '../../contexts/NavigationContext';
+import { ArrowRightOnRectangleIcon } from '../ui/Icons';
 
 interface MeetingRoomProps {
     meeting: Meeting;
@@ -16,6 +18,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting }) => {
     const { handleJoinMeeting } = useMeetingContext();
     const { siteSettings } = useSettingsContext();
     const [isLoading, setIsLoading] = useState(true);
+    const { onNavigate } = useNavigation();
 
     React.useEffect(() => {
         if (currentUser) {
@@ -69,19 +72,32 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ meeting }) => {
     }
     
     return (
-        <div className="fixed inset-0 bg-slate-900">
-            {isLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white z-10">
-                    <LoadingSpinner className="w-10 h-10 text-sky-400" />
-                    <p className="mt-4 text-lg">جارٍ تحضير غرفة الاجتماع...</p>
-                </div>
-            )}
-            <iframe
-                src={roomUrl}
-                allow="camera; microphone; fullscreen; speaker; display-capture"
-                className={`w-full h-full border-0 ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity'}`}
-                onLoad={() => setIsLoading(false)}
-            ></iframe>
+        <div className="fixed inset-0 bg-slate-900 flex flex-col" dir="rtl">
+            <div className="flex-shrink-0 bg-slate-800 text-white flex justify-between items-center px-4 py-2 border-b border-slate-700">
+                <h2 className="text-lg font-semibold truncate">{meeting.title}</h2>
+                <button 
+                    onClick={() => onNavigate('meetings')}
+                    className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700"
+                >
+                    <ArrowRightOnRectangleIcon className="w-5 h-5 transform scale-x-[-1]" />
+                    <span>العودة للوحة التحكم</span>
+                </button>
+            </div>
+            
+            <div className="flex-grow relative">
+                {isLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white z-10">
+                        <LoadingSpinner className="w-10 h-10 text-sky-400" />
+                        <p className="mt-4 text-lg">جارٍ تحضير غرفة الاجتماع...</p>
+                    </div>
+                )}
+                <iframe
+                    src={roomUrl}
+                    allow="camera; microphone; fullscreen; speaker; display-capture"
+                    className={`w-full h-full border-0 ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity'}`}
+                    onLoad={() => setIsLoading(false)}
+                ></iframe>
+            </div>
         </div>
     );
 };

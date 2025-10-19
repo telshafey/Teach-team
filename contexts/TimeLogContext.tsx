@@ -36,27 +36,56 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     fetchData();
-  }, [supabaseClient, currentUser, addToast]); // Depend on currentUser
+
+    const channel = supabaseClient.channel('public:daily_logs')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_logs' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setDailyLogs(prev => [...prev, api.keysToCamel(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setDailyLogs(prev => prev.map(log => log.id === payload.new.id ? api.keysToCamel(payload.new) : log));
+        } else if (payload.eventType === 'DELETE') {
+          setDailyLogs(prev => prev.filter(log => log.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+
+  }, [supabaseClient, currentUser, addToast]); 
 
   const handleAddDailyLog = useCallback(async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;
-    const newLog = await api.insert<DailyLog>(supabaseClient, 'daily_logs', logData);
-    setDailyLogs(prev => [...prev, newLog]);
-    addToast('تم إضافة سجل العمل بنجاح.', 'success');
+    try {
+        await api.insert<DailyLog>(supabaseClient, 'daily_logs', logData);
+        addToast('تم إضافة سجل العمل بنجاح.', 'success');
+    } catch(error: any) {
+        addToast(`فشل إضافة السجل: ${error.message}`, 'error');
+        console.error("Failed to add daily log:", error);
+    }
   }, [supabaseClient, addToast]);
 
   const handleUpdateDailyLog = useCallback(async (logData: Partial<DailyLog>) => {
     if (!supabaseClient || !logData.id) return;
-    const updatedLog = await api.update<DailyLog>(supabaseClient, 'daily_logs', logData.id, logData);
-    setDailyLogs(prev => prev.map(log => log.id === updatedLog.id ? updatedLog : log));
-    addToast('تم تحديث سجل العمل بنجاح.', 'success');
+    try {
+        await api.update<DailyLog>(supabaseClient, 'daily_logs', logData.id, logData);
+        addToast('تم تحديث سجل العمل بنجاح.', 'success');
+    } catch(error: any) {
+        addToast(`فشل تحديث السجل: ${error.message}`, 'error');
+        console.error("Failed to update daily log:", error);
+    }
   }, [supabaseClient, addToast]);
 
   const handleDeleteDailyLog = useCallback(async (logId: string) => {
     if (!supabaseClient) return;
-    await api.deleteById(supabaseClient, 'daily_logs', logId);
-    setDailyLogs(prev => prev.filter(log => log.id !== logId));
-    addToast('تم حذف سجل العمل بنجاح.', 'success');
+    try {
+        await api.deleteById(supabaseClient, 'daily_logs', logId);
+        addToast('تم حذف سجل العمل بنجاح.', 'success');
+    } catch (error: any) {
+        addToast(`فشل حذف سجل العمل: ${error.message}`, 'error');
+        console.error("Failed to delete daily log:", error);
+    }
   }, [supabaseClient, addToast]);
 
   const value = { dailyLogs, isLoading, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog };

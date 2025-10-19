@@ -233,6 +233,7 @@ export const MeetingsPage: React.FC = () => {
                                         <SortableHeader sortKey="project" sortConfig={sortConfig} requestSort={requestSort}>المشروع</SortableHeader>
                                         <SortableHeader sortKey="startTime" sortConfig={sortConfig} requestSort={requestSort}>التاريخ والوقت</SortableHeader>
                                         <SortableHeader sortKey="attendees" sortConfig={sortConfig} requestSort={requestSort}>الحاضرون / المدعوون</SortableHeader>
+                                        <th className="px-4 py-3">الإجراء</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -242,6 +243,17 @@ export const MeetingsPage: React.FC = () => {
                                             <td className="px-4 py-3">{meeting.projectId ? projectsMap[meeting.projectId]?.name : 'عام'}</td>
                                             <td className="px-4 py-3">{meeting.startTime ? format(parseISO(meeting.startTime), 'd MMM yyyy, p', { locale: arSA }) : '-'}</td>
                                             <td className="px-4 py-3">{meeting.attendees?.length || 0} / {meeting.members?.length || 0}</td>
+                                            <td className="px-4 py-3">
+                                                {hasPermission('manage_meetings') && (
+                                                    <button 
+                                                        onClick={() => setMeetingToDelete(meeting)} 
+                                                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md"
+                                                        aria-label="حذف الاجتماع"
+                                                    >
+                                                        <TrashIcon className="w-5 h-5"/>
+                                                    </button>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

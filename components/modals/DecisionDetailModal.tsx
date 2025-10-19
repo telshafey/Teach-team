@@ -238,7 +238,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-end sm:items-center" dir="rtl">
-      <div className="bg-white dark:bg-slate-800 rounded-t-lg sm:rounded-lg shadow-xl pt-8 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+      <div className="bg-white dark:bg-slate-800 rounded-t-lg sm:rounded-lg shadow-xl pt-8 p-6 w-full max-w-2xl max-h-[calc(var(--vh,1vh)*90)] overflow-y-auto relative">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full sm:hidden"></div>
         <h2 className="text-xl font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 text-slate-800 dark:text-slate-200">مراجعة واتخاذ قرار</h2>
         <div className="space-y-4">

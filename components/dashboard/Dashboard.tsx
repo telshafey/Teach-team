@@ -1,20 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, lazy, Suspense, useEffect } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
-import { GeneralManagerDashboard } from './GeneralManagerDashboard';
-import { ManagerDashboard } from './ManagerDashboard';
-import { PersonalDashboard } from './PersonalDashboard';
-import { ProjectsPage } from '../project/ProjectsPage';
-import { ProjectDetailPage } from '../project/ProjectDetailPage';
-import { TeamManagementPage } from '../team/TeamManagementPage';
-import { TimeSheetPage } from '../timesheet/TimeSheetPage';
-import { AnalyticsPage } from '../analytics/AnalyticsPage';
-import { ReportsPage } from '../reports/ReportsPage';
-import { FinancePage } from '../finance/FinancePage';
-import { MeetingsPage } from '../meetings/MeetingsPage';
-import { MeetingRoom } from '../meetings/MeetingRoom';
-import { SettingsPage } from '../settings/SettingsPage';
-import { ProfilePage } from '../profile/ProfilePage';
 import { useAuth } from '../../contexts/AuthContext';
 import { NavigationContext } from '../../contexts/NavigationContext';
 import { ActiveTimerBar } from '../shared/ActiveTimerBar';
@@ -23,10 +9,9 @@ import { LogFormModal } from '../modals/LogFormModal';
 import { useTimeTracking } from '../../contexts/TimeTrackingContext';
 import { usePunchClock } from '../../contexts/PunchClockContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { AllTasksPage } from '../tasks/AllTasksPage';
-import { ApprovalsPage } from '../approvals/ApprovalsPage';
 import { AuthPage } from '../auth/AuthPage';
 import { BottomNavBar } from './BottomNavBar';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 
 export type View =
@@ -47,6 +32,25 @@ export type View =
   | 'roles' // from settings
   | 'database' // from settings
   | 'profile';
+
+// Lazy load page components for code splitting
+const GeneralManagerDashboard = lazy(() => import('./GeneralManagerDashboard').then(module => ({ default: module.GeneralManagerDashboard })));
+const ManagerDashboard = lazy(() => import('./ManagerDashboard').then(module => ({ default: module.ManagerDashboard })));
+const PersonalDashboard = lazy(() => import('./PersonalDashboard').then(module => ({ default: module.PersonalDashboard })));
+const ProjectsPage = lazy(() => import('../project/ProjectsPage').then(module => ({ default: module.ProjectsPage })));
+const ProjectDetailPage = lazy(() => import('../project/ProjectDetailPage').then(module => ({ default: module.ProjectDetailPage })));
+const TeamManagementPage = lazy(() => import('../team/TeamManagementPage').then(module => ({ default: module.TeamManagementPage })));
+const TimeSheetPage = lazy(() => import('../timesheet/TimeSheetPage').then(module => ({ default: module.TimeSheetPage })));
+const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
+const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
+const MeetingsPage = lazy(() => import('../meetings/MeetingsPage').then(module => ({ default: module.MeetingsPage })));
+const MeetingRoom = lazy(() => import('../meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
+const SettingsPage = lazy(() => import('../settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const AllTasksPage = lazy(() => import('../tasks/AllTasksPage').then(module => ({ default: module.AllTasksPage })));
+const ApprovalsPage = lazy(() => import('../approvals/ApprovalsPage').then(module => ({ default: module.ApprovalsPage })));
+
 
 const DashboardContent = () => {
     const { currentUser } = useAuth();
@@ -86,6 +90,30 @@ export const Dashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [viewProps, setViewProps] = useState<any>({});
 
+    useEffect(() => {
+        const setVh = () => {
+            // We're setting a CSS variable --vh to the height of the visual viewport.
+            // This allows us to use `h-[calc(var(--vh,1vh)*100)]` which correctly sizes the app
+            // on mobile when the keyboard is open.
+            const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', setVh);
+        }
+        window.addEventListener('resize', setVh); // Fallback for browsers without visualViewport
+
+        setVh(); // Initial set
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', setVh);
+            }
+            window.removeEventListener('resize', setVh);
+        };
+    }, []);
+
     const handleNavigate = useCallback((view: View, props: any = {}) => {
         // Close sidebar on navigation on mobile
         setSidebarOpen(false);
@@ -114,7 +142,11 @@ export const Dashboard: React.FC = () => {
 
     // The MeetingRoom component needs to take over the whole screen
     if (currentView === 'meetingRoom') {
-        return <MeetingRoom {...viewProps} />;
+        return (
+            <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900"><LoadingSpinner className="w-8 h-8 text-sky-500" /></div>}>
+                <MeetingRoom {...viewProps} />
+            </Suspense>
+        );
     }
 
     const handleSaveLogFromTimer = async (logData: any) => {
@@ -134,17 +166,24 @@ export const Dashboard: React.FC = () => {
     const handleModalSave = showLogModalFor ? handleSaveLogFromTimer : handleSaveLogFromPunchOut;
     const handleModalClose = showLogModalFor ? closeLogModal : closePunchOutLogModal;
 
+    const suspenseFallback = (
+        <div className="flex h-full w-full items-center justify-center p-8">
+            <LoadingSpinner className="w-8 h-8 text-sky-500" />
+        </div>
+    );
 
     return (
         <NavigationContext.Provider value={navigationContextValue}>
-            <div className="flex h-screen bg-slate-100 dark:bg-slate-900" dir="rtl">
+            <div className="flex h-[calc(var(--vh,1vh)*100)] bg-slate-100 dark:bg-slate-900" dir="rtl">
                 <Sidebar currentView={currentView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
                 <div className="flex flex-col flex-1 overflow-hidden">
                     <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
                     <PunchClockBar />
                     <ActiveTimerBar />
                     <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 lg:pb-0">
-                        <ComponentToRender {...viewProps} />
+                        <Suspense fallback={suspenseFallback}>
+                            <ComponentToRender {...viewProps} />
+                        </Suspense>
                     </main>
                     <BottomNavBar currentView={currentView} onNavigate={handleNavigate} />
                 </div>
