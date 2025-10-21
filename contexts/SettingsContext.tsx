@@ -65,9 +65,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         addToast(error.message, 'error');
         throw error;
     }
+    const originalSettings = siteSettings;
+    setSiteSettings(prev => ({ ...prev!, ...settings })); // Optimistic update
+
     try {
         await api.update<SiteSettings>(supabaseClient, 'site_settings', '1', settings);
     } catch (error: any) {
+        setSiteSettings(originalSettings); // Revert on failure
         console.error("Failed to update site settings:", error);
         addToast(error.message || 'فشل حفظ الإعدادات. يرجى المحاولة مرة أخرى.', 'error');
         throw error;

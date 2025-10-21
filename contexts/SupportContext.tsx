@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { SupportTicket, TicketComment } from '../types';
+import { SupportTicket, TicketComment, TicketStatus } from '../types';
 import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -79,7 +79,6 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!supabaseClient || !currentUser) return;
     try {
       const now = new Date().toISOString();
-      // FIX: Explicitly type `newTicketData` to ensure `status` is correctly typed as `TicketStatus` instead of `string`.
       const newTicketData: Partial<SupportTicket> = {
         ...data,
         creatorId: currentUser.id,

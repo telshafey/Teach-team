@@ -127,27 +127,41 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return userRole?.permissions?.includes(permission) || false;
   }, [currentUser, roles]);
   
- const handleUpdateMember = useCallback(async (memberId: number, data: TeamMemberUpdateData) => {
+  const handleUpdateMember = useCallback(async (memberId: number, data: TeamMemberUpdateData) => {
     if (!supabaseClient) return;
 
     const memberToUpdate = teamMembers.find(m => m.id === memberId);
     if (!memberToUpdate) {
-        addToast("لم يتم العثور على العضو", 'error');
-        throw new Error("لم يتم العثور على العضو");
+        const error = new Error("لم يتم العثور على العضو");
+        addToast(error.message, 'error');
+        throw error;
     }
 
+    const dataToUpdate = { ...data };
+    // Sanitize numeric fields to prevent sending NaN, which becomes 'null' string
+    if (dataToUpdate.salary !== undefined && isNaN(Number(dataToUpdate.salary))) dataToUpdate.salary = undefined;
+    if (dataToUpdate.hourlyRate !== undefined && isNaN(Number(dataToUpdate.hourlyRate))) dataToUpdate.hourlyRate = undefined;
+    if (dataToUpdate.weeklyHoursRequirement !== undefined && isNaN(Number(dataToUpdate.weeklyHoursRequirement))) dataToUpdate.weeklyHoursRequirement = undefined;
+
+
+    const originalMembers = [...teamMembers];
+
+    // Optimistic UI update for non-password data
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, ...dataToUpdate } as TeamMember : m));
+    
     try {
-        await api.updateTeamMemberWithPassword(supabaseClient, memberToUpdate, data);
-        if (Object.keys(data).length > 0) {
+        await api.updateTeamMemberWithPassword(supabaseClient, memberToUpdate, dataToUpdate);
+        if (Object.keys(dataToUpdate).length > 0) {
             addToast('تم تحديث بيانات العضو بنجاح.', 'success');
         }
     } catch (error: any) {
+        setTeamMembers(originalMembers); // Revert on failure
         console.error("Failed to update member:", error);
         const message = (error?.message && typeof error.message === 'string') ? error.message : JSON.stringify(error);
         addToast(`فشل تحديث بيانات العضو: ${message}`, 'error');
         throw error;
     }
-}, [supabaseClient, addToast, teamMembers]);
+  }, [supabaseClient, addToast, teamMembers]);
 
 
   const handleUpdatePlanStatus = useCallback(async (memberId: number, status: 'approved' | 'rejected' | 'needs-adjustment') => {
@@ -160,29 +174,43 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const handleAddMember = useCallback(async (formData: TeamMemberFormData) => {
     if (!supabaseClient) return;
     try {
-        const { data: { user }, error: authError } = await supabaseClient.auth.admin.createUser({
+        if (!formData.password) {
+            throw new Error("Password is required for new members.");
+        }
+
+        const { password, ...metaData } = formData;
+
+        // Sanitize numeric fields to prevent sending NaN, which becomes 'null' string
+        if (metaData.salary !== undefined && isNaN(Number(metaData.salary))) metaData.salary = undefined;
+        if (metaData.hourlyRate !== undefined && isNaN(Number(metaData.hourlyRate))) metaData.hourlyRate = undefined;
+        if (metaData.weeklyHoursRequirement !== undefined && isNaN(Number(metaData.weeklyHoursRequirement))) metaData.weeklyHoursRequirement = undefined;
+        
+        if (metaData.daysOff && metaData.daysOff.length === 0) {
+            delete (metaData as any).daysOff;
+        }
+        
+        const { error: authError } = await supabaseClient.auth.signUp({
             email: formData.email,
             password: formData.password,
-            email_confirm: true,
+            options: {
+                data: metaData
+            }
         });
         
-        if (authError || !user) throw authError || new Error("User creation failed.");
+        if (authError) throw authError;
 
-        const newMemberData = {
-            ...formData,
-            authUserId: user.id,
-            weeklyPlan: { status: 'approved' as PlanStatus, hours: {} },
-        };
-        delete newMemberData.password;
-        await api.insert<TeamMember>(supabaseClient, 'team_members', newMemberData);
-        addToast("تمت إضافة العضو بنجاح", "success");
+        addToast("تمت إضافة العضو بنجاح. يجب على العضو الجديد تأكيد بريده الإلكتروني.", "success");
     } catch (error: any) {
         console.error("Failed to add member:", error);
-        const message = (error?.message && typeof error.message === 'string') ? error.message : JSON.stringify(error);
+        let message = error?.message || JSON.stringify(error);
+        if (message.includes('User already registered')) {
+            message = 'هذا البريد الإلكتروني مسجل بالفعل.';
+        }
         addToast(`فشل إضافة العضو: ${message}`, 'error');
-        throw error;
+        throw error; // Re-throw to indicate failure to the form
     }
   }, [supabaseClient, addToast]);
+
 
   const handleDeleteMember = useCallback(async (memberId: number) => {
     if (!supabaseClient) return;
@@ -201,7 +229,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
         const { error: authError } = await supabaseClient.auth.admin.deleteUser(memberToDelete.authUserId);
-        if (authError) {
+        // If user is not found in auth, we can still proceed to delete the profile
+        if (authError && authError.message !== 'User not found') {
             throw authError;
         }
         
@@ -220,6 +249,12 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!supabaseClient) return;
     const newRoleId = slugify(roleData.name);
     
+    if (!newRoleId) {
+        const error = new Error('Role name must contain valid characters (letters, numbers).');
+        addToast('فشل إضافة الدور: يجب أن يحتوي اسم الدور على حروف أو أرقام صالحة.', 'error');
+        throw error;
+    }
+
     if (roles.some(r => r.id === newRoleId)) {
         const error = new Error('A role with this name already exists.');
         addToast('فشل إضافة الدور: اسم الدور موجود بالفعل.', 'error');

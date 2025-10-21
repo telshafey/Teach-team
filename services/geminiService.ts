@@ -1,20 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SuggestedTask, Project, Task, DailyLog, TeamMember } from '../types';
 
-let ai: GoogleGenAI | null = null;
-
 /**
- * Lazily initializes and returns the GoogleGenAI client.
+ * Creates a new GoogleGenAI client instance.
  * For a production environment, this assumes `process.env.API_KEY` is set.
+ * @returns {GoogleGenAI} A new instance of the GoogleGenAI client.
  */
 const getAiClient = (): GoogleGenAI => {
-  if (ai) {
-    return ai;
-  }
   // The constructor will throw an error if the API key is not provided,
   // which is a fatal configuration error in a production environment.
-  ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  return ai;
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 
@@ -27,7 +22,7 @@ export const generatePerformanceNotes = async (
   logs: { hours: number; description:string }[]
 ): Promise<string> => {
   try {
-    const client = getAiClient();
+    const ai = getAiClient();
     const taskSummary = tasks.map(t => `- ${t.title} (Status: ${t.status})`).join('\n');
     const logSummary = logs.map(l => `- Logged ${l.hours.toFixed(1)} hours for: ${l.description}`).join('\n');
 
@@ -44,7 +39,7 @@ export const generatePerformanceNotes = async (
       Performance Summary (in Arabic):
     `;
     
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
@@ -61,7 +56,7 @@ export const generatePerformanceNotes = async (
  */
 export const generateTaskPlan = async (projectDescription: string): Promise<SuggestedTask[]> => {
   try {
-    const client = getAiClient();
+    const ai = getAiClient();
     const prompt = `
       Based on the following project description, generate a list of main tasks required to complete the project.
       For each task, suggest a suitable role ('employee', 'manager', 'freelancer', or 'any').
@@ -71,7 +66,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
       "${projectDescription}"
     `;
     
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -90,8 +85,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
                 description: "The suggested role for the task ('employee', 'manager', 'freelancer', 'any').",
               },
             },
-            // FIX: propertyOrdering is required for object properties.
-            required: ['title', 'suggestedRole'],
+            propertyOrdering: ['title', 'suggestedRole'],
           },
         },
       },
@@ -119,7 +113,7 @@ export const generateProjectSummary = async (
   teamMembers: TeamMember[]
 ): Promise<string> => {
   try {
-    const client = getAiClient();
+    const ai = getAiClient();
     
     const teamMembersMap = new Map(teamMembers.map(m => [m.id, m]));
 
@@ -145,7 +139,7 @@ export const generateProjectSummary = async (
       Project Health Summary (in Arabic):
     `;
     
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
@@ -165,7 +159,7 @@ export const scanReceipt = async (
   mimeType: string
 ): Promise<{ amount: number; description: string }> => {
   try {
-    const client = getAiClient();
+    const ai = getAiClient();
     
     const imagePart = {
       inlineData: {
@@ -186,7 +180,7 @@ export const scanReceipt = async (
       text: prompt
     };
 
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [imagePart, textPart] },
       config: {
@@ -203,8 +197,7 @@ export const scanReceipt = async (
               description: 'A concise description of the purchase.',
             },
           },
-          // FIX: propertyOrdering is required for object properties.
-          required: ['amount', 'description']
+          propertyOrdering: ['amount', 'description']
         },
       },
     });
