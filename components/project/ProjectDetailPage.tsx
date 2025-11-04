@@ -1,279 +1,149 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Project, Task, TaskStatus } from '../../types';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { Project, Task, TaskStatus, TaskFormData, BillingProposalFormData } from '../../types';
-import { PencilIcon, ListBulletIcon, ChartBarIcon, SparklesIcon, TrashIcon, UsersIcon } from '../ui/Icons';
-import { ProjectFormModal } from '../modals/ProjectFormModal';
-import { TaskDetailModal } from '../modals/TaskDetailModal';
-import { GanttChart } from './GanttChart';
-import { FreelancerBillingModal } from '../modals/FreelancerBillingModal';
-import { ConfirmationModal } from '../modals/ConfirmationModal';
-import { useNavigation } from '../../contexts/NavigationContext';
 import { Card } from '../ui/Card';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { generateProjectSummary } from '../../services/geminiService';
-import { useToast } from '../../contexts/ToastContext';
-import { TaskColumn } from './TaskColumn';
-import { useProjectPermissions } from '../../hooks/useProjectPermissions';
+import { KanbanBoard } from './KanbanBoard';
+import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { ProjectMembers } from './ProjectMembers';
-
+import { ProjectFormModal } from '../modals/ProjectFormModal';
+import { GanttChart } from './GanttChart';
+import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon } from '../ui/Icons';
+import { StatusBadge } from '../ui/StatusBadge';
+import { useNavigation } from '../../contexts/NavigationContext';
+import { useProjectPermissions } from '../../hooks/useProjectPermissions';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface ProjectDetailPageProps {
-  projectId: string;
-  initialTaskIdToOpen?: string;
+    projectId: string;
+    initialTaskIdToOpen?: string;
 }
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, initialTaskIdToOpen }) => {
+    // --- HOOKS (ALL AT THE TOP) ---
     const { onNavigate } = useNavigation();
-    const { projects, tasks, handleAddTask, handleUpdateTask, handleUpdateProject, handleDeleteProject, handleUpdateTaskStatus, handleDeleteTask, handleFreelancerProposal } = useProjectContext();
-    const { teamMembers, hasPermission: hasGlobalPermission } = useTeamContext();
-    const { dailyLogs } = useTimeLogContext();
-    const { currentUser } = useAuth();
-    const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-    const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-    const [taskForModal, setTaskForModal] = useState<Task | null>(null);
-    const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+    const { handleAddTask, handleUpdateTask, handleDeleteTask, handleUpdateProject, handleDeleteProject } = useProjectContext();
+    const { hasPermission } = useTeamContext();
+    const { supabaseClient } = useSupabase();
+    
+    // State hooks
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+    const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [isProjectDeleteConfirmOpen, setIsProjectDeleteConfirmOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'members'>('kanban');
 
+    // Data fetching with react-query
+    const { data: project, isLoading: isProjectLoading } = useQuery({
+        queryKey: ['project', projectId],
+        queryFn: () => api.getById<Project>(supabaseClient!, 'projects', projectId),
+        enabled: !!supabaseClient && !!projectId,
+    });
+
+    const { data: tasksForProject = [], isLoading: areTasksLoading } = useQuery({
+        queryKey: ['tasks', projectId],
+        queryFn: async () => {
+          if (!supabaseClient) return [];
+          const { data, error } = await supabaseClient.from('tasks').select('*').eq('project_id', projectId);
+          if (error) throw error;
+          return api.keysToCamel(data) as Task[];
+        },
+        enabled: !!supabaseClient && !!projectId,
+    });
+    
     const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(projectId);
-    const canDeleteEntireProject = hasGlobalPermission('manage_projects');
 
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    const [projectSummary, setProjectSummary] = useState('');
-    const { addToast } = useToast();
-
-    const project = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
-    const projectTasks = useMemo(() => tasks.filter(t => t.projectId === projectId), [tasks, projectId]);
-    const projectLogs = useMemo(() => dailyLogs.filter(log => log.projectId === projectId), [dailyLogs, projectId]);
-
+    // Effect hooks
     useEffect(() => {
-        if (initialTaskIdToOpen) {
-            const taskToOpen = projectTasks.find(t => t.id === initialTaskIdToOpen);
+        if (initialTaskIdToOpen && tasksForProject.length > 0) {
+            const taskToOpen = tasksForProject.find(t => t.id === initialTaskIdToOpen);
             if (taskToOpen) {
-                setTaskForModal(taskToOpen);
+                setSelectedTask(taskToOpen);
             }
         }
-    }, [initialTaskIdToOpen, projectTasks]);
-
-    const tasksByStatus = useMemo(() => {
-        return {
-            todo: projectTasks.filter(t => t.status === 'todo').sort((a,b) => (a.dueDate || 'z').localeCompare(b.dueDate || 'z')),
-            inprogress: projectTasks.filter(t => t.status === 'inprogress').sort((a,b) => (a.dueDate || 'z').localeCompare(b.dueDate || 'z')),
-            done: projectTasks.filter(t => t.status === 'done').sort((a,b) => (a.dueDate || 'z').localeCompare(b.dueDate || 'z')),
-        };
-    }, [projectTasks]);
-
-    const handleGenerateSummary = async () => {
-        if (!project) return;
-        setIsGeneratingSummary(true);
-        setProjectSummary('');
-        try {
-            const summary = await generateProjectSummary(project, projectTasks, projectLogs, teamMembers);
-            setProjectSummary(summary);
-        } catch (error: any) {
-            addToast(error.message, 'error');
-        } finally {
-            setIsGeneratingSummary(false);
-        }
-    };
-
-    if (!project) {
-        return (
-            <div className="p-6">
-                <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-4">&larr; العودة للمشاريع</button>
-                <p>لم يتم العثور على المشروع.</p>
-            </div>
-        );
-    }
-
-    const canPropose = currentUser?.roleId === 'freelancer' && !project.freelancerContract;
-
-    const handleSaveProposal = async (proposalData: BillingProposalFormData) => {
-        await handleFreelancerProposal(project.id, proposalData);
-    };
+    }, [initialTaskIdToOpen, tasksForProject]);
+    
+    // Callback hooks
+    const handleUpdateTaskStatus = useCallback(async (taskId: string, newStatus: TaskStatus) => {
+        await handleUpdateTask({ id: taskId, status: newStatus });
+    }, [handleUpdateTask]);
     
     const handleSaveTask = useCallback(async (taskData: Partial<Task>, isNew: boolean) => {
-        if (isNew) {
-            await handleAddTask(taskData as TaskFormData);
-        } else {
-            await handleUpdateTask({ ...taskForModal as Task, ...taskData });
-        }
-    }, [handleAddTask, handleUpdateTask, taskForModal]);
-    
-    const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, taskId: string) => {
-        setDraggingTaskId(taskId);
-        e.dataTransfer.effectAllowed = "move";
-    }, []);
-
-    const handleDrop = useCallback(async (newStatus: TaskStatus) => {
-        if (draggingTaskId) {
-            const task = tasks.find(t => t.id === draggingTaskId);
-            if (task && task.status !== newStatus) {
-                await handleUpdateTaskStatus(draggingTaskId, newStatus);
-            }
-        }
-    }, [draggingTaskId, tasks, handleUpdateTaskStatus]);
-
-    const handleDeleteClick = useCallback((task: Task) => {
-        setTaskToDelete(task);
-        setIsDeleteConfirmOpen(true);
-    }, []);
-    
-    const handleOpenTaskModal = useCallback((task: Task) => {
-        setTaskForModal(task);
-    }, []);
-
-    const confirmDelete = async () => {
-        if (taskToDelete) {
-            await handleDeleteTask(taskToDelete.id);
-            setIsDeleteConfirmOpen(false);
-            setTaskToDelete(null);
-        }
-    };
-
-    const confirmProjectDelete = async () => {
         if (!project) return;
-        try {
-            await handleDeleteProject(project.id);
-            setIsProjectDeleteConfirmOpen(false);
-            onNavigate('projects'); 
-        } catch (error) {
-            setIsProjectDeleteConfirmOpen(false);
+        if (isNew) {
+            await handleAddTask(taskData as Omit<Task, 'id' | 'approvalStatus' | 'creatorId'>, project.id);
+        } else if (selectedTask) {
+            await handleUpdateTask({ ...selectedTask, ...taskData });
         }
-    };
+        setSelectedTask(null);
+        setIsNewTaskModalOpen(false);
+    }, [project, selectedTask, handleAddTask, handleUpdateTask]);
+    
+    const handleQuickAddTask = useCallback(async (title: string, status: TaskStatus) => {
+        if (!project) return;
+        await handleAddTask({ title, status }, project.id);
+    }, [project, handleAddTask]);
+    
+    const isLoading = isProjectLoading || areTasksLoading;
 
+    // --- CONDITIONAL RENDERING (AFTER ALL HOOKS) ---
+    if (isLoading) {
+        return <div className="p-6 flex justify-center items-center h-full"><LoadingSpinner /></div>;
+    }
 
+    if (!project) {
+        return <div className="p-6 text-center">لم يتم العثور على المشروع.</div>;
+    }
+    
+    // --- RENDER ---
     return (
-        <div className="p-6 flex flex-col h-full">
-            <div className="flex-shrink-0">
-                <div className="flex flex-col md:flex-row justify-between md:items-start mb-6 gap-4">
-                    <div>
-                        <button onClick={() => onNavigate('projects')} className="text-sm font-semibold text-sky-600 mb-2">&larr; العودة للمشاريع</button>
-                        <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
-                            {canEditProjectSettings && (
-                                <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-slate-500 hover:text-sky-600"><PencilIcon className="w-5 h-5"/></button>
-                            )}
-                        </div>
-                        <p className="text-md text-slate-500 dark:text-slate-400 mt-1">{project.description}</p>
+        <div className="p-6">
+            <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+                <div>
+                    <button onClick={() => onNavigate('projects')} className="flex items-center space-x-2 rtl:space-x-reverse text-sm font-semibold text-slate-500 hover:text-slate-800 mb-2">
+                        <ArrowLeftIcon className="w-4 h-4 transform rotate-180" /><span>العودة للمشاريع</span>
+                    </button>
+                    <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                        <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h2>
+                        <StatusBadge status={project.status} type="project" />
                     </div>
-                    <div className="flex flex-wrap items-center justify-start md:justify-end gap-2">
-                        {canPropose && (
-                            <button onClick={() => setIsBillingModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
-                                <span>تقديم اقتراح للمشروع</span>
-                            </button>
-                        )}
-                        {canDeleteEntireProject && (
-                            <button onClick={() => setIsProjectDeleteConfirmOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
-                                <TrashIcon className="w-5 h-5"/><span>حذف المشروع</span>
-                            </button>
-                        )}
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                            <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                                <ListBulletIcon className="w-5 h-5" /> <span>كانبان</span>
-                            </button>
-                            <button onClick={() => setViewMode('gantt')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'gantt' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                                <ChartBarIcon className="w-5 h-5" /> <span>مخطط</span>
-                            </button>
-                            <button onClick={() => setViewMode('members')} className={`px-3 py-1.5 text-sm rounded-md flex items-center space-x-2 rtl:space-x-reverse ${viewMode === 'members' ? 'bg-white dark:bg-slate-600 text-sky-600 shadow-sm' : 'text-slate-500'}`}>
-                                <UsersIcon className="w-5 h-5" /> <span>الفريق</span>
-                            </button>
-                        </div>
-                    </div>
+                    <p className="text-md text-slate-600 dark:text-slate-400 mt-1">{project.description}</p>
                 </div>
-                
-                {hasGlobalPermission('use_ai_features') && (
-                    <Card title="ملخص المشروع الذكي (AI)" icon={<SparklesIcon className="w-5 h-5"/>} className="mb-6">
-                        {projectSummary ? (
-                            <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{projectSummary}</div>
-                        ) : isGeneratingSummary ? (
-                            <div className="flex justify-center items-center p-4">
-                                <LoadingSpinner className="text-sky-500 w-5 h-5" />
-                                <span className="mr-2 rtl:mr-0 rtl:ml-2 text-slate-600 dark:text-slate-300">جارٍ تحليل المشروع...</span>
-                            </div>
-                        ) : (
-                            <div className="text-center p-4">
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">احصل على نظرة عامة سريعة على حالة المشروع باستخدام الذكاء الاصطناعي.</p>
-                                <button onClick={handleGenerateSummary} className="flex items-center justify-center mx-auto space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
-                                <SparklesIcon className="w-5 h-5" />
-                                <span>إنشاء ملخص ذكي</span>
-                                </button>
-                            </div>
-                        )}
+                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    {canManageTasks && <button onClick={() => setIsNewTaskModalOpen(true)} className="p-2 text-white bg-sky-600 hover:bg-sky-700 rounded-full" title="مهمة جديدة"><PlusIcon className="w-5 h-5"/></button>}
+                    {canEditProjectSettings && <button onClick={() => setIsProjectFormOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><PencilIcon className="w-5 h-5"/></button>}
+                    {hasPermission('manage_projects') && <button onClick={() => setIsDeleteConfirmOpen(true)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="w-5 h-5"/></button>}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div className="lg:col-span-2">
+                    <Card title="مخطط جانت للمشروع">
+                        <GanttChart project={project} tasks={tasksForProject} />
                     </Card>
-                )}
+                </div>
+                <div className="lg:col-span-1">
+                    <ProjectMembers project={project} canManageMembers={canManageMembers} />
+                </div>
             </div>
 
-            <div className="flex-1 min-h-0">
-                {viewMode === 'kanban' ? (
-                    <div className="flex flex-row gap-4 overflow-x-auto pb-4">
-                        <TaskColumn title="مهام لم تبدأ" tasks={tasksByStatus.todo} status="todo" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'todo' })} />
-                        <TaskColumn title="قيد التنفيذ" tasks={tasksByStatus.inprogress} status="inprogress" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'inprogress' })} />
-                        <TaskColumn title="مكتملة" tasks={tasksByStatus.done} status="done" onDelete={handleDeleteClick} onCardClick={handleOpenTaskModal} onDrop={handleDrop} onDragStart={handleDragStart} onDragEnd={() => setDraggingTaskId(null)} draggingTaskId={draggingTaskId} canManageTasks={canManageTasks} onAddTask={(title) => handleAddTask({ title, projectId: project.id, status: 'done' })} />
-                    </div>
-                ) : viewMode === 'gantt' ? (
-                     <div className="h-full overflow-y-auto">
-                        <GanttChart project={project} tasks={projectTasks} />
-                    </div>
-                ) : (
-                     <div>
-                        <ProjectMembers project={project} canManageMembers={canManageMembers} />
-                    </div>
-                )}
-            </div>
+            <KanbanBoard
+                tasks={tasksForProject}
+                canManageTasks={canManageTasks}
+                onTaskClick={setSelectedTask}
+                onDeleteTask={setTaskToDelete}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+                onQuickAddTask={handleQuickAddTask}
+            />
 
-            {isProjectModalOpen && (
-                <ProjectFormModal 
-                    isOpen={isProjectModalOpen}
-                    onClose={() => setIsProjectModalOpen(false)}
-                    onSave={(data) => handleUpdateProject({...project, ...data})}
-                    project={project}
-                />
-            )}
-
-            {taskForModal && (
-                <TaskDetailModal
-                    isOpen={!!taskForModal}
-                    onClose={() => setTaskForModal(null)}
-                    task={taskForModal}
-                    onSave={handleSaveTask}
-                />
-            )}
-
-            {isBillingModalOpen && (
-                <FreelancerBillingModal
-                    isOpen={isBillingModalOpen}
-                    onClose={() => setIsBillingModalOpen(false)}
-                    onSave={handleSaveProposal}
-                    project={project}
-                />
-            )}
-            
-            {isDeleteConfirmOpen && (
-                 <ConfirmationModal
-                    isOpen={isDeleteConfirmOpen}
-                    onClose={() => setIsDeleteConfirmOpen(false)}
-                    onConfirm={confirmDelete}
-                    title="تأكيد حذف المهمة"
-                    message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete?.title}"؟ لا يمكن التراجع عن هذا الإجراء.`}
-                    isDestructive
-                />
-            )}
-            {isProjectDeleteConfirmOpen && project && (
-                 <ConfirmationModal
-                    isOpen={isProjectDeleteConfirmOpen}
-                    onClose={() => setIsProjectDeleteConfirmOpen(false)}
-                    onConfirm={confirmProjectDelete}
-                    title="تأكيد حذف المشروع"
-                    message={`هل أنت متأكد من رغبتك في حذف مشروع "${project.name}"؟ سيتم حذف جميع المهام والمرفقات والتعليقات المرتبطة به بشكل دائم. لا يمكن التراجع عن هذا الإجراء.`}
-                    isDestructive
-                />
-            )}
+            {(selectedTask || isNewTaskModalOpen) && <TaskDetailModal isOpen={!!selectedTask || isNewTaskModalOpen} onClose={() => {setSelectedTask(null); setIsNewTaskModalOpen(false)}} task={selectedTask} onSave={handleSaveTask} projectId={project.id} isProjectFixed={true} initialMode={isNewTaskModalOpen ? 'edit' : 'view'} />}
+            {taskToDelete && <ConfirmationModal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} onConfirm={async () => { if(taskToDelete) {await handleDeleteTask(taskToDelete);} setTaskToDelete(null); }} title="تأكيد حذف المهمة" message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete.title}"؟`} isDestructive />}
+            {isProjectFormOpen && canEditProjectSettings && <ProjectFormModal isOpen={isProjectFormOpen} onClose={() => setIsProjectFormOpen(false)} onSave={async (data, projToUpdate) => await handleUpdateProject({ ...data, id: projToUpdate!.id })} project={project} />}
+            {isDeleteConfirmOpen && hasPermission('manage_projects') && <ConfirmationModal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={async () => { await handleDeleteProject(project.id); onNavigate('projects'); }} title="تأكيد حذف المشروع" message={`هل أنت متأكد من حذف مشروع "${project.name}"؟ سيتم حذف جميع المهام والسجلات المتعلقة به.`} isDestructive />}
         </div>
     );
 };

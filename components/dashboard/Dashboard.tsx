@@ -1,38 +1,18 @@
-import React, { useState, useCallback, useMemo, lazy, Suspense, useEffect } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
 import { useAuth } from '../../contexts/AuthContext';
-import { NavigationContext } from '../../contexts/NavigationContext';
 import { ActiveTimerBar } from '../shared/ActiveTimerBar';
 import { PunchClockBar } from '../shared/PunchClockBar';
 import { LogFormModal } from '../modals/LogFormModal';
-import { useTimeTracking } from '../../contexts/TimeTrackingContext';
-import { usePunchClock } from '../../contexts/PunchClockContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { AuthPage } from '../auth/AuthPage';
 import { BottomNavBar } from './BottomNavBar';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { AiAssistant } from '../ai/AiAssistant';
+import { View } from '../../navigation.types';
+import { useNavigation } from '../../contexts/NavigationContext';
+import { useTimeManagement } from '../../contexts/TimeManagementContext';
 
-
-export type View =
-  | 'dashboard'
-  | 'approvals'
-  | 'projects'
-  | 'projectDetail'
-  | 'myTasks'
-  | 'team'
-  | 'teamDetail' // For TeamManagementPage
-  | 'timesheet'
-  | 'analytics'
-  | 'reports'
-  | 'finance'
-  | 'meetings'
-  | 'meetingRoom'
-  | 'settings'
-  | 'roles' // from settings
-  | 'database' // from settings
-  | 'profile'
-  | 'support';
 
 // Lazy load page components for code splitting
 const GeneralManagerDashboard = lazy(() => import('./GeneralManagerDashboard').then(module => ({ default: module.GeneralManagerDashboard })));
@@ -46,7 +26,6 @@ const AnalyticsPage = lazy(() => import('../analytics/AnalyticsPage').then(modul
 const ReportsPage = lazy(() => import('../reports/ReportsPage').then(module => ({ default: module.ReportsPage })));
 const FinancePage = lazy(() => import('../finance/FinancePage').then(module => ({ default: module.FinancePage })));
 const MeetingsPage = lazy(() => import('../meetings/MeetingsPage').then(module => ({ default: module.MeetingsPage })));
-const MeetingRoom = lazy(() => import('../meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
 const SettingsPage = lazy(() => import('../settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const AllTasksPage = lazy(() => import('../tasks/AllTasksPage').then(module => ({ default: module.AllTasksPage })));
@@ -54,7 +33,7 @@ const ApprovalsPage = lazy(() => import('../approvals/ApprovalsPage').then(modul
 const SupportPage = lazy(() => import('../support/SupportPage').then(module => ({ default: module.SupportPage })));
 
 
-const DashboardContent = () => {
+const DashboardContentComponent = () => {
     const { currentUser } = useAuth();
     if (currentUser?.roleId === 'gm') return <GeneralManagerDashboard />;
     if (currentUser?.roleId === 'manager') return <ManagerDashboard />;
@@ -62,19 +41,19 @@ const DashboardContent = () => {
 };
 
 const componentMap: { [key in View]: React.ComponentType<any> } = {
-    dashboard: DashboardContent,
+    dashboard: DashboardContentComponent,
     approvals: ApprovalsPage,
     projects: ProjectsPage,
     projectDetail: ProjectDetailPage,
-    myTasks: AllTasksPage, // Use the new AllTasksPage
+    myTasks: AllTasksPage,
     team: TeamManagementPage,
-    teamDetail: TeamManagementPage, // same component, different initial state
+    teamDetail: TeamManagementPage,
     timesheet: TimeSheetPage,
     analytics: AnalyticsPage,
     reports: ReportsPage,
     finance: FinancePage,
     meetings: MeetingsPage,
-    meetingRoom: MeetingRoom,
+    meetingRoom: () => null, // Should not be rendered here
     settings: SettingsPage,
     roles: SettingsPage,
     database: SettingsPage,
@@ -82,22 +61,25 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
     support: SupportPage,
 };
 
+interface DashboardProps {
+    currentView: View;
+    viewProps: any;
+}
 
-export const Dashboard: React.FC = () => {
+export const Dashboard: React.FC<DashboardProps> = ({ currentView, viewProps }) => {
     const { currentUser } = useAuth();
-    const { showLogModalFor, closeLogModal } = useTimeTracking();
-    const { showPunchOutLogModal, closePunchOutLogModal } = usePunchClock();
+    const { onNavigate } = useNavigation();
+    const { showLogModalFor, closeLogModal, showPunchOutLogModal, closePunchOutLogModal } = useTimeManagement();
     const { handleAddDailyLog } = useTimeLogContext();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [currentView, setCurrentView] = useState<View>('dashboard');
-    const [viewProps, setViewProps] = useState<any>({});
+    
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [currentView]);
 
     useEffect(() => {
         const setVh = () => {
-            // We're setting a CSS variable --vh to the height of the visual viewport.
-            // This allows us to use `h-[calc(var(--vh,1vh)*100)]` which correctly sizes the app
-            // on mobile when the keyboard is open.
             const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
         };
@@ -105,9 +87,9 @@ export const Dashboard: React.FC = () => {
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', setVh);
         }
-        window.addEventListener('resize', setVh); // Fallback for browsers without visualViewport
+        window.addEventListener('resize', setVh);
 
-        setVh(); // Initial set
+        setVh();
 
         return () => {
             if (window.visualViewport) {
@@ -116,41 +98,8 @@ export const Dashboard: React.FC = () => {
             window.removeEventListener('resize', setVh);
         };
     }, []);
-
-    const handleNavigate = useCallback((view: View, props: any = {}) => {
-        // Close sidebar on navigation on mobile
-        setSidebarOpen(false);
-        
-        let initialProps = props;
-        if (view === 'teamDetail') {
-            initialProps = { initialMemberId: props.memberId };
-            setCurrentView('team'); // The component is the same
-        } else if (view === 'roles' || view === 'database') {
-            initialProps = { initialView: view, initialProps: props };
-            setCurrentView('settings');
-        } else {
-            setCurrentView(view);
-        }
-        
-        setViewProps(initialProps);
-    }, []);
-
-    const navigationContextValue = useMemo(() => ({ onNavigate: handleNavigate }), [handleNavigate]);
     
     const ComponentToRender = componentMap[currentView] || componentMap.dashboard;
-
-    if (!currentUser) {
-        return <AuthPage />;
-    }
-
-    // The MeetingRoom component needs to take over the whole screen
-    if (currentView === 'meetingRoom') {
-        return (
-            <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900"><LoadingSpinner className="w-8 h-8 text-sky-500" /></div>}>
-                <MeetingRoom {...viewProps} />
-            </Suspense>
-        );
-    }
 
     const handleSaveLogFromTimer = async (logData: any) => {
         if (!currentUser || !showLogModalFor) return;
@@ -176,7 +125,7 @@ export const Dashboard: React.FC = () => {
     );
 
     return (
-        <NavigationContext.Provider value={navigationContextValue}>
+        <>
             <div className="flex h-[calc(var(--vh,1vh)*100)] bg-slate-100 dark:bg-slate-900" dir="rtl">
                 <Sidebar currentView={currentView} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
                 <div className="flex flex-col flex-1 overflow-hidden">
@@ -188,9 +137,11 @@ export const Dashboard: React.FC = () => {
                             <ComponentToRender {...viewProps} />
                         </Suspense>
                     </main>
-                    <BottomNavBar currentView={currentView} onNavigate={handleNavigate} />
+                    <BottomNavBar currentView={currentView} onNavigate={onNavigate} />
                 </div>
             </div>
+            
+            <AiAssistant />
 
             {isLogModalOpen && currentUser && logModalData && (
                 <LogFormModal
@@ -203,6 +154,6 @@ export const Dashboard: React.FC = () => {
                     initialData={logModalData}
                 />
             )}
-        </NavigationContext.Provider>
+        </>
     );
 };

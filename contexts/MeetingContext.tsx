@@ -6,10 +6,10 @@ import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { useSettingsContext } from './SettingsContext';
 import { useRealtime } from './RealtimeContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface MeetingContextType {
-  meetings: Meeting[];
-  isLoading: boolean;
   handleAddMeeting: (meetingData: MeetingFormData) => Promise<void>;
   handleDeleteMeeting: (meetingId: string) => Promise<void>;
   handleJoinMeeting: (meetingId: string) => Promise<void>;
@@ -23,38 +23,29 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { siteSettings } = useSettingsContext();
   const { addToast } = useToast();
   const { subscribe } = useRealtime();
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!supabaseClient || !currentUser) return;
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const data = await api.getAll<Meeting>(supabaseClient, 'meetings');
-        setMeetings(data);
-      } catch (error: any) {
-        addToast(`Failed to fetch meetings: ${error.message}`, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [supabaseClient, currentUser, addToast]);
-
-  useEffect(() => {
-    const handleMeetingChange = (payload: any) => {
-      if (payload.eventType === 'INSERT') {
-        setMeetings(prev => [payload.new, ...prev.filter(m => m.id !== payload.new.id)]);
-      } else if (payload.eventType === 'UPDATE') {
-        setMeetings(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-      } else if (payload.eventType === 'DELETE') {
-        setMeetings(prev => prev.filter(m => m.id !== payload.old.id));
-      }
+    const handleMeetingChange = (payload: RealtimePostgresChangesPayload<Meeting>) => {
+      queryClient.setQueryData(['meetings'], (oldData: Meeting[] | undefined) => {
+        if (oldData === undefined) return [];
+        if (payload.eventType === 'INSERT') {
+          if (oldData.some(m => m.id === payload.new.id)) return oldData;
+          return [payload.new, ...oldData];
+        }
+        if (payload.eventType === 'UPDATE') {
+          return oldData.map(m => m.id === payload.new.id ? payload.new : m);
+        }
+        if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id: string }).id;
+          return oldData.filter(m => m.id !== oldId);
+        }
+        return oldData;
+      });
     };
     const unsubscribe = subscribe('meetings', handleMeetingChange);
     return () => unsubscribe();
-  }, [subscribe]);
+  }, [subscribe, queryClient]);
 
   const handleAddMeeting = useCallback(async (meetingData: MeetingFormData) => {
     if (!supabaseClient || !currentUser) return;
@@ -103,22 +94,37 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const handleJoinMeeting = useCallback(async (meetingId: string) => {
     if (!supabaseClient || !currentUser) return;
-    const meeting = meetings.find(m => m.id === meetingId);
-    if (!meeting) return;
+    
+    // Optimistically update the cache first
+    queryClient.setQueryData(['meetings'], (oldData: Meeting[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.map(m => {
+            if (m.id === meetingId) {
+                const attendees = m.attendees || [];
+                if (!attendees.includes(currentUser.id)) {
+                    return { ...m, attendees: [...attendees, currentUser.id] };
+                }
+            }
+            return m;
+        });
+    });
 
-    const currentAttendees = meeting.attendees || [];
-    if (!currentAttendees.includes(currentUser.id)) {
-        try {
-            const updatedAttendees = [...currentAttendees, currentUser.id];
-            await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: updatedAttendees });
-        } catch (error) {
-            console.error("Failed to mark user as attendee:", error);
-            // We don't toast here as it might disrupt the user joining the meeting room.
-        }
+    // Then, send the update to the server without blocking
+    try {
+      const { data: meeting } = await supabaseClient.from('meetings').select('attendees').eq('id', meetingId).single();
+      const currentAttendees = meeting?.attendees || [];
+      if (!currentAttendees.includes(currentUser.id)) {
+        const updatedAttendees = [...currentAttendees, currentUser.id];
+        await api.update<Meeting>(supabaseClient, 'meetings', meetingId, { attendees: updatedAttendees });
+      }
+    } catch (error) {
+        console.error("Failed to mark user as attendee:", error);
+        // Revert optimistic update on failure
+        queryClient.invalidateQueries({ queryKey: ['meetings'] });
     }
-  }, [supabaseClient, currentUser, meetings]);
+  }, [supabaseClient, currentUser, queryClient]);
 
-  const value = { meetings, isLoading, handleAddMeeting, handleDeleteMeeting, handleJoinMeeting };
+  const value = { handleAddMeeting, handleDeleteMeeting, handleJoinMeeting };
 
   return <MeetingContext.Provider value={value}>{children}</MeetingContext.Provider>;
 };

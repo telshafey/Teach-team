@@ -11,7 +11,9 @@ import { EmptyState } from '../ui/EmptyState';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 type SortableKeys = 'title' | 'project' | 'startTime' | 'attendees';
 
@@ -100,10 +102,11 @@ interface MeetingsPageProps {
 
 export const MeetingsPage: React.FC<MeetingsPageProps> = ({ openMeetingModal }) => {
     const { onNavigate } = useNavigation();
-    const { meetings, handleAddMeeting, handleDeleteMeeting } = useMeetingContext();
+    const { handleAddMeeting, handleDeleteMeeting } = useMeetingContext();
     const { teamMembers, hasPermission } = useTeamContext();
-    const { projects } = useProjectContext();
     const { currentUser } = useAuth();
+    const { supabaseClient } = useSupabase();
+
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'startTime', direction: 'descending' });
@@ -113,6 +116,18 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({ openMeetingModal }) 
             setIsFormOpen(true);
         }
     }, [openMeetingModal]);
+
+    const { data: meetings = [], isLoading: isMeetingsLoading } = useQuery({
+        queryKey: ['meetings'],
+        queryFn: () => api.getAll<Meeting>(supabaseClient!, 'meetings'),
+        enabled: !!supabaseClient,
+    });
+    
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects_list'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+        enabled: !!supabaseClient,
+    });
 
     const projectsMap = useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p }), {} as Record<string, Project>), [projects]);
     const membersMap = useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m }), {} as Record<number, TeamMember>), [teamMembers]);
@@ -280,7 +295,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({ openMeetingModal }) 
                 </Card>
             </div>
 
-             {isFormOpen && <MeetingFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSave={handleAddMeeting} projects={projects} />}
+             {isFormOpen && <MeetingFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSave={handleAddMeeting} />}
             {meetingToDelete && (
                 <ConfirmationModal 
                     isOpen={!!meetingToDelete} 

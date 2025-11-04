@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { useTimeManagement } from '../../contexts/TimeManagementContext';
 import { ClockIcon, XCircleIcon } from '../ui/Icons';
 
 const formatDuration = (seconds: number) => {
@@ -10,7 +10,7 @@ const formatDuration = (seconds: number) => {
 };
 
 export const ActiveTimerBar: React.FC = () => {
-    const { activeTimer, stopTimer } = useTimeTracking();
+    const { activeTimer, stopTimer } = useTimeManagement();
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {

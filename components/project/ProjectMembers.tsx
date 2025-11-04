@@ -1,121 +1,83 @@
 import React, { useState, useMemo } from 'react';
-import { Project, TeamMember, ProjectMember, ProjectRole } from '../../types';
+import { Project, TeamMember, ProjectRole } from '../../types';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
-import { UsersIcon, PlusIcon, TrashIcon } from '../ui/Icons';
-import { ConfirmationModal } from '../modals/ConfirmationModal';
+import { TrashIcon } from '../ui/Icons';
 
 interface ProjectMembersProps {
-    project: Project;
-    canManageMembers: boolean;
+  project: Project;
+  canManageMembers: boolean;
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ project, canManageMembers }) => {
     const { teamMembers } = useTeamContext();
     const { handleUpdateProject } = useProjectContext();
-    const [isAdding, setIsAdding] = useState(false);
-    const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(null);
+    const [newMemberId, setNewMemberId] = useState('');
+    const [newMemberRole, setNewMemberRole] = useState<ProjectRole>('Member');
 
-    const projectMembers = useMemo(() => {
-        const members = project.members || [];
-        return members.map(pm => {
-            const memberDetails = teamMembers.find(tm => tm.id === pm.teamMemberId);
-            return { ...pm, details: memberDetails };
-        }).filter(m => m.details);
+    const projectMembersDetails = useMemo(() => {
+        return (project.members || [])
+            .map(m => teamMembers.find(tm => tm.id === m.teamMemberId))
+            .filter((m): m is TeamMember => !!m);
     }, [project.members, teamMembers]);
 
-    const potentialMembersToAdd = useMemo(() => {
-        const memberIdsInProject = new Set((project.members || []).map(m => m.teamMemberId));
-        return teamMembers.filter(tm => !memberIdsInProject.has(tm.id));
-    }, [project.members, teamMembers]);
-    
-    const handleAddMember = async (teamMemberId: number, projectRole: ProjectRole) => {
-        const newMember: ProjectMember = { teamMemberId, projectRole };
-        const updatedMembers = [...(project.members || []), newMember];
+    const availableTeamMembers = useMemo(() => {
+        const projectMemberIds = new Set(project.members?.map(m => m.teamMemberId));
+        return teamMembers.filter(tm => !projectMemberIds.has(tm.id));
+    }, [teamMembers, project.members]);
+
+    const handleAddMember = async () => {
+        if (!newMemberId) return;
+        const updatedMembers = [...(project.members || []), { teamMemberId: Number(newMemberId), projectRole: newMemberRole }];
         await handleUpdateProject({ id: project.id, members: updatedMembers });
-        setIsAdding(false);
+        setNewMemberId('');
     };
 
-    const handleRemoveMember = async () => {
-        if (!memberToRemove) return;
-        const updatedMembers = (project.members || []).filter(m => m.teamMemberId !== memberToRemove.teamMemberId);
-        await handleUpdateProject({ id: project.id, members: updatedMembers });
-        setMemberToRemove(null);
-    };
-
-    const handleRoleChange = async (teamMemberId: number, newRole: ProjectRole) => {
-        const updatedMembers = (project.members || []).map(m => 
-            m.teamMemberId === teamMemberId ? { ...m, projectRole: newRole } : m
-        );
+    const handleRemoveMember = async (memberId: number) => {
+        if (memberId === project.creatorId) {
+            alert("لا يمكن إزالة منشئ المشروع.");
+            return;
+        }
+        const updatedMembers = (project.members || []).filter(m => m.teamMemberId !== memberId);
         await handleUpdateProject({ id: project.id, members: updatedMembers });
     };
 
     return (
-        <Card title="أعضاء فريق المشروع" icon={<UsersIcon className="w-5 h-5"/>}>
-            <div className="space-y-4">
-                {projectMembers.map(({ details, projectRole }) => (
-                    <div key={details!.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
+        <Card title="أعضاء المشروع">
+            <div className="space-y-3">
+                {projectMembersDetails.map(member => (
+                    <div key={member.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md">
                         <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                            <img src={details!.avatarUrl} alt={details!.name} className="w-10 h-10 rounded-full" />
+                            <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full" />
                             <div>
-                                <p className="font-semibold text-slate-800 dark:text-slate-200">{details!.name}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">{details!.email}</p>
+                                <p className="font-semibold text-sm">{member.name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{project.members?.find(m => m.teamMemberId === member.id)?.projectRole}</p>
                             </div>
                         </div>
-                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                            <select 
-                                value={projectRole} 
-                                onChange={(e) => handleRoleChange(details!.id, e.target.value as ProjectRole)}
-                                disabled={!canManageMembers}
-                                className="bg-transparent border-0 rounded-md text-sm font-semibold text-slate-600 dark:text-slate-300 focus:ring-0 disabled:appearance-none"
-                            >
-                                <option value="Manager">مدير</option>
-                                <option value="Member">عضو</option>
-                            </select>
-                            {canManageMembers && projectMembers.length > 1 && (
-                                <button onClick={() => setMemberToRemove({ teamMemberId: details!.id, projectRole })} className="p-1 text-red-500 hover:text-red-700">
-                                    <TrashIcon className="w-4 h-4"/>
-                                </button>
-                            )}
-                        </div>
+                        {canManageMembers && member.id !== project.creatorId && (
+                            <button onClick={() => handleRemoveMember(member.id)} className="p-1 text-red-500 hover:text-red-700">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
-
             {canManageMembers && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                    {isAdding ? (
-                         <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                             <select 
-                                 onChange={(e) => handleAddMember(Number(e.target.value), 'Member')}
-                                 className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
-                                 defaultValue=""
-                             >
-                                 <option value="" disabled>اختر عضواً لإضافته</option>
-                                 {potentialMembersToAdd.map(tm => (
-                                     <option key={tm.id} value={tm.id}>{tm.name}</option>
-                                 ))}
-                             </select>
-                             <button onClick={() => setIsAdding(false)} className="p-2 text-sm text-slate-500">إلغاء</button>
-                         </div>
-                    ) : (
-                         <button onClick={() => setIsAdding(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-1.5 text-sm font-semibold text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200">
-                             <PlusIcon className="w-4 h-4"/><span>إضافة عضو للمشروع</span>
-                         </button>
-                    )}
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                    <h4 className="text-sm font-semibold">إضافة عضو جديد</h4>
+                    <div className="flex space-x-2 rtl:space-x-reverse">
+                        <select value={newMemberId} onChange={e => setNewMemberId(e.target.value)} className="flex-grow p-2 border rounded-md text-sm">
+                            <option value="">-- اختر عضو --</option>
+                            {availableTeamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <select value={newMemberRole} onChange={e => setNewMemberRole(e.target.value as ProjectRole)} className="p-2 border rounded-md text-sm">
+                            <option value="Member">Member</option>
+                            <option value="Manager">Manager</option>
+                        </select>
+                    </div>
+                    <button onClick={handleAddMember} disabled={!newMemberId} className="w-full px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400">إضافة</button>
                 </div>
-            )}
-            
-            {memberToRemove && (
-                <ConfirmationModal 
-                    isOpen={!!memberToRemove}
-                    onClose={() => setMemberToRemove(null)}
-                    onConfirm={handleRemoveMember}
-                    title="تأكيد إزالة العضو"
-                    message={`هل أنت متأكد من رغبتك في إزالة هذا العضو من المشروع؟`}
-                    isDestructive
-                />
             )}
         </Card>
     );

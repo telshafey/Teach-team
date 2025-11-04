@@ -1,10 +1,12 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { SupportTicket, TicketComment, TicketStatus } from '../types';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SupportTicket, TicketComment } from '../types';
 import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { useRealtime } from './RealtimeContext';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface SupportContextType {
   tickets: SupportTicket[];
@@ -22,58 +24,61 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { currentUser } = useAuth();
   const { addToast } = useToast();
   const { subscribe } = useRealtime();
+  const queryClient = useQueryClient();
 
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [comments, setComments] = useState<TicketComment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const enabled = !!supabaseClient && !!currentUser;
+
+  const { data: tickets = [], isLoading: isLoadingTickets } = useQuery<SupportTicket[]>({
+    queryKey: ['support_tickets'],
+    queryFn: async () => {
+        const data = await api.getAll<SupportTicket>(supabaseClient!, 'support_tickets');
+        return data.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    },
+    enabled,
+  });
+
+  const { data: comments = [], isLoading: isLoadingComments } = useQuery<TicketComment[]>({
+    queryKey: ['ticket_comments'],
+    queryFn: () => api.getAll<TicketComment>(supabaseClient!, 'ticket_comments'),
+    enabled,
+  });
+
+  const isLoading = isLoadingTickets || isLoadingComments;
 
   useEffect(() => {
-    if (!supabaseClient || !currentUser) return;
-    
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [fetchedTickets, fetchedComments] = await Promise.all([
-          api.getAll<SupportTicket>(supabaseClient, 'support_tickets'),
-          api.getAll<TicketComment>(supabaseClient, 'ticket_comments'),
-        ]);
-        setTickets(fetchedTickets.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
-        setComments(fetchedComments);
-      } catch (error: any) {
-        addToast(`Failed to fetch support data: ${error.message}`, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [supabaseClient, currentUser, addToast]);
-  
-  useEffect(() => {
-    const handleTicketChange = (payload: any) => {
-      if (payload.eventType === 'INSERT') {
-        setTickets(prev => [payload.new, ...prev.filter(t => t.id !== payload.new.id)]);
-      } else if (payload.eventType === 'UPDATE') {
-        setTickets(prev => prev.map(t => t.id === payload.new.id ? payload.new : t).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
-      } else if (payload.eventType === 'DELETE') {
-        setTickets(prev => prev.filter(t => t.id !== payload.old.id));
-      }
-    };
-    const handleCommentChange = (payload: any) => {
-      if (payload.eventType === 'INSERT') {
-        setComments(prev => [...prev.filter(c => c.id !== payload.new.id), payload.new]);
-      } else if (payload.eventType === 'DELETE') {
-        setComments(prev => prev.filter(c => c.id !== payload.old.id));
-      }
+    const handleTableChange = <T extends {id: string}>(queryKey: string) => (payload: RealtimePostgresChangesPayload<T>) => {
+        queryClient.setQueryData([queryKey], (oldData: T[] | undefined) => {
+            if (oldData === undefined) return [];
+            if (payload.eventType === 'INSERT') {
+                if (oldData.some(item => item.id === payload.new.id)) return oldData;
+                return [payload.new, ...oldData];
+            }
+            if (payload.eventType === 'UPDATE') {
+                return oldData.map(item => item.id === payload.new.id ? payload.new : item);
+            }
+            if (payload.eventType === 'DELETE') {
+                 const oldId = (payload.old as { id: string }).id;
+                return oldData.filter(item => item.id !== oldId);
+            }
+            return oldData;
+        });
+
+        // Re-sort tickets on any change to maintain order by updatedAt
+        if (queryKey === 'support_tickets') {
+             queryClient.setQueryData(['support_tickets'], (data: SupportTicket[] | undefined) => {
+                return data?.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            });
+        }
     };
 
-    const unsubTickets = subscribe('support_tickets', handleTicketChange);
-    const unsubComments = subscribe('ticket_comments', handleCommentChange);
+    const unsubTickets = subscribe('support_tickets', handleTableChange<SupportTicket>('support_tickets'));
+    const unsubComments = subscribe('ticket_comments', handleTableChange<TicketComment>('ticket_comments'));
 
     return () => {
       unsubTickets();
       unsubComments();
     };
-  }, [subscribe]);
+  }, [subscribe, queryClient]);
 
   const createTicket = useCallback(async (data: Omit<SupportTicket, 'id' | 'creatorId' | 'createdAt' | 'updatedAt' | 'status'>) => {
     if (!supabaseClient || !currentUser) return;
@@ -114,13 +119,13 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({ children })
         createdAt: new Date().toISOString(),
       };
       await api.insert<TicketComment>(supabaseClient, 'ticket_comments', newCommentData);
-      await updateTicket(data.ticketId, {}); // Just to update the 'updatedAt' timestamp
+      // Update the ticket's updatedAt timestamp to bring it to the top of the list
+      await updateTicket(data.ticketId, {}); 
     } catch (error: any) {
       addToast(`فشل إضافة التعليق: ${error.message}`, 'error');
       throw error;
     }
   }, [supabaseClient, currentUser, addToast, updateTicket]);
-
 
   const value = {
     tickets,

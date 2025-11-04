@@ -1,15 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { ExpenseClaim, ExpenseClaimStatus } from '../../types';
+import { ExpenseClaim, ExpenseClaimStatus, Project } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, CheckIcon, NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { StatusBadge } from '../ui/StatusBadge';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface ExpenseClaimsTabProps {
     onNewClaim: () => void;
@@ -18,10 +20,16 @@ interface ExpenseClaimsTabProps {
 export const ExpenseClaimsTab: React.FC<ExpenseClaimsTabProps> = ({ onNewClaim }) => {
     const { expenseClaims, handleUpdateExpenseClaimStatus } = useRequestsContext();
     const { teamMembers, hasPermission } = useTeamContext();
-    const { projects } = useProjectContext();
     const { currency } = useSettingsContext();
     const { currentUser } = useAuth();
+    const { supabaseClient } = useSupabase();
     const [statusFilter, setStatusFilter] = useState<'all' | ExpenseClaimStatus>('all');
+
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects_list'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+        enabled: !!supabaseClient,
+    });
 
     const claimsToDisplay = useMemo(() => {
         let claims = expenseClaims;

@@ -2,7 +2,6 @@ import React from 'react';
 import { DecisionItem } from '../../types';
 import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -14,7 +13,6 @@ interface ApprovalItemCardProps {
 
 export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = React.memo(({ item, onReview }) => {
     const { teamMembers } = useTeamContext();
-    const { projects } = useProjectContext();
     const { currency } = useSettingsContext();
     
     let title = 'طلب غير معروف';

@@ -4,17 +4,22 @@ import { useTeamContext } from '../../contexts/TeamContext';
 import { useToast } from '../../contexts/ToastContext';
 import { SearchIcon } from '../ui/Icons';
 import { format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface MeetingFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: MeetingFormData) => Promise<void>;
-  projects: Project[];
+  // projects prop is no longer needed
 }
 
-export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onClose, onSave, projects }) => {
+export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onClose, onSave }) => {
     const { teamMembers } = useTeamContext();
     const { addToast } = useToast();
+    const { supabaseClient } = useSupabase();
+
     const [formData, setFormData] = useState({
         title: '',
         members: [] as number[],
@@ -24,6 +29,13 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
     });
     const [isSaving, setIsSaving] = useState(false);
     const [participantSearch, setParticipantSearch] = useState('');
+
+    const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
+        queryKey: ['projects_list'], // A simple key for a flat list of projects
+        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects', 'id, name'),
+        enabled: !!supabaseClient && isOpen, // Only fetch when the modal is open
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    });
     
     useEffect(() => {
         if(isOpen) {
@@ -44,7 +56,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
         );
     }, [teamMembers, participantSearch]);
     
-    const durationOptions = [5, 15, 30, 45];
+    const durationOptions = [5, 15, 30, 45, 60, 90, 120];
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -108,7 +120,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({ isOpen, onCl
 
                     <div>
                         <label htmlFor="projectId" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">المشروع (اختياري)</label>
-                        <select id="projectId" name="projectId" value={formData.projectId} onChange={handleInputChange} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm">
+                        <select id="projectId" name="projectId" value={formData.projectId} onChange={handleInputChange} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" disabled={isLoadingProjects}>
                             <option value="">اجتماع عام</option>
                             {projects.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>

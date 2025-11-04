@@ -1,9 +1,10 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { OvertimeRequestFormData } from '../../types';
+import { OvertimeRequestFormData, Project } from '../../types';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { startOfWeek, format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface OvertimeRequestFormModalProps {
   isOpen: boolean;
@@ -12,7 +13,14 @@ interface OvertimeRequestFormModalProps {
 }
 
 export const OvertimeRequestFormModal: React.FC<OvertimeRequestFormModalProps> = ({ isOpen, onClose, onSave }) => {
-    const { projects } = useProjectContext();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects_list'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+        enabled: !!supabaseClient && isOpen,
+        staleTime: 5 * 60 * 1000,
+    });
     
     const [formData, setFormData] = useState<OvertimeRequestFormData>({
         weekStartDate: '',

@@ -8,23 +8,19 @@ export const AuthPage: React.FC = () => {
     const { handleLogin } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [rememberMe, setRememberMe] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [loginError, setLoginError] = useState('');
   
     const onLogin = async (e: FormEvent) => {
       e.preventDefault();
-      setIsLoading(true);
-      setError('');
-      const { error: loginError } = await handleLogin(email, password);
-      if (loginError) {
-        if (loginError.message === 'Invalid login credentials') {
-          setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
-        } else {
-          setError(loginError.message);
-        }
+      setIsLoggingIn(true);
+      setLoginError('');
+      const { error } = await handleLogin(email, password);
+      if (error) {
+        setLoginError(error.message === 'Invalid login credentials' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : error.message);
       }
-      setIsLoading(false);
+      // On success, the AuthContext's onAuthStateChange listener will handle navigation.
+      setIsLoggingIn(false);
     };
 
     return (
@@ -76,7 +72,7 @@ export const AuthPage: React.FC = () => {
                             </div>
                         </div>
                         
-                        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                        {loginError && <p className="text-sm text-red-500 text-center">{loginError}</p>}
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
@@ -84,8 +80,6 @@ export const AuthPage: React.FC = () => {
                                 id="remember-me"
                                 name="remember-me"
                                 type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
                                 className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600"
                             />
                             <label htmlFor="remember-me" className="mr-2 block text-sm text-slate-900 dark:text-slate-200">
@@ -97,10 +91,10 @@ export const AuthPage: React.FC = () => {
                         <div>
                             <button
                             type="submit"
-                            disabled={isLoading}
+                            disabled={isLoggingIn}
                             className="flex w-full justify-center items-center rounded-md bg-sky-600 px-3 py-2.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:bg-slate-400"
                             >
-                            {isLoading ? <LoadingSpinner /> : 'دخول'}
+                            {isLoggingIn ? <LoadingSpinner /> : 'دخول'}
                             </button>
                         </div>
                         </form>

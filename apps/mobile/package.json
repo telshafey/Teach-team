@@ -1,0 +1,18 @@
+{
+  "name": "mobile-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "*",
+    "react-native": "*",
+    "expo": "*",
+    "expo-status-bar": "*",
+    "@react-navigation/native": "*",
+    "@react-navigation/native-stack": "*",
+    "@react-navigation/bottom-tabs": "*",
+    "@expo/vector-icons": "*",
+    "react-native-screens": "*",
+    "react-native-safe-area-context": "*",
+    "react-native-calendars": "*"
+  }
+}

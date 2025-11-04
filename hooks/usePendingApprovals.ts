@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeamContext } from '../contexts/TeamContext';
-import { useProjectContext } from '../contexts/ProjectContext';
 import { useRequestsContext } from '../contexts/RequestsContext';
-import { DecisionItem, TeamMember } from '../types';
+import { DecisionItem, TeamMember, Project, Task } from '../types';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../contexts/SupabaseContext';
+import * as api from '../services/apiService';
+
 
 // Helper to get all direct and indirect report IDs recursively
 const getReportIds = (managerId: number, allMembers: TeamMember[]): number[] => {
@@ -24,15 +27,27 @@ const getReportIds = (managerId: number, allMembers: TeamMember[]): number[] => 
             }
         });
     }
-    return Array.from(new Set(reportIds));
+    return Array.from(new Set(reportIds)); // Return unique IDs
 };
 
 
 export const usePendingApprovals = () => {
     const { currentUser } = useAuth();
     const { teamMembers } = useTeamContext();
-    const { projects, tasks } = useProjectContext();
     const { overtimeRequests, leaveRequests, workContractChangeRequests, penalties, expenseClaims } = useRequestsContext();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects'),
+        enabled: !!supabaseClient,
+    });
+    const { data: tasks = [] } = useQuery<Task[]>({
+        queryKey: ['tasks'],
+        queryFn: () => api.getAll(supabaseClient!, 'tasks'),
+        enabled: !!supabaseClient,
+    });
+
 
     const { myTeamIds, isManager } = useMemo(() => {
         if (!currentUser) return { myTeamIds: new Set<number>(), isManager: false };

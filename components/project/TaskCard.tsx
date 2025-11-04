@@ -2,7 +2,7 @@ import React from 'react';
 import { Task, TeamMember } from '../../types';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon, TrashIcon, BellIcon, ExclamationTriangleIcon } from '../ui/Icons';
-import { useTimeTracking } from '../../contexts/TimeTrackingContext';
+import { useTimeManagement } from '../../contexts/TimeManagementContext';
 import { format, parseISO, isToday, isPast } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 
@@ -36,13 +36,13 @@ const ApprovalIndicator: React.FC<{ status: Task['approvalStatus'], notes?: stri
 const DueDateIndicator: React.FC<{ dueDate: string | undefined }> = ({ dueDate }) => {
     if (!dueDate) return null;
     const parsedDate = parseISO(dueDate);
-    const isUrgent = isPast(parsedDate) || isToday(parsedDate);
-    return <div className={`flex items-center space-x-1 rtl:space-x-reverse text-xs ${isUrgent ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`} title={`تاريخ الاستحقاق: ${format(parsedDate, 'eeee, d MMMM yyyy', { locale: arSA })}`}>{isUrgent ? <ExclamationTriangleIcon className="w-4 h-4" /> : <BellIcon className="w-4 h-4" />}<span>{format(parsedDate, 'd MMM', { locale: arSA })}</span></div>;
+    const isUrgent = isPast(parsedDate) && !isToday(parsedDate);
+    return <div className={`flex items-center space-x-1 rtl:space-x-reverse text-xs ${isUrgent ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`} title={`تاريخ الاستحقاق: ${format(parsedDate, 'eeee, d MMMM yyyy', { locale: arSA })}`}>{isUrgent ? <ExclamationTriangleIcon className="w-4 h-4" /> : <BellIcon className="w-4 h-4" />}<span>{format(parsedDate, 'd MMM', { locale: arSA })}</span></div>;
 };
 
 export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, assignedMember, attachmentCount, commentCount, onDelete, onCardClick, onDragStart, onDragEnd, isDragging, canDrag }) => {
   const { dailyLogs } = useTimeLogContext();
-  const { activeTimer, startTimer, stopTimer } = useTimeTracking();
+  const { activeTimer, startTimer, stopTimer } = useTimeManagement();
   
   const taskHours = dailyLogs.filter(l => l.taskId === task.id).reduce((sum, log) => sum + log.hours, 0);
   const isThisTaskActive = activeTimer?.taskId === task.id;

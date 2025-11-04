@@ -1,6 +1,5 @@
 import React, { useState, useEffect, FormEvent, useRef } from 'react';
-import { ExpenseClaim, ExpenseClaimFormData } from '../../types';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { ExpenseClaim, ExpenseClaimFormData, Project } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -10,6 +9,9 @@ import { SparklesIcon } from '../ui/Icons';
 import { fileToBase64 } from '../../utils/files';
 import { scanReceipt } from '../../services/geminiService';
 import { useTeamContext } from '../../contexts/TeamContext';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 
 interface ExpenseClaimFormModalProps {
@@ -19,10 +21,10 @@ interface ExpenseClaimFormModalProps {
 }
 
 export const ExpenseClaimFormModal: React.FC<ExpenseClaimFormModalProps> = ({ isOpen, onClose, onSave }) => {
-  const { projects } = useProjectContext();
   const { currentUser } = useAuth();
   const { hasPermission } = useTeamContext();
   const { addToast } = useToast();
+  const { supabaseClient } = useSupabase();
 
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -35,6 +37,13 @@ export const ExpenseClaimFormModal: React.FC<ExpenseClaimFormModalProps> = ({ is
   
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects_list'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+      enabled: !!supabaseClient && isOpen,
+      staleTime: 5 * 60 * 1000,
+  });
 
 
   useEffect(() => {

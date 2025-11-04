@@ -1,131 +1,124 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
-import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
-import { PlusIcon, SearchIcon, FolderIcon } from '../ui/Icons';
-import { ProjectFormModal } from '../modals/ProjectFormModal';
 import { useSettingsContext } from '../../contexts/SettingsContext';
+import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
+import { ProjectCard } from './ProjectCard';
+import { ProjectFormModal } from '../modals/ProjectFormModal';
+import { PlusIcon, FolderIcon } from '../ui/Icons';
+import { useNavigation } from '../../contexts/NavigationContext';
 import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 import { EmptyState } from '../ui/EmptyState';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { ProjectCard } from './ProjectCard';
 import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface ProjectsPageProps {
-  initialState?: { statusFilter: ProjectStatus };
+    isModalOpen?: boolean;
+    initialState?: {
+        statusFilter?: ProjectStatus;
+    };
 }
 
-export const ProjectsPage: React.FC<ProjectsPageProps> = ({ initialState }) => {
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openModal, initialState }) => {
     const { onNavigate } = useNavigation();
-    const { projects: allProjects, tasks, handleAddProject, isLoading } = useProjectContext();
-    const { hasPermission, visibleMemberIds } = useTeamContext();
-    const { currentUser } = useAuth();
+    const { handleAddProject } = useProjectContext();
     const { currency } = useSettingsContext();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { hasPermission } = useTeamContext();
+    const { supabaseClient } = useSupabase();
+
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>(initialState?.statusFilter || 'all');
 
-    const visibleProjects = useMemo(() => {
-        if (currentUser?.roleId === 'gm') {
-            return allProjects;
-        }
-
-        const projectIdsFromTasks = new Set<string>();
-        tasks.forEach(task => {
-            if (task.assignedTo && visibleMemberIds.has(task.assignedTo) && task.projectId) {
-                projectIdsFromTasks.add(task.projectId);
-            }
-        });
-
-        return allProjects.filter(p => {
-            if (projectIdsFromTasks.has(p.id)) return true;
-            if (p.members?.some(m => visibleMemberIds.has(m.teamMemberId))) return true;
-            return false;
-        });
-
-    }, [allProjects, tasks, visibleMemberIds, currentUser]);
+    const { data: projects = [], isLoading } = useQuery({
+        queryKey: ['projects'],
+        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects'),
+        enabled: !!supabaseClient,
+    });
     
+    useEffect(() => {
+        if(openModal) {
+            setIsFormModalOpen(true);
+        }
+    }, [openModal]);
+
     const filteredProjects = useMemo(() => {
-        return visibleProjects.filter(p => {
+        return projects.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
-    }, [visibleProjects, searchTerm, statusFilter]);
+    }, [projects, searchTerm, statusFilter]);
 
-    const handleSaveProject = async (projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
-        if (!projectToUpdate) {
-            await handleAddProject(projectData, suggestedTasks);
-        }
-    };
+    const statusFilters: { label: string; value: ProjectStatus | 'all' }[] = [
+        { label: 'الكل', value: 'all' },
+        { label: 'نشط', value: 'نشط' },
+        { label: 'مكتمل', value: 'مكتمل' },
+        { label: 'معلق', value: 'معلق' },
+    ];
+    
+    const canManageProjects = hasPermission('manage_projects');
 
-    const handleProjectSelect = useCallback((projectId: string) => {
-        onNavigate('projectDetail', { projectId });
-    }, [onNavigate]);
-
-    const projectStatuses: ProjectStatus[] = ['نشط', 'مكتمل', 'معلق'];
+    const handleSaveNewProject = useCallback((projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
+        return handleAddProject(projectData, suggestedTasks);
+    }, [handleAddProject]);
 
     return (
         <div className="p-6">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">المشاريع</h2>
-                    <p className="text-md text-slate-500 dark:text-slate-400">تتبع وإدارة جميع مشاريعك من هنا.</p>
+                    <p className="text-md text-slate-500 dark:text-slate-400">تصفح وإدارة جميع المشاريع.</p>
                 </div>
-                {hasPermission('manage_projects') && (
-                    <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
-                        <PlusIcon className="w-5 h-5"/><span>إضافة مشروع جديد</span>
+                {canManageProjects && (
+                    <button onClick={() => setIsFormModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                        <PlusIcon className="w-5 h-5"/><span>مشروع جديد</span>
                     </button>
                 )}
             </div>
-
-            <div className="mb-6 bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4">
-                <div className="relative flex-grow">
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <SearchIcon className="w-5 h-5 text-slate-400" />
-                    </div>
-                    <input 
-                        type="text" 
-                        placeholder="ابحث عن مشروع..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full p-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700"
-                    />
-                </div>
-                <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                    <button onClick={() => setStatusFilter('all')} className={`px-3 py-1.5 text-sm rounded-full ${statusFilter === 'all' ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>{`الكل (${visibleProjects.length})`}</button>
-                    {projectStatuses.map(status => {
-                        const count = visibleProjects.filter(p => p.status === status).length;
-                        return (
-                           <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 text-sm rounded-full ${statusFilter === status ? 'bg-sky-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>{`${status} (${count})`}</button>
-                        )
-                    })}
+            
+            <div className="mb-6 flex flex-col md:flex-row gap-4">
+                <input
+                    type="text"
+                    placeholder="ابحث عن مشروع..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full md:w-1/3 p-2 border border-slate-300 dark:border-slate-600 rounded-md"
+                />
+                <div className="flex items-center space-x-2 rtl:space-x-reverse bg-slate-100 dark:bg-slate-800 p-1 rounded-full">
+                    {statusFilters.map(filter => (
+                        <button key={filter.value} onClick={() => setStatusFilter(filter.value)} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${statusFilter === filter.value ? 'bg-white dark:bg-slate-700 shadow text-sky-600' : 'text-slate-500 hover:bg-slate-200/50'}`}>
+                            {filter.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             {isLoading ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[...Array(6)].map((_, i) => <ProjectCardSkeleton key={i} />)}
                 </div>
             ) : filteredProjects.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} onSelect={handleProjectSelect} currency={currency} />
+                        <ProjectCard key={project.id} project={project} onSelect={(id) => onNavigate('projectDetail', { projectId: id })} currency={currency} />
                     ))}
                 </div>
             ) : (
                 <EmptyState
                     icon={<FolderIcon className="w-12 h-12" />}
                     title="لا توجد مشاريع"
-                    message="لم يتم العثور على مشاريع تطابق معايير البحث أو التصفية."
+                    message="لم يتم العثور على مشاريع تطابق بحثك أو الفلتر المطبق."
+                    action={canManageProjects && <button onClick={() => setIsFormModalOpen(true)} className="px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">إنشاء مشروع جديد</button>}
                 />
             )}
 
-            {isModalOpen && (
-                <ProjectFormModal 
-                    isOpen={isModalOpen} 
-                    onClose={() => setIsModalOpen(false)}
-                    onSave={handleSaveProject} 
+            {isFormModalOpen && canManageProjects && (
+                <ProjectFormModal
+                    isOpen={isFormModalOpen}
+                    onClose={() => setIsFormModalOpen(false)}
+                    onSave={handleSaveNewProject}
                     project={null}
                 />
             )}

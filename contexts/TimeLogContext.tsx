@@ -1,10 +1,12 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { DailyLog, DailyLogFormData } from '../types';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { DailyLog } from '../types';
 import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { useRealtime } from './RealtimeContext';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface TimeLogContextType {
   dailyLogs: DailyLog[];
@@ -18,41 +20,38 @@ const TimeLogContext = createContext<TimeLogContextType | undefined>(undefined);
 
 export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { supabaseClient } = useSupabase();
-  const { currentUser } = useAuth(); // Depend on user
+  const { currentUser } = useAuth();
   const { addToast } = useToast();
   const { subscribe } = useRealtime();
-  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: dailyLogs = [], isLoading } = useQuery<DailyLog[]>({
+    queryKey: ['daily_logs'],
+    queryFn: () => api.getAll<DailyLog>(supabaseClient!, 'daily_logs'),
+    enabled: !!supabaseClient && !!currentUser,
+  });
 
   useEffect(() => {
-    if (!supabaseClient || !currentUser) return; // Wait for client and user
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const logs = await api.getAll<DailyLog>(supabaseClient, 'daily_logs');
-        setDailyLogs(logs);
-      } catch (error: any) {
-        addToast(`Failed to fetch time logs: ${error.message}`, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [supabaseClient, currentUser, addToast]); 
-
-  useEffect(() => {
-    const handleLogChange = (payload: any) => {
-      if (payload.eventType === 'INSERT') {
-        setDailyLogs(prev => [payload.new, ...prev.filter(l => l.id !== payload.new.id)]);
-      } else if (payload.eventType === 'UPDATE') {
-        setDailyLogs(prev => prev.map(log => log.id === payload.new.id ? payload.new : log));
-      } else if (payload.eventType === 'DELETE') {
-        setDailyLogs(prev => prev.filter(log => log.id !== payload.old.id));
-      }
+    const handleLogChange = (payload: RealtimePostgresChangesPayload<DailyLog>) => {
+      queryClient.setQueryData(['daily_logs'], (oldData: DailyLog[] | undefined) => {
+        if (oldData === undefined) return [];
+        if (payload.eventType === 'INSERT') {
+          if (oldData.some(log => log.id === payload.new.id)) return oldData;
+          return [payload.new, ...oldData];
+        }
+        if (payload.eventType === 'UPDATE') {
+          return oldData.map(log => log.id === payload.new.id ? payload.new : log);
+        }
+        if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id: string }).id;
+          return oldData.filter(log => log.id !== oldId);
+        }
+        return oldData;
+      });
     };
     const unsubscribe = subscribe('daily_logs', handleLogChange);
     return () => unsubscribe();
-  }, [subscribe]);
+  }, [subscribe, queryClient]);
 
   const handleAddDailyLog = useCallback(async (logData: Omit<DailyLog, 'id'>) => {
     if (!supabaseClient) return;

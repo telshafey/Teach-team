@@ -1,8 +1,10 @@
 import React, { useState, useEffect, FormEvent, useMemo } from 'react';
-import { DailyLog, DailyLogFormData, Task } from '../../types';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { DailyLog, DailyLogFormData, Task, Project } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
+
 
 interface LogFormModalProps {
   isOpen: boolean;
@@ -19,8 +21,23 @@ interface LogFormModalProps {
 }
 
 export const LogFormModal: React.FC<LogFormModalProps> = ({ isOpen, onClose, onSave, log, date, memberId, initialData }) => {
-  const { tasks, projects } = useProjectContext();
   const { addToast } = useToast();
+  const { supabaseClient } = useSupabase();
+
+  const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects_list'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+      enabled: !!supabaseClient && isOpen,
+      staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: tasks = [] } = useQuery<Task[]>({
+      queryKey: ['tasks_list_for_log'],
+      queryFn: () => api.getAll(supabaseClient!, 'tasks', 'id, title, project_id'),
+      enabled: !!supabaseClient && isOpen,
+      staleTime: 5 * 60 * 1000,
+  });
+
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     hours: '',

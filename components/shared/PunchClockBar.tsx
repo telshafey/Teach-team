@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { usePunchClock } from '../../contexts/PunchClockContext';
+import { useTimeManagement } from '../../contexts/TimeManagementContext';
 import { ClockIcon, XCircleIcon } from '../ui/Icons';
 
 const formatDuration = (seconds: number) => {
@@ -10,7 +10,7 @@ const formatDuration = (seconds: number) => {
 };
 
 export const PunchClockBar: React.FC = () => {
-    const { activePunchIn, handlePunchOut } = usePunchClock();
+    const { activePunchIn, handlePunchOut } = useTimeManagement();
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {

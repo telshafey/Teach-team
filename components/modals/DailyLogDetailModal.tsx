@@ -1,9 +1,11 @@
 import React from 'react';
-import { DailyLog } from '../../types';
+import { DailyLog, Project } from '../../types';
 import { PencilIcon, PlusIcon, TrashIcon } from '../ui/Icons';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface DailyLogDetailModalProps {
   isOpen: boolean;
@@ -17,7 +19,14 @@ interface DailyLogDetailModalProps {
 }
 
 export const DailyLogDetailModal: React.FC<DailyLogDetailModalProps> = ({ isOpen, onClose, date, logs, onAdd, onEdit, onDelete, isEditable }) => {
-  const { projects } = useProjectContext();
+  const { supabaseClient } = useSupabase();
+  
+  const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects_list'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+      enabled: !!supabaseClient && isOpen,
+  });
+
   if (!isOpen) return null;
 
   const projectsMap = projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {} as Record<string, string>);

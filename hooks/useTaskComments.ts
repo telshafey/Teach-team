@@ -10,7 +10,6 @@ export const useTaskComments = (
     initialComments: TaskComment[],
     supabaseClient: SupabaseClient | null,
     currentUser: TeamMember | null,
-    tasks: Task[],
     teamMembers: TeamMember[],
     addToast: (message: string, type: 'success' | 'error' | 'info') => void
 ) => {
@@ -34,7 +33,7 @@ export const useTaskComments = (
             }
         };
 
-        const unsubscribe = subscribe('task_comments', handleCommentChange);
+        const unsubscribe = subscribe('ticket_comments', handleCommentChange);
 
         return () => {
             unsubscribe();
@@ -43,8 +42,13 @@ export const useTaskComments = (
 
     const handleAddTaskComment = useCallback(async (taskId: string, text: string) => {
         if (!supabaseClient || !currentUser) return;
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
+        
+        const { data, error } = await supabaseClient.from('tasks').select('id, title, project_id').eq('id', taskId).single();
+        if (error || !data) {
+            addToast('Task not found for comment.', 'error');
+            return;
+        }
+        const task = api.keysToCamel(data) as Task;
         
         const newCommentData = { taskId, authorId: currentUser.id, text, timestamp: new Date().toISOString() };
 
@@ -62,7 +66,7 @@ export const useTaskComments = (
             addToast(`فشل إضافة التعليق: ${e.message}`, 'error');
             throw e;
         }
-    }, [supabaseClient, currentUser, tasks, teamMembers, addToast]);
+    }, [supabaseClient, currentUser, teamMembers, addToast]);
 
     const handleDeleteTaskComment = useCallback(async (commentId: string) => {
         if (!supabaseClient) return;

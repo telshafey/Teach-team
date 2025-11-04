@@ -2,14 +2,16 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { DailyLog, DailyLogFormData } from '../../types';
+import { DailyLog, DailyLogFormData, Task } from '../../types';
 import { Calendar } from '../ui/Calendar';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
 import { format, isSameDay, isToday, isThisWeek as isWithinThisWeek, startOfMonth, endOfMonth, isWithinInterval, isFuture, differenceInCalendarDays } from 'date-fns';
 import { Card } from '../ui/Card';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { PlusIcon } from '../ui/Icons';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface TimeSheetPageProps {
   openLogModal?: boolean;
@@ -19,11 +21,17 @@ export const TimeSheetPage: React.FC<TimeSheetPageProps> = ({ openLogModal }) =>
     const { currentUser } = useAuth();
     const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
     const { siteSettings } = useSettingsContext();
-    const { tasks } = useProjectContext();
+    const { supabaseClient } = useSupabase();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [editingLog, setEditingLog] = useState<DailyLog | null>(null);
     const [isLogFormOpen, setIsLogFormOpen] = useState(false);
+
+    const { data: tasks = [] } = useQuery<Task[]>({
+        queryKey: ['tasks'],
+        queryFn: () => api.getAll(supabaseClient!, 'tasks'),
+        enabled: !!supabaseClient,
+    });
 
     const handleAddClick = () => {
         setEditingLog(null);

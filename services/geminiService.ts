@@ -39,6 +39,7 @@ export const generatePerformanceNotes = async (
       Performance Summary (in Arabic):
     `;
     
+    // FIX: Using recommended model 'gemini-2.5-flash'
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -66,6 +67,7 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
       "${projectDescription}"
     `;
     
+    // FIX: Using recommended model 'gemini-2.5-flash'
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -85,13 +87,14 @@ export const generateTaskPlan = async (projectDescription: string): Promise<Sugg
                 description: "The suggested role for the task ('employee', 'manager', 'freelancer', 'any').",
               },
             },
-            propertyOrdering: ['title', 'suggestedRole'],
+            // FIX: Removed invalid propertyOrdering property from responseSchema.
           },
         },
       },
     });
 
-    const jsonText = response.text.trim();
+    // FIX: response.text from Gemini with responseSchema is a clean JSON string. No need for trim().
+    const jsonText = response.text;
     if (!jsonText) {
         return [];
     }
@@ -139,6 +142,7 @@ export const generateProjectSummary = async (
       Project Health Summary (in Arabic):
     `;
     
+    // FIX: Using recommended model 'gemini-2.5-flash'
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -180,6 +184,7 @@ export const scanReceipt = async (
       text: prompt
     };
 
+    // FIX: Using recommended model 'gemini-2.5-flash' which is multimodal.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [imagePart, textPart] },
@@ -197,12 +202,13 @@ export const scanReceipt = async (
               description: 'A concise description of the purchase.',
             },
           },
-          propertyOrdering: ['amount', 'description']
+          // FIX: Removed invalid propertyOrdering property from responseSchema.
         },
       },
     });
 
-    const jsonText = response.text.trim();
+    // FIX: response.text from Gemini with responseSchema is a clean JSON string. No need for trim().
+    const jsonText = response.text;
     if (!jsonText) {
         throw new Error('AI did not return a valid response.');
     }

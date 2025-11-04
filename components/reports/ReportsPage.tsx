@@ -3,7 +3,6 @@ import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { downloadCSV } from '../../utils/csv';
 import { DocumentArrowDownIcon, DocumentDuplicateIcon, LockClosedIcon } from '../ui/Icons';
@@ -11,6 +10,10 @@ import { EmptyState } from '../ui/EmptyState';
 import { ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
 import { useAuth } from '../../contexts/AuthContext';
 import * as reportService from '../../services/reportService';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
+import { Project, Task } from '../../types';
 
 type ReportType =
   | 'projects_summary'
@@ -27,8 +30,20 @@ export const ReportsPage: React.FC = () => {
     const { dailyLogs } = useTimeLogContext();
     const { expenseClaims } = useRequestsContext();
     const { currency } = useSettingsContext();
-    const { projects, tasks } = useProjectContext();
     const { currentUser } = useAuth();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects'),
+      enabled: !!supabaseClient,
+    });
+    
+    const { data: tasks = [] } = useQuery<Task[]>({
+      queryKey: ['tasks'],
+      queryFn: () => api.getAll(supabaseClient!, 'tasks'),
+      enabled: !!supabaseClient,
+    });
 
     // State
     const [reportType, setReportType] = useState<ReportType>('projects_summary');

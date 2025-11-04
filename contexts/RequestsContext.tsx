@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LeaveRequest, OvertimeRequest, ExpenseClaim, WorkContractChangeRequest, Penalty, LeaveRequestFormData, OvertimeRequestFormData, ExpenseClaimFormData, WorkContractChangeRequestFormData, PenaltyFormData, WorkContractChangeStatus } from '../types';
 import { useSupabase } from './SupabaseContext';
 import { useAuth } from './AuthContext';
@@ -7,6 +8,7 @@ import * as api from '../services/apiService';
 import { createNotification } from '../services/notificationService';
 import { useTeamContext } from './TeamContext';
 import { useRealtime } from './RealtimeContext';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface RequestsContextType {
   leaveRequests: LeaveRequest[];
@@ -32,72 +34,80 @@ export interface RequestsContextType {
 
 const RequestsContext = createContext<RequestsContextType | undefined>(undefined);
 
+const tableToQueryKey: Record<string, string> = {
+  leave_requests: 'leave_requests',
+  overtime_requests: 'overtime_requests',
+  expense_claims: 'expense_claims',
+  work_contract_change_requests: 'work_contract_change_requests',
+  penalties: 'penalties'
+};
+
 export const RequestsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
-  const { teamMembers, handleUpdateMember } = useTeamContext();
+  const { handleUpdateMember } = useTeamContext();
   const { addToast } = useToast();
   const { subscribe } = useRealtime();
+  const queryClient = useQueryClient();
   
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[]>([]);
-  const [expenseClaims, setExpenseClaims] = useState<ExpenseClaim[]>([]);
-  const [workContractChangeRequests, setWorkContractChangeRequests] = useState<WorkContractChangeRequest[]>([]);
-  const [penalties, setPenalties] = useState<Penalty[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const enabled = !!supabaseClient && !!currentUser;
+
+  const { data: leaveRequests = [], isLoading: isLoadingLR } = useQuery<LeaveRequest[]>({
+    queryKey: ['leave_requests'],
+    queryFn: () => api.getAll(supabaseClient!, 'leave_requests'),
+    enabled,
+  });
+  const { data: overtimeRequests = [], isLoading: isLoadingOR } = useQuery<OvertimeRequest[]>({
+    queryKey: ['overtime_requests'],
+    queryFn: () => api.getAll(supabaseClient!, 'overtime_requests'),
+    enabled,
+  });
+  const { data: expenseClaims = [], isLoading: isLoadingEC } = useQuery<ExpenseClaim[]>({
+    queryKey: ['expense_claims'],
+    queryFn: () => api.getAll(supabaseClient!, 'expense_claims'),
+    enabled,
+  });
+  const { data: workContractChangeRequests = [], isLoading: isLoadingWCR } = useQuery<WorkContractChangeRequest[]>({
+    queryKey: ['work_contract_change_requests'],
+    queryFn: () => api.getAll(supabaseClient!, 'work_contract_change_requests'),
+    enabled,
+  });
+  const { data: penalties = [], isLoading: isLoadingP } = useQuery<Penalty[]>({
+    queryKey: ['penalties'],
+    queryFn: () => api.getAll(supabaseClient!, 'penalties'),
+    enabled,
+  });
+
+  const isLoading = isLoadingLR || isLoadingOR || isLoadingEC || isLoadingWCR || isLoadingP;
 
   useEffect(() => {
-    if (!supabaseClient || !currentUser) return;
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [lr, or, ec, wcr, p] = await Promise.all([
-          api.getAll<LeaveRequest>(supabaseClient, 'leave_requests'),
-          api.getAll<OvertimeRequest>(supabaseClient, 'overtime_requests'),
-          api.getAll<ExpenseClaim>(supabaseClient, 'expense_claims'),
-          api.getAll<WorkContractChangeRequest>(supabaseClient, 'work_contract_change_requests'),
-          api.getAll<Penalty>(supabaseClient, 'penalties'),
-        ]);
-        setLeaveRequests(lr);
-        setOvertimeRequests(or);
-        setExpenseClaims(ec);
-        setWorkContractChangeRequests(wcr);
-        setPenalties(p);
-      } catch (error: any) {
-        addToast(`Failed to fetch requests data: ${error.message}`, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [supabaseClient, currentUser, addToast]);
-
-  useEffect(() => {
-    const setupSubscription = <T extends { id: string }>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-        const handler = (payload: any) => {
+    const handleTableChange = (payload: RealtimePostgresChangesPayload<any>) => {
+        const queryKey = tableToQueryKey[payload.table];
+        if (!queryKey) return;
+        
+        queryClient.setQueryData([queryKey], (oldData: any[] | undefined) => {
+            if (oldData === undefined) return [];
             if (payload.eventType === 'INSERT') {
-                setter(prev => [payload.new, ...prev.filter(i => i.id !== payload.new.id)]);
-            } else if (payload.eventType === 'UPDATE') {
-                setter(prev => prev.map(item => item.id === payload.new.id ? payload.new as T : item));
-            } else if (payload.eventType === 'DELETE') {
-                setter(prev => prev.filter(item => item.id !== (payload.old as any).id));
+                if (oldData.some(item => item.id === payload.new.id)) return oldData;
+                return [payload.new, ...oldData];
             }
-        };
-        return subscribe(table, handler);
+            if (payload.eventType === 'UPDATE') {
+                return oldData.map(item => item.id === payload.new.id ? payload.new : item);
+            }
+            if (payload.eventType === 'DELETE') {
+                 const oldId = (payload.old as { id: string }).id;
+                return oldData.filter(item => item.id !== oldId);
+            }
+            return oldData;
+        });
     };
-
-    const unsubs = [
-        setupSubscription('leave_requests', setLeaveRequests),
-        setupSubscription('overtime_requests', setOvertimeRequests),
-        setupSubscription('expense_claims', setExpenseClaims),
-        setupSubscription('work_contract_change_requests', setWorkContractChangeRequests),
-        setupSubscription('penalties', setPenalties),
-    ];
+    
+    const unsubs = Object.keys(tableToQueryKey).map(table => subscribe(table, handleTableChange));
 
     return () => {
-        unsubs.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
     };
-  }, [subscribe]);
+  }, [subscribe, queryClient]);
   
  const updateRequest = async <T extends {id: string}>(
       table: string,

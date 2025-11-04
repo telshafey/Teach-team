@@ -4,7 +4,7 @@ import * as api from '../../services/apiService';
 import { GlobalSearchResults } from '../../types';
 import { SearchIcon, FolderIcon, UserIcon, ClipboardDocumentListIcon, PlusIcon, VideoCameraIcon, UserCircleIcon, Cog8ToothIcon } from '../ui/Icons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { View } from '../dashboard/Dashboard';
+import { View } from '../../navigation.types';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';

@@ -1,10 +1,10 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { SupabaseProvider } from './contexts/SupabaseContext';
-import { TimeTrackingProvider } from './contexts/TimeTrackingContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { TeamProvider } from './contexts/TeamContext';
 import { ProjectProvider } from './contexts/ProjectContext';
@@ -13,9 +13,11 @@ import { RequestsProvider } from './contexts/RequestsContext';
 import { MeetingProvider } from './contexts/MeetingContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AppBootstrap } from './AppContent';
-import { PunchClockProvider } from './contexts/PunchClockContext';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SupportProvider } from './contexts/SupportContext';
+import { TimeManagementProvider } from './contexts/TimeManagementContext';
+
+const queryClient = new QueryClient();
 
 /**
  * A component that groups all data-related providers for cleaner code structure.
@@ -32,11 +34,9 @@ const DataProviders: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <MeetingProvider>
                     <NotificationProvider>
                       <SupportProvider>
-                        <TimeTrackingProvider>
-                          <PunchClockProvider>
-                            {children}
-                          </PunchClockProvider>
-                        </TimeTrackingProvider>
+                        <TimeManagementProvider>
+                          {children}
+                        </TimeManagementProvider>
                       </SupportProvider>
                     </NotificationProvider>
                   </MeetingProvider>
@@ -53,14 +53,16 @@ const DataProviders: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <DataProviders>
-          <AppBootstrap />
-        </DataProviders>
-        <ToastContainer />
-      </ToastProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ToastProvider>
+          <DataProviders>
+            <AppBootstrap />
+          </DataProviders>
+          <ToastContainer />
+        </ToastProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 

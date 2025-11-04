@@ -1,16 +1,31 @@
 import React, { useMemo, useState } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, LineChart } from '../ui/Charts';
 import { FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
+import { Project, Task } from '../../types';
 
 export const AnalyticsPage: React.FC = () => {
     const { teamMembers } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
-    const { projects, tasks } = useProjectContext();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects'),
+      enabled: !!supabaseClient,
+    });
+    
+    const { data: tasks = [] } = useQuery<Task[]>({
+      queryKey: ['tasks'],
+      queryFn: () => api.getAll(supabaseClient!, 'tasks'),
+      enabled: !!supabaseClient,
+    });
     
     const [dateRange, setDateRange] = useState({ from: '', to: '' });
 

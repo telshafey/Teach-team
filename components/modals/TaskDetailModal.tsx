@@ -10,6 +10,8 @@ import { useSupabase } from '../../contexts/SupabaseContext';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { ConfirmationModal } from './ConfirmationModal';
+import { useQuery } from '@tanstack/react-query';
+import * as api from '../../services/apiService';
 
 
 interface TaskDetailModalProps {
@@ -18,6 +20,8 @@ interface TaskDetailModalProps {
   task: Task | null; // null for create mode
   onSave?: (taskData: Partial<Task>, isNew: boolean) => Promise<void>;
   initialMode?: 'view' | 'edit';
+  projectId?: string; // For pre-filling project when creating a new task
+  isProjectFixed?: boolean; // To disable project selector
 }
 
 type ItemToDelete = { type: 'attachment'; data: TaskAttachment } | { type: 'comment'; data: TaskComment };
@@ -120,10 +124,11 @@ interface TaskDetailEditProps {
     onCancel: () => void;
     canAssignToOthers: boolean;
     isNew: boolean;
+    isProjectFixed?: boolean;
 }
 
 const TaskDetailEdit: React.FC<TaskDetailEditProps> = ({
-    formData, setFormData, handleFormSubmit, projects, assignableMembers, isSaving, onCancel, canAssignToOthers, isNew
+    formData, setFormData, handleFormSubmit, projects, assignableMembers, isSaving, onCancel, canAssignToOthers, isNew, isProjectFixed
 }) => (
     <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto pr-2 space-y-4">
         <div>
@@ -132,7 +137,7 @@ const TaskDetailEdit: React.FC<TaskDetailEditProps> = ({
         </div>
         <div>
             <label className="block text-sm font-medium mb-1">المشروع</label>
-            <select value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})} className="w-full p-2 border rounded-md text-sm">
+            <select value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})} className="w-full p-2 border rounded-md text-sm" disabled={isProjectFixed}>
                 <option value="">-- بدون مشروع --</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -176,18 +181,24 @@ const TaskDetailEdit: React.FC<TaskDetailEditProps> = ({
 
 // --- Main Modal Component ---
 
-export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClose, task, onSave, initialMode = 'view' }) => {
+export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClose, task, onSave, initialMode = 'view', projectId, isProjectFixed }) => {
   const { teamMembers, hasPermission, visibleMemberIds } = useTeamContext();
-  const { projects, taskAttachments, taskComments, handleAddTaskComment, handleAddTaskAttachment, handleDeleteTaskAttachment, handleDeleteTaskComment } = useProjectContext();
+  const { taskAttachments, taskComments, handleAddTaskComment, handleAddTaskAttachment, handleDeleteTaskAttachment, handleDeleteTaskComment } = useProjectContext();
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
   
+  const { data: projects = [] } = useQuery<Project[]>({
+      queryKey: ['projects_list'],
+      queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+      enabled: !!supabaseClient && isOpen,
+  });
+
   const isNew = !task;
   const [isEditing, setIsEditing] = useState(isNew || initialMode === 'edit');
   const [formData, setFormData] = useState({
     title: task?.title || '',
-    projectId: task?.projectId || '',
+    projectId: task?.projectId || projectId || '',
     assignedTo: task?.assignedTo?.toString() || '',
     dueDate: task?.dueDate ? format(parseISO(task.dueDate), 'yyyy-MM-dd') : '',
     status: task?.status || 'todo' as TaskStatus,
@@ -228,15 +239,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
 
 
   useEffect(() => {
-    // This effect resets the modal's state when it is opened for a specific task.
-    // It should NOT run on every re-render caused by parent state changes if the task ID remains the same.
     if (isOpen) {
         const isNewTask = !task;
         setIsEditing(isNewTask || initialMode === 'edit');
 
         if (isNewTask) {
             const initialAssignee = currentUser ? currentUser.id.toString() : '';
-            setFormData({ title: '', projectId: '', assignedTo: initialAssignee, dueDate: '', status: 'todo' });
+            setFormData({ title: '', projectId: projectId || '', assignedTo: initialAssignee, dueDate: '', status: 'todo' });
         } else if (task) {
             setFormData({
                 title: task.title,
@@ -247,12 +256,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
             });
         }
     }
-  }, [task?.id, isOpen, initialMode]);
+  }, [task?.id, isOpen, initialMode, projectId, currentUser]);
 
 
   const attachmentsForThisTask = useMemo(() => task ? taskAttachments.filter(a => a.taskId === task.id) : [], [taskAttachments, task]);
   
-  const project = useMemo(() => projects.find(p => p.id === (isNew ? formData.projectId : task?.projectId)), [projects, task, formData.projectId, isNew]);
+  const projectForDisplay = useMemo(() => projects.find(p => p.id === (isNew ? formData.projectId : task?.projectId)), [projects, task, formData.projectId, isNew]);
   const assignedMember = useMemo(() => teamMembers.find(m => m.id === (isNew ? parseInt(formData.assignedTo) : task?.assignedTo)), [teamMembers, task, formData.assignedTo, isNew]);
 
   if (!isOpen || !currentUser || !supabaseClient) return null;
@@ -329,7 +338,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
           <div className="flex justify-between items-start mb-4 flex-shrink-0">
               <div>
                   <h2 className="text-xl font-bold">{isNew ? 'مهمة جديدة' : isEditing ? 'تعديل المهمة' : task?.title}</h2>
-                  {!isNew && <p className="text-sm text-slate-500">في مشروع: {project?.name || 'مهمة خاصة'}</p>}
+                  {!isNew && <p className="text-sm text-slate-500">في مشروع: {projectForDisplay?.name || 'مهمة خاصة'}</p>}
               </div>
               <div className="flex items-center space-x-2">
                    {!isNew && !isEditing && onSave && <button onClick={() => setIsEditing(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><PencilIcon className="w-5 h-5"/></button>}
@@ -347,6 +356,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ isOpen, onClos
               onCancel={isNew ? onClose : () => setIsEditing(false)}
               canAssignToOthers={canAssignToOthers}
               isNew={isNew}
+              isProjectFixed={isProjectFixed}
             />
           ) : task ? (
             <TaskDetailView

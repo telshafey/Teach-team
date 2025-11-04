@@ -15,12 +15,17 @@ import { SalariesTab } from './SalariesTab';
 import { PenaltiesTab } from './PenaltiesTab';
 import { SalarySlipsTab } from './SalarySlipsTab';
 
-export const FinancePage: React.FC = () => {
+interface FinancePageProps {
+    initialView?: string;
+}
+
+export const FinancePage: React.FC<FinancePageProps> = ({ initialView }) => {
     const { handleUpdateMember, hasPermission } = useTeamContext();
     const { penalties, handleIssuePenalty, handleSubmitExpenseClaim } = useRequestsContext();
     const { currentUser } = useAuth();
     
     const getDefaultTab = () => {
+        if (initialView) return initialView;
         if (currentUser?.roleId === 'freelancer') return 'freelancer';
         if (hasPermission('view_finances')) return 'overview';
         return 'expenses';

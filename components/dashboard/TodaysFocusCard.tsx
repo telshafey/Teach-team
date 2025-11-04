@@ -1,13 +1,15 @@
 import React from 'react';
-import { Task, TeamMember } from '../../types';
+import { Task, TeamMember, Project } from '../../types';
 import { Card } from '../ui/Card';
 import { ClockIcon, BellIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface TaskItemProps {
     task: Task;
@@ -46,8 +48,14 @@ interface TodaysFocusCardProps {
 
 export const TodaysFocusCard: React.FC<TodaysFocusCardProps> = ({ inProgressTasks, dueTodayTasks }) => {
     const { onNavigate } = useNavigation();
-    const { projects } = useProjectContext();
     const { teamMembers } = useTeamContext();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects_list'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'),
+        enabled: !!supabaseClient,
+    });
 
     const projectsMap = React.useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p }), {} as Record<string, { id: string, name: string }>), [projects]);
     const membersMap = React.useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m }), {} as Record<string, TeamMember>), [teamMembers]);

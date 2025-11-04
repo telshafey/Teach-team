@@ -1,7 +1,7 @@
 import React, { useState, lazy, useMemo, Suspense } from 'react';
 import { SiteSettingsPage } from './SiteSettingsPage';
 import { RoleManagementPage } from './RoleManagementPage';
-import { View } from '../dashboard/Dashboard';
+import { View } from '../../navigation.types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { Card } from '../ui/Card';
 import { LockClosedIcon } from '../ui/Icons';

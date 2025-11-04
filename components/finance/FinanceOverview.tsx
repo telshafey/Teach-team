@@ -3,17 +3,26 @@ import { useTeamContext } from '../../contexts/TeamContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
 import { useRequestsContext } from '../../contexts/RequestsContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { BarChart } from '../ui/Charts';
 import { calculateProjectCostBreakdown } from '../../utils/costs';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
+import { Project } from '../../types';
 
 export const FinanceOverview: React.FC = () => {
     const { teamMembers } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
     const { expenseClaims, overtimeRequests } = useRequestsContext();
     const { currency, siteSettings } = useSettingsContext();
-    const { projects } = useProjectContext();
+    const { supabaseClient } = useSupabase();
+
+    const { data: projects = [] } = useQuery<Project[]>({
+        queryKey: ['projects'],
+        queryFn: () => api.getAll(supabaseClient!, 'projects'),
+        enabled: !!supabaseClient,
+    });
 
     const totalSalaries = useMemo(() => {
         return teamMembers

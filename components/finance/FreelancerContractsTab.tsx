@@ -1,103 +1,115 @@
-import React from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import React, { useMemo, useState } from 'react';
 import { useProjectContext } from '../../contexts/ProjectContext';
-import { Card } from '../ui/Card';
-import { Project } from '../../types';
+import { useTeamContext } from '../../contexts/TeamContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { EmptyState } from '../ui/EmptyState';
+import { Card } from '../ui/Card';
+import { Project, TeamMember, FreelancerContract, BillingProposalFormData } from '../../types';
 import { StatusBadge } from '../ui/StatusBadge';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { FreelancerBillingModal } from '../modals/FreelancerBillingModal';
+import { FreelancerContractModal } from '../modals/AssignFreelancerModal';
+import { useQuery } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
 
 interface FreelancerContractsTabProps {
     onReview: (project: Project) => void;
 }
 
 export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({ onReview }) => {
+    const { handleUpdateProject } = useProjectContext();
     const { teamMembers, hasPermission } = useTeamContext();
-    const { dailyLogs } = useTimeLogContext();
-    const { currency } = useSettingsContext();
-    const { projects } = useProjectContext();
     const { currentUser } = useAuth();
+    const { currency } = useSettingsContext();
+    const { supabaseClient } = useSupabase();
 
-    if (currentUser?.roleId === 'freelancer') {
-        const myContracts = projects.filter(p => p.freelancerContract?.freelancerId === currentUser.id);
-        const totalEarnings = myContracts.reduce((sum, p) => {
-            const contract = p.freelancerContract;
-            if (contract?.status !== 'approved') return sum;
-            if (contract.type === 'fixed') return sum + (contract.amount || 0);
-            if (contract.type === 'hourly') {
-                const hours = dailyLogs.filter(l => l.projectId === p.id && l.teamMemberId === currentUser.id).reduce((h, l) => h + l.hours, 0);
-                return sum + (hours * (contract.hourlyRate || 0));
-            }
-            return sum;
-        }, 0);
+    const [billingProject, setBillingProject] = useState<Project | null>(null);
+    const [assigningProject, setAssigningProject] = useState<Project | null>(null);
 
-        return (
-            <div className="space-y-6">
-                <Card title="إجمالي الأرباح المعتمدة"><p className="text-2xl font-bold">{totalEarnings.toLocaleString()} <span className="text-sm">{currency}</span></p></Card>
-                <Card title="عقودي">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-right">
-                            <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
-                                <tr>
-                                    <th className="px-4 py-2">المشروع</th><th className="px-4 py-2">نوع العقد</th><th className="px-4 py-2">المبلغ / السعر</th><th className="px-4 py-2">الحالة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {myContracts.map(p => {
-                                    const contract = p.freelancerContract!;
-                                    return (
-                                    <tr key={p.id} className="border-b dark:border-slate-700">
-                                        <td className="px-4 py-2 font-medium">{p.name}</td>
-                                        <td className="px-4 py-2">{contract.type === 'fixed' ? 'سعر ثابت' : contract.type === 'hourly' ? 'بالساعة' : 'بالقطعة'}</td>
-                                        <td className="px-4 py-2">{contract.amount || contract.hourlyRate || '-'}</td>
-                                        <td className="px-4 py-2"><StatusBadge status={contract.status} type="contract" /></td>
-                                    </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            </div>
-        )
-    }
+    const { data: projects = [] } = useQuery({
+        queryKey: ['projects'],
+        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects'),
+        enabled: !!supabaseClient,
+    });
+
+    const isFreelancer = currentUser?.roleId === 'freelancer';
+    const canManageContracts = hasPermission('approve_freelancer_contracts');
+
+    const contractsToDisplay = useMemo(() => {
+        if (isFreelancer) {
+            return projects.filter(p => p.members?.some(m => m.teamMemberId === currentUser.id));
+        }
+        if (canManageContracts) {
+            return projects.filter(p => p.freelancerContract);
+        }
+        return [];
+    }, [projects, currentUser, isFreelancer, canManageContracts]);
+
+    const membersMap = useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m.name }), {} as Record<number, string>), [teamMembers]);
+
+    const handleSaveProposal = async (proposal: BillingProposalFormData) => {
+        if (!billingProject) return;
+        const newContract: FreelancerContract = {
+            ...proposal,
+            freelancerId: currentUser!.id,
+            status: 'pending',
+        };
+        await handleUpdateProject({ id: billingProject.id, freelancerContract: newContract });
+    };
     
-    const projectsWithContracts = projects.filter(p => p.freelancerContract);
-    if (projectsWithContracts.length === 0) {
-        return <Card><EmptyState title="لا توجد عقود" message="لم يتم إنشاء عقود مع مستقلين بعد." /></Card>
-    }
-    
+    const handleSaveAssignment = async (contractData: Omit<FreelancerContract, 'status' | 'notes'>) => {
+        if (!assigningProject) return;
+        const newContract: FreelancerContract = {
+            ...contractData,
+            status: 'approved',
+        };
+        await handleUpdateProject({ id: assigningProject.id, freelancerContract: newContract, members: [{teamMemberId: contractData.freelancerId, projectRole: 'Member'}] });
+    };
+
     return (
         <Card>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-right">
-                    <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
+                     <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
                         <tr>
-                            <th className="px-4 py-2">المشروع</th><th className="px-4 py-2">المستقل</th><th className="px-4 py-2">نوع العقد</th><th className="px-4 py-2">المبلغ / السعر</th><th className="px-4 py-2">الحالة</th><th className="px-4 py-2">الإجراء</th>
+                            <th className="px-4 py-2">المشروع</th>
+                            {!isFreelancer && <th className="px-4 py-2">المستقل</th>}
+                            <th className="px-4 py-2">نوع العقد</th>
+                            <th className="px-4 py-2">القيمة</th>
+                            <th className="px-4 py-2">الحالة</th>
+                            <th className="px-4 py-2">الإجراء</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {projectsWithContracts.map(p => {
-                            const contract = p.freelancerContract!;
-                            const freelancer = teamMembers.find(m => m.id === contract.freelancerId);
+                        {contractsToDisplay.map(project => {
+                            const contract = project.freelancerContract;
+                            let value = '-';
+                            if(contract?.type === 'fixed') value = `${contract.amount} ${currency}`;
+                            if(contract?.type === 'hourly') value = `${contract.hourlyRate} ${currency}/ساعة`;
+                            if(contract?.type === 'per-task') value = `بالقطعة`;
+                            
                             return (
-                                <tr key={p.id} className="border-b dark:border-slate-700">
-                                    <td className="px-4 py-2 font-medium">{p.name}</td>
-                                    <td className="px-4 py-2">{freelancer?.name}</td>
-                                    <td className="px-4 py-2">{contract.type === 'fixed' ? 'سعر ثابت' : 'بالساعة'}</td>
-                                    <td className="px-4 py-2">{contract.amount || contract.hourlyRate || '-'}</td>
-                                    <td className="px-4 py-2"><StatusBadge status={contract.status} type="contract" /></td>
+                                <tr key={project.id} className="border-b dark:border-slate-700">
+                                    <td className="px-4 py-2 font-medium">{project.name}</td>
+                                    {!isFreelancer && <td className="px-4 py-2">{contract ? membersMap[contract.freelancerId] : '-'}</td>}
+                                    <td className="px-4 py-2">{contract?.type || '-'}</td>
+                                    <td className="px-4 py-2">{contract ? value : '-'}</td>
+                                    <td className="px-4 py-2">{contract ? <StatusBadge status={contract.status} type="contract"/> : <span className="text-xs text-slate-500">لم يتم التعيين</span>}</td>
                                     <td className="px-4 py-2">
-                                        {contract.status === 'pending' && hasPermission('approve_freelancer_contracts') && <button onClick={() => onReview(p)} className="text-sm font-semibold text-sky-600">مراجعة</button>}
+                                        {isFreelancer && !contract && <button onClick={() => setBillingProject(project)} className="text-xs font-semibold text-sky-600">اقتراح عقد</button>}
+                                        {canManageContracts && !contract && <button onClick={() => setAssigningProject(project)} className="text-xs font-semibold text-sky-600">تعيين عقد</button>}
+                                        {canManageContracts && contract?.status === 'pending' && <button onClick={() => onReview(project)} className="text-xs font-semibold text-amber-600">مراجعة</button>}
+                                        {canManageContracts && contract?.status === 'approved' && <button onClick={() => setAssigningProject(project)} className="text-xs font-semibold text-slate-500">تعديل</button>}
                                     </td>
                                 </tr>
                             )
                         })}
                     </tbody>
                 </table>
+                 {contractsToDisplay.length === 0 && <p className="text-center text-slate-500 py-8">لا توجد عقود لعرضها.</p>}
             </div>
+            {billingProject && <FreelancerBillingModal isOpen={!!billingProject} onClose={() => setBillingProject(null)} onSave={handleSaveProposal} project={billingProject} />}
+            {assigningProject && <FreelancerContractModal isOpen={!!assigningProject} onClose={() => setAssigningProject(null)} onSave={handleSaveAssignment} project={assigningProject} />}
         </Card>
-    )
+    );
 };

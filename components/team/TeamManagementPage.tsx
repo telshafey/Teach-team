@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { TeamMember, Role, TeamMemberFormData } from '../../types';
 import { Card } from '../ui/Card';
@@ -43,28 +43,28 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
     return allTeamMembers.find(m => m.id === selectedMember.reportsTo);
   }, [allTeamMembers, selectedMember]);
 
-  const handleSaveMember = async (formData: TeamMemberFormData, memberToUpdate: TeamMember | null) => {
+  const handleSaveMember = useCallback(async (formData: TeamMemberFormData, memberToUpdate: TeamMember | null) => {
     if (memberToUpdate) {
       await handleUpdateMember(memberToUpdate.id, formData);
     } else {
       await handleAddMember(formData);
     }
-  };
+  }, [handleAddMember, handleUpdateMember]);
   
-  const handleOpenEditModal = (member: TeamMember) => {
+  const handleOpenEditModal = useCallback((member: TeamMember) => {
       setEditingMember(member);
       setIsModalOpen(true);
-  }
+  }, []);
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
       setEditingMember(null);
       setIsModalOpen(true);
-  }
+  }, []);
   
-  const handleMoveMember = async (memberId: number, newManagerId: number | null) => {
+  const handleMoveMember = useCallback(async (memberId: number, newManagerId: number | null) => {
       await handleUpdateMember(memberId, { reportsTo: newManagerId });
       addToast('تم تحديث الهيكل التنظيمي بنجاح.', 'success');
-  }
+  }, [handleUpdateMember, addToast]);
 
   return (
     <div className="p-6">

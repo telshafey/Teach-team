@@ -1,52 +1,45 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { Calendar } from '../ui/Calendar';
-import { DailyLog, DailyLogFormData, Task, Meeting } from '../../types';
+import { DailyLog, DailyLogFormData, Task, Meeting, Project } from '../../types';
 import { format, isSameDay, isFuture, differenceInCalendarDays, parseISO, isThisWeek } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { EmptyState } from '../ui/EmptyState';
-import { FolderIcon, PlusIcon, ClockIcon, CalendarDaysIcon, ClipboardDocumentListIcon, BellIcon } from '../ui/Icons';
+import { FolderIcon, PlusIcon, ClockIcon, CalendarDaysIcon, ClipboardDocumentListIcon, BellIcon, WrenchScrewdriverIcon, CheckIcon } from '../ui/Icons';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { useMeetingContext } from '../../contexts/MeetingContext';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
-import { usePunchClock } from '../../contexts/PunchClockContext';
+import { useTimeManagement } from '../../contexts/TimeManagementContext';
 import { TaskCardSkeleton } from '../project/TaskCardSkeleton';
+import { StatCard } from './StatCard';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSupabase } from '../../contexts/SupabaseContext';
+import * as api from '../../services/apiService';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import { useToast } from '../../contexts/ToastContext';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
-const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
-    <Card className="!p-4">
-        <div className="flex items-center">
-            <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg">
-                {icon}
-            </div>
-            <div className="mr-4 rtl:mr-0 rtl:ml-4">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
-            </div>
-        </div>
-    </Card>
-);
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const PunchClockCard: React.FC = () => {
-    const { activePunchIn, handlePunchIn } = usePunchClock();
+// Widget Components
+const PunchClockWidget: React.FC = () => {
+    const { activePunchIn, handlePunchIn } = useTimeManagement();
     const isCheckedIn = !!activePunchIn;
 
     return (
         <Card title="تسجيل الحضور والانصراف" icon={<ClockIcon className="w-5 h-5" />}>
-            <div className="text-center p-4">
+            <div className="text-center p-4 flex flex-col justify-center h-full">
                 {isCheckedIn ? (
                     <div>
                         <p className="font-semibold text-green-600 dark:text-green-400">أنت مسجل حضورك حاليًا.</p>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                             بدأ في: {format(new Date(activePunchIn.startTime), 'p', { locale: arSA })}
                         </p>
-                        <p className="text-xs text-slate-400 mt-4">يمكنك تسجيل الخروج من الشريط العلوي.</p>
                     </div>
                 ) : (
                     <div>
@@ -64,25 +57,122 @@ const PunchClockCard: React.FC = () => {
     );
 };
 
+const MyTasksWidget: React.FC<{ tasks: Task[]; projects: Project[]; onTaskClick: (task: Task) => void; onNavigate: (view: any, props?: any) => void; isLoading: boolean; }> = ({ tasks, projects, onTaskClick, onNavigate, isLoading }) => (
+     <Card 
+        title="مهامي المفتوحة" 
+        headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
+     >
+        {isLoading ? (
+            <div className="space-y-3"><TaskCardSkeleton /><TaskCardSkeleton /><TaskCardSkeleton /></div>
+        ) : tasks.length > 0 ? (
+            <div className="space-y-3">
+                {tasks.slice(0, 10).map(task => (
+                    <div key={task.id} onClick={() => onTaskClick(task)} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{task.title}</p>
+                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            <span>{task.projectId ? projects.find(p=>p.id === task.projectId)?.name : 'مهمة خاصة'}</span>
+                            <span>{task.dueDate ? `تستحق في: ${format(parseISO(task.dueDate), 'd MMM', {locale: arSA})}` : 'بدون تاريخ'}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        ) : (
+            <EmptyState icon={<FolderIcon className="w-8 h-8"/>} title="لا توجد مهام" message="لا توجد لديك مهام مفتوحة حاليًا." />
+        )}
+    </Card>
+);
+
+const MeetingsWidget: React.FC<{ meetings: Meeting[]; onJoin: (m: Meeting) => void; }> = ({ meetings, onJoin }) => (
+    <UpcomingMeetingsCard title="اجتماعاتي القادمة" meetings={meetings} onJoinMeeting={onJoin} />
+);
+
+const CalendarWidget: React.FC<{ events: any[]; onDateClick: (date: Date) => void; highlightedDate: Date | null }> = ({ events, onDateClick, highlightedDate }) => (
+    <Card title="تقويمي"><Calendar events={events} onDateClick={onDateClick} highlightedDate={highlightedDate} /></Card>
+);
+
 
 export const PersonalDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
     const { dailyLogs, handleAddDailyLog, handleUpdateDailyLog, handleDeleteDailyLog } = useTimeLogContext();
-    const { tasks, isLoading: isTasksLoading, projects } = useProjectContext();
     const { siteSettings } = useSettingsContext();
-    const { meetings } = useMeetingContext();
+    const { supabaseClient } = useSupabase();
+    const { addToast } = useToast();
+    const queryClient = useQueryClient();
     
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [editingLog, setEditingLog] = useState<DailyLog | null>(null);
     const [isLogFormOpen, setIsLogFormOpen] = useState(false);
     const [viewingTask, setViewingTask] = useState<Task | null>(null);
+    const [isEditingLayout, setIsEditingLayout] = useState(false);
+    
+    const isEmployee = currentUser?.employmentType === 'full-time' || currentUser?.employmentType === 'part-time';
+
+    const defaultLayouts = useMemo(() => ({
+        lg: [
+            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 4, h: 3 }] : []),
+            { i: 'myTasks', x: isEmployee ? 4 : 0, y: 1, w: isEmployee ? 8 : 12, h: 5 },
+            { i: 'meetings', x: 0, y: 4, w: 4, h: 4 },
+            { i: 'calendar', x: 8, y: 6, w: 4, h: 6 },
+        ].filter(Boolean),
+        md: [
+            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 6, h: 3 }] : []),
+            { i: 'myTasks', x: isEmployee ? 6 : 0, y: 1, w: isEmployee ? 6 : 12, h: 5 },
+            { i: 'meetings', x: 0, y: 4, w: 6, h: 4 },
+            { i: 'calendar', x: 6, y: 6, w: 6, h: 6 },
+        ].filter(Boolean),
+        sm: [
+            { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 2, w: 6, h: 3 }] : []),
+            { i: 'myTasks', x: 0, y: 5, w: 6, h: 5 },
+            { i: 'meetings', x: 0, y: 10, w: 6, h: 4 },
+            { i: 'calendar', x: 0, y: 14, w: 6, h: 6 },
+        ].filter(Boolean),
+    }), [isEmployee]);
+
+    const [layouts, setLayouts] = useState(defaultLayouts);
+
+    const { data: savedLayouts } = useQuery({
+        queryKey: ['user_preference', 'dashboard_layout_personal'],
+        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_personal'),
+        enabled: !!supabaseClient && !!currentUser,
+    });
+
+     useEffect(() => {
+        if (savedLayouts) {
+            const newLayouts: any = {};
+            for (const breakpoint of ['lg', 'md', 'sm']) {
+                const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
+                const savedItems = savedLayouts[breakpoint as keyof typeof savedLayouts] || [];
+                const savedItemsMap = new Map(savedItems.map(item => [item.i, item]));
+                newLayouts[breakpoint] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
+            }
+            setLayouts(newLayouts);
+        }
+    }, [savedLayouts, defaultLayouts]);
+
+    const saveLayoutMutation = useMutation({
+        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_personal', newLayouts),
+        onSuccess: () => {
+            addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
+            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_personal'] });
+            setIsEditingLayout(false);
+        },
+        onError: (error) => {
+            addToast(`فشل حفظ التخطيط: ${error.message}`, 'error');
+        }
+    });
+
+    const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => api.getAll<Meeting>(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
+    const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects_list'], queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'), enabled: !!supabaseClient });
+    const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({ queryKey: ['tasks'], queryFn: () => api.getAll(supabaseClient!, 'tasks'), enabled: !!supabaseClient });
 
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
     const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
     const myOpenTasks = useMemo(() => myTasks.filter(task => task.status !== 'done'), [myTasks]);
-    const isEmployee = currentUser?.employmentType === 'full-time' || currentUser?.employmentType === 'part-time';
-
+    
     const isDateEditableForLogging = useCallback((date: Date): boolean => {
         if (isFuture(date)) return false;
         const limit = siteSettings?.logEditingDaysLimit ?? 3;
@@ -98,64 +188,49 @@ export const PersonalDashboard: React.FC = () => {
         };
     }, [myLogs, myOpenTasks]);
     
-    const myMeetings = useMemo(() => {
-        if (!currentUser) return [];
-        return meetings.filter(m => m.members?.includes(currentUser.id));
-    }, [meetings, currentUser]);
-
+    const myMeetings = useMemo(() => meetings.filter(m => m.members?.includes(currentUser!.id)), [meetings, currentUser]);
 
     const calendarEvents = useMemo(() => {
         const events: { date: Date; hasLog?: boolean; isDueDate?: boolean; isMeeting?: boolean }[] = [];
         const dateMap: { [key: string]: { hasLog?: boolean; isDueDate?: boolean; isMeeting?: boolean } } = {};
-
-        myLogs.forEach(log => {
-            const dateStr = format(new Date(log.date), 'yyyy-MM-dd');
-            if (!dateMap[dateStr]) dateMap[dateStr] = {};
-            dateMap[dateStr].hasLog = true;
-        });
-
-        myTasks.forEach(task => {
-            if (task.dueDate) {
-                const dateStr = format(new Date(task.dueDate), 'yyyy-MM-dd');
-                if (!dateMap[dateStr]) dateMap[dateStr] = {};
-                dateMap[dateStr].isDueDate = true;
-            }
-        });
-
-        myMeetings.forEach(meeting => {
-            if (meeting.startTime) {
-                const dateStr = format(new Date(meeting.startTime), 'yyyy-MM-dd');
-                if (!dateMap[dateStr]) dateMap[dateStr] = {};
-                dateMap[dateStr].isMeeting = true;
-            }
-        });
-
-        for (const dateStr in dateMap) {
-            events.push({ date: new Date(dateStr), ...dateMap[dateStr] });
-        }
+        myLogs.forEach(log => { (dateMap[format(new Date(log.date), 'yyyy-MM-dd')] ||= {}).hasLog = true; });
+        myTasks.forEach(task => { if (task.dueDate) (dateMap[format(new Date(task.dueDate), 'yyyy-MM-dd')] ||= {}).isDueDate = true; });
+        myMeetings.forEach(meeting => { if (meeting.startTime) (dateMap[format(new Date(meeting.startTime), 'yyyy-MM-dd')] ||= {}).isMeeting = true; });
+        for (const dateStr in dateMap) events.push({ date: new Date(dateStr), ...dateMap[dateStr] });
         return events;
     }, [myLogs, myTasks, myMeetings]);
 
     const handleDateClick = (date: Date) => setSelectedDate(format(date, 'yyyy-MM-dd'));
-
     const handleSaveLog = async (logData: DailyLogFormData) => {
         if (!currentUser) return;
         const dateToSave = editingLog?.date || selectedDate || format(new Date(), 'yyyy-MM-dd');
         if (editingLog) await handleUpdateDailyLog({ ...editingLog, ...logData });
         else await handleAddDailyLog({ ...logData, teamMemberId: currentUser.id, date: dateToSave });
-        setIsLogFormOpen(false);
-        setEditingLog(null);
+        setIsLogFormOpen(false); setEditingLog(null);
     };
-
-    const handleOpenLogForm = (logToEdit: DailyLog | null) => {
-        setEditingLog(logToEdit);
-        setIsLogFormOpen(true);
-        if(selectedDate) setSelectedDate(null);
-    };
-    
+    const handleOpenLogForm = (logToEdit: DailyLog | null) => { setEditingLog(logToEdit); setIsLogFormOpen(true); if(selectedDate) setSelectedDate(null); };
     const handleJoinMeeting = (meeting: Meeting) => onNavigate('meetingRoom', { meeting });
-
     const logsForSelectedDate = selectedDate ? myLogs.filter(log => isSameDay(new Date(log.date), new Date(selectedDate))) : [];
+
+    const widgetMap = {
+        'stats': (
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 h-full">
+                <StatCard onClick={() => onNavigate('timesheet')} icon={<ClockIcon className="w-8 h-8 text-sky-500"/>} label="ساعات اليوم" value={todayHours.toFixed(1)} />
+                <StatCard onClick={() => onNavigate('timesheet')} icon={<CalendarDaysIcon className="w-8 h-8 text-indigo-500"/>} label="ساعات الأسبوع" value={thisWeekHours.toFixed(1)} />
+                <StatCard onClick={() => onNavigate('myTasks')} icon={<ClipboardDocumentListIcon className="w-8 h-8 text-green-500"/>} label="مهام مفتوحة" value={myOpenTasks.length} />
+                <StatCard onClick={() => onNavigate('myTasks')} icon={<BellIcon className="w-8 h-8 text-amber-500"/>} label="مهام قريبة" value={dueSoonCount} />
+            </div>
+        ),
+        'punchClock': isEmployee ? <PunchClockWidget /> : null,
+        'myTasks': <MyTasksWidget tasks={myOpenTasks} projects={projects} onTaskClick={setViewingTask} onNavigate={onNavigate} isLoading={isTasksLoading} />,
+        'meetings': <MeetingsWidget meetings={myMeetings} onJoin={handleJoinMeeting} />,
+        'calendar': <CalendarWidget events={calendarEvents} onDateClick={handleDateClick} highlightedDate={selectedDate ? new Date(selectedDate) : null} />,
+    };
+
+    const handleToggleEditLayout = () => {
+        if (isEditingLayout) saveLayoutMutation.mutate(layouts as any);
+        else setIsEditingLayout(true);
+    };
 
     return (
         <div className="p-6" dir="rtl">
@@ -165,54 +240,32 @@ export const PersonalDashboard: React.FC = () => {
                     <p className="text-md text-slate-500 dark:text-slate-400">مرحباً {currentUser?.name}، إليك نظرة على يومك.</p>
                 </div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
+                    <button onClick={handleToggleEditLayout} disabled={saveLayoutMutation.isPending} className={`w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${isEditingLayout ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'}`}>
+                        {saveLayoutMutation.isPending ? <LoadingSpinner /> : isEditingLayout ? <CheckIcon className="w-5 h-5"/> : <WrenchScrewdriverIcon className="w-5 h-5" />}
+                        <span>{saveLayoutMutation.isPending ? 'جارٍ الحفظ...' : isEditingLayout ? 'حفظ التخطيط' : 'تخصيص اللوحة'}</span>
+                    </button>
                     <button onClick={() => handleOpenLogForm(null)} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                         <PlusIcon className="w-5 h-5"/><span>إضافة سجل عمل</span>
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-                <StatCard icon={<ClockIcon className="w-8 h-8 text-sky-500"/>} label="ساعات اليوم" value={todayHours.toFixed(1)} />
-                <StatCard icon={<CalendarDaysIcon className="w-8 h-8 text-indigo-500"/>} label="ساعات الأسبوع" value={thisWeekHours.toFixed(1)} />
-                <StatCard icon={<ClipboardDocumentListIcon className="w-8 h-8 text-green-500"/>} label="مهام مفتوحة" value={myOpenTasks.length} />
-                <StatCard icon={<BellIcon className="w-8 h-8 text-amber-500"/>} label="مهام قريبة" value={dueSoonCount} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    {isEmployee && <PunchClockCard />}
-                     <Card 
-                        title="مهامي المفتوحة" 
-                        headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
-                     >
-                        {isTasksLoading ? (
-                            <div className="space-y-3">
-                                {[...Array(3)].map((_, i) => <TaskCardSkeleton key={i} />)}
-                            </div>
-                        ) : myOpenTasks.length > 0 ? (
-                            <div className="space-y-3 max-h-96 overflow-y-auto">
-                                {myOpenTasks.slice(0, 10).map(task => (
-                                    <div key={task.id} onClick={() => setViewingTask(task)} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{task.title}</p>
-                                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                            <span>{task.projectId ? projects.find(p=>p.id === task.projectId)?.name : 'مهمة خاصة'}</span>
-                                            <span>{task.dueDate ? `تستحق في: ${format(parseISO(task.dueDate), 'd MMM', {locale: arSA})}` : 'بدون تاريخ'}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <EmptyState icon={<FolderIcon className="w-8 h-8"/>} title="لا توجد مهام" message="لا توجد لديك مهام مفتوحة حاليًا." />
-                        )}
-                    </Card>
-                </div>
-                <div className="lg:col-span-1 space-y-6">
-                    <UpcomingMeetingsCard title="اجتماعاتي القادمة" meetings={myMeetings} onJoinMeeting={handleJoinMeeting} />
-                    <Card title="تقويمي">
-                        <Calendar events={calendarEvents} onDateClick={handleDateClick} highlightedDate={selectedDate ? new Date(selectedDate) : null} />
-                    </Card>
-                </div>
-            </div>
+            <ResponsiveGridLayout
+                className={`layout ${isEditingLayout ? 'rgl-editing' : ''}`}
+                layouts={layouts}
+                onLayoutChange={(layout, allLayouts) => setLayouts(allLayouts as any)}
+                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+                cols={{ lg: 12, md: 12, sm: 6 }}
+                rowHeight={60}
+                isDraggable={isEditingLayout}
+                isResizable={isEditingLayout}
+            >
+                {layouts.lg.map(item => (
+                    <div key={item.i}>
+                        {widgetMap[item.i as keyof typeof widgetMap] || <Card title="Widget not found" />}
+                    </div>
+                ))}
+            </ResponsiveGridLayout>
 
             {selectedDate && (
                 <DailyLogDetailModal 

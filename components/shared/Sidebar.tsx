@@ -3,9 +3,9 @@ import { Logo } from '../ui/Logo';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon, TicketIcon } from '../ui/Icons';
-import { View } from '../dashboard/Dashboard';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { View } from '../../navigation.types';
 
 interface NavItemProps {
     view: View;
