@@ -23,9 +23,10 @@ export const AuthPage: React.FC = () => {
                 ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' 
                 : error.message;
             setLoginError(errorMessage);
-            setIsLoggingIn(false); // Only stop loading spinner on error. On success, the component unmounts.
+            setIsLoggingIn(false); // Only stop loading on error.
         }
-        // On success, AuthContext handles the state change and AppContent will render the dashboard.
+        // On success, the AuthContext now directly sets the user state,
+        // which causes this component to unmount. The loading state is correctly handled until then.
     };
 
     return (

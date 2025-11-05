@@ -26,17 +26,17 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+// FIX: This function was causing type errors. Re-implementing with clearer types.
 const areLayoutsEqual = (a: Layouts, b: Layouts): boolean => {
     if (!a || !b) return a === b;
     const breakpoints = ['lg', 'md', 'sm'];
     for (const bp of breakpoints) {
         const key = bp as keyof Layouts;
-        const layoutA = a[key] || [];
-        const layoutB = b[key] || [];
+        const layoutA: Layout[] = a[key] || [];
+        const layoutB: Layout[] = b[key] || [];
         if (layoutA.length !== layoutB.length) return false;
 
-        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'. 'Layout[0]' is invalid syntax.
-        const layoutBMap = new Map(layoutB.map((item: Layout) => [item.i, item]));
+        const layoutBMap = new Map(layoutB.map((item) => [item.i, item]));
 
         for (const itemA of layoutA) {
             const itemB = layoutBMap.get(itemA.i);

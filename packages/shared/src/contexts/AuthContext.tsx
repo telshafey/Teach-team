@@ -31,6 +31,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return api.keysToCamel(data);
   }, [supabaseClient]);
 
+  const handleLogout = useCallback(async () => {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    setCurrentUser(null);
+  }, [supabaseClient]);
+
   useEffect(() => {
     if (!supabaseClient) {
       setIsLoading(false);
@@ -41,6 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await api.refreshSchemaCache(supabaseClient, ['team_members', 'meetings', 'projects', 'tasks', 'support_tickets', 'ticket_comments']);
     };
 
+    // This function handles the initial session check on app load.
     const getSession = async () => {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -51,8 +58,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 refreshCache(); // Don't await
             } else {
                 // Has a session but no profile is a critical error state. Sign out to prevent loops.
-                await supabaseClient.auth.signOut();
-                setCurrentUser(null);
+                addToast('تم العثور على جلسة غير صالحة، تم تسجيل الخروج تلقائياً.', 'error');
+                await handleLogout();
             }
         } else {
             setCurrentUser(null);
@@ -66,6 +73,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     getSession();
 
+    // This listener handles background state changes (e.g., sign out in another tab, token refresh)
     const { data: authListener } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         const user = session?.user ?? null;
@@ -73,14 +81,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const userProfile = await fetchUserProfile(user);
             if (userProfile) {
                 setCurrentUser(userProfile);
-                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                if (event === 'TOKEN_REFRESHED') {
                   refreshCache();
                 }
             } else {
-                // Critical error: authenticated user without a profile. Force sign out.
-                await supabaseClient.auth.signOut();
-                setCurrentUser(null);
-                addToast('فشل تحميل الملف الشخصي. تم تسجيل خروجك تلقائيًا.', 'error');
+                // Safety net: if an authenticated user somehow loses their profile, log them out.
+                await handleLogout();
             }
         } else if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
@@ -91,14 +97,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabaseClient, fetchUserProfile, addToast]);
+  }, [supabaseClient, fetchUserProfile, addToast, handleLogout]);
 
   const handleLogin = async (email: string, password: string) => {
     if (!supabaseClient) {
       return { error: new Error('Supabase client not initialized') };
     }
     
-    // Step 1: Sign in
+    // Step 1: Sign in to get the user session
     const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
     
     if (authError) {
@@ -106,32 +112,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     if (!authData.user) {
-        return { error: new Error('Authentication successful but no user returned.') };
+        return { error: new Error('Authentication successful but no user object was returned.') };
     }
 
-    // Step 2: Fetch profile immediately after successful auth
+    // Step 2: Immediately fetch the corresponding profile.
     try {
       const userProfile = await fetchUserProfile(authData.user);
 
       if (userProfile) {
-        // Step 3: Success. The onAuthStateChange listener will set the user. Return no error.
+        // Step 3 (Success): Set the current user state directly. This is the key change.
+        setCurrentUser(userProfile);
+        // Do not add a toast here, it feels abrupt. Let the dashboard welcome the user.
         return { error: null };
       } else {
-        // Step 3: Failure. Profile not found. Clean up session and return specific error.
-        await supabaseClient.auth.signOut();
+        // Step 3 (Failure): If profile not found, it's a critical issue.
+        // Clean up the invalid auth session and return a specific error.
+        await handleLogout();
         return { error: new Error('فشل تحميل الملف الشخصي بعد تسجيل الدخول. يرجى مراجعة المسؤول.') };
       }
     } catch (profileError: any) {
-        // Catch any unexpected error during profile fetch
-        await supabaseClient.auth.signOut();
+        // Step 3 (Failure): Catch any other unexpected error during profile fetching.
+        await handleLogout();
         return { error: new Error(profileError.message || 'An unknown error occurred while fetching user profile.') };
     }
-  };
-
-  const handleLogout = async () => {
-    if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
-    setCurrentUser(null);
   };
 
   const updateCurrentUser = async (updates: Partial<TeamMember>) => {
