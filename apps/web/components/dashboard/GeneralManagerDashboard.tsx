@@ -31,7 +31,7 @@ const areLayoutsEqual = (a: Layouts, b: Layouts): boolean => {
         const layoutB = b[key] || [];
         if (layoutA.length !== layoutB.length) return false;
 
-        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'.
+        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'. 'Layout[0]' is invalid syntax.
         const layoutBMap = new Map(layoutB.map((item: Layout) => [item.i, item]));
 
         for (const itemA of layoutA) {

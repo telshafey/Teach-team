@@ -35,7 +35,7 @@ const areLayoutsEqual = (a: Layouts, b: Layouts): boolean => {
         const layoutB = b[key] || [];
         if (layoutA.length !== layoutB.length) return false;
 
-        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'.
+        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'. 'Layout[0]' is invalid syntax.
         const layoutBMap = new Map(layoutB.map((item: Layout) => [item.i, item]));
 
         for (const itemA of layoutA) {
@@ -275,9 +275,7 @@ export const PersonalDashboard: React.FC = () => {
     };
 
     const handleSaveLayout = () => {
-        if (isDirty) {
-            saveLayoutMutation.mutate(layouts);
-        }
+        if (isDirty) saveLayoutMutation.mutate(layouts);
     };
     
     const handleStartEditing = () => {
@@ -286,7 +284,7 @@ export const PersonalDashboard: React.FC = () => {
     };
 
     const handleCancelEdit = () => {
-        if (layoutsAtEditStart) setLayouts(layoutsAtEditStart);
+        if(layoutsAtEditStart) setLayouts(layoutsAtEditStart);
         setIsEditingLayout(false);
         setLayoutsAtEditStart(null);
     };
@@ -299,7 +297,7 @@ export const PersonalDashboard: React.FC = () => {
                     <p className="text-md text-slate-500 dark:text-slate-400">مرحباً {currentUser?.name}، إليك نظرة على يومك.</p>
                 </div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
-                    {isEditingLayout ? (
+                     {isEditingLayout ? (
                          <>
                             <button onClick={handleCancelEdit} className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600">
                                 <XMarkIcon className="w-5 h-5"/>
