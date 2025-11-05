@@ -43,10 +43,10 @@ export const AppContent: React.FC = () => {
     };
     window.addEventListener('popstate', handlePopState);
     
-    // Set initial route if it's just the root
+    // Set initial route if it's just the root, redirect to dashboard
     if(window.location.pathname === '/') {
         window.history.replaceState({}, '', '/dashboard');
-        handlePopState();
+        handlePopState(); // Update state to reflect the change
     }
     
     return () => window.removeEventListener('popstate', handlePopState);
@@ -65,7 +65,7 @@ export const AppContent: React.FC = () => {
       
       if (window.location.pathname !== newPath) {
         window.history.pushState({}, '', newPath);
-        setPathname(newPath); // Manually trigger state update for immediate re-render
+        setPathname(newPath); // Manually trigger re-render
       }
   }, []);
 
@@ -88,6 +88,7 @@ export const AppContent: React.FC = () => {
   );
 };
 
+// Handles Supabase client initialization and failure states
 export const AppBootstrap: React.FC = () => {
   const { supabaseClient, isLoading: isSupabaseLoading } = useSupabase();
   const { isLoading: isAuthLoading } = useAuth();
@@ -113,5 +114,6 @@ export const AppBootstrap: React.FC = () => {
     );
   }
 
+  // All good, render the main app content
   return <AppContent />;
 };
