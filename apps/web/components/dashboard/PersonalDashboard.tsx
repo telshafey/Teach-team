@@ -20,11 +20,35 @@ import { StatCard } from './StatCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
-import { Responsive, WidthProvider } from 'react-grid-layout';
+import { Responsive, WidthProvider, Layouts, Layout } from 'react-grid-layout';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const areLayoutsEqual = (a: Layouts, b: Layouts): boolean => {
+    if (!a || !b) return a === b;
+    const breakpoints = ['lg', 'md', 'sm'];
+    for (const bp of breakpoints) {
+        const key = bp as keyof Layouts;
+        const layoutA = a[key] || [];
+        const layoutB = b[key] || [];
+        if (layoutA.length !== layoutB.length) return false;
+
+        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'.
+        const layoutBMap = new Map(layoutB.map((item: Layout) => [item.i, item]));
+
+        for (const itemA of layoutA) {
+            const itemB = layoutBMap.get(itemA.i);
+            if (!itemB) return false;
+            if (itemA.x !== itemB.x || itemA.y !== itemB.y || itemA.w !== itemB.w || itemA.h !== itemB.h) {
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
 
 // Widget Components
 const PunchClockWidget: React.FC = () => {
@@ -108,7 +132,7 @@ export const PersonalDashboard: React.FC = () => {
     
     const isEmployee = currentUser?.employmentType === 'full-time' || currentUser?.employmentType === 'part-time';
 
-    const defaultLayouts = useMemo(() => ({
+    const defaultLayouts = useMemo((): Layouts => ({
         lg: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
             ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 4, h: 3 }] : []),
@@ -132,23 +156,24 @@ export const PersonalDashboard: React.FC = () => {
         ].filter(Boolean),
     }), [isEmployee]);
 
-    const [layouts, setLayouts] = useState(defaultLayouts);
-    const [layoutsAtEditStart, setLayoutsAtEditStart] = useState<typeof defaultLayouts | null>(null);
+    const [layouts, setLayouts] = useState<Layouts>(defaultLayouts);
+    const [layoutsAtEditStart, setLayoutsAtEditStart] = useState<Layouts | null>(null);
 
     const { data: savedLayouts } = useQuery({
         queryKey: ['user_preference', 'dashboard_layout_personal'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_personal'),
+        queryFn: () => api.getUserPreference<Layouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_personal'),
         enabled: !!supabaseClient && !!currentUser,
     });
 
      useEffect(() => {
         if (savedLayouts && !isEditingLayout) {
-            const newLayouts: any = {};
+            const newLayouts: Layouts = { lg: [], md: [], sm: [] };
             for (const breakpoint of ['lg', 'md', 'sm']) {
-                const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
-                const savedItems = savedLayouts[breakpoint as keyof typeof savedLayouts] || [];
+                const bp = breakpoint as keyof Layouts;
+                const defaultItems = defaultLayouts[bp];
+                const savedItems = savedLayouts[bp] || [];
                 const savedItemsMap = new Map(savedItems.map(item => [item.i, item]));
-                newLayouts[breakpoint] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
+                newLayouts[bp] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
             }
             setLayouts(newLayouts);
         }
@@ -156,11 +181,11 @@ export const PersonalDashboard: React.FC = () => {
 
     const isDirty = useMemo(() => {
         if (!isEditingLayout || !layoutsAtEditStart) return false;
-        return JSON.stringify(layouts) !== JSON.stringify(layoutsAtEditStart);
+        return !areLayoutsEqual(layouts, layoutsAtEditStart);
     }, [isEditingLayout, layouts, layoutsAtEditStart]);
 
     const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_personal', newLayouts),
+        mutationFn: (newLayouts: Layouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_personal', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
             setIsEditingLayout(false);
@@ -251,7 +276,7 @@ export const PersonalDashboard: React.FC = () => {
 
     const handleSaveLayout = () => {
         if (isDirty) {
-            saveLayoutMutation.mutate(layouts as any);
+            saveLayoutMutation.mutate(layouts);
         }
     };
     
@@ -283,7 +308,7 @@ export const PersonalDashboard: React.FC = () => {
                              <button 
                                 onClick={handleSaveLayout} 
                                 disabled={!isDirty || saveLayoutMutation.isPending} 
-                                title={!isDirty ? "لا توجد تغييرات للحفظ" : "حفظ التخطيط"}
+                                title={!isDirty ? "No changes to save" : "حفظ التخطيط"}
                                 className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
                                 {saveLayoutMutation.isPending ? <LoadingSpinner /> : <CheckIcon className="w-5 h-5"/>}
                                 <span>حفظ التخطيط</span>
@@ -306,7 +331,7 @@ export const PersonalDashboard: React.FC = () => {
                 layouts={layouts}
                 onLayoutChange={(layout, allLayouts) => {
                     if (isEditingLayout) {
-                        setLayouts(allLayouts as any);
+                        setLayouts(allLayouts);
                     }
                 }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
@@ -315,7 +340,7 @@ export const PersonalDashboard: React.FC = () => {
                 isDraggable={isEditingLayout}
                 isResizable={isEditingLayout}
             >
-                {layouts.lg.map(item => (
+                {(layouts.lg || []).map(item => (
                     <div key={item.i}>
                         {widgetMap[item.i as keyof typeof widgetMap] || <Card title="Widget not found" />}
                     </div>

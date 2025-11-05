@@ -135,8 +135,8 @@ export const deleteById = async (client: SupabaseClient, table: string, id: stri
         // If the function is not found in the cache, refresh the cache and retry once.
         if (error && error.message.includes('schema cache')) {
             console.warn('RPC function not found in cache. Refreshing and retrying...');
-            // Refreshing the cache for related tables can help Supabase find the RPC function.
-            await refreshSchemaCache(client, ['projects', 'tasks', 'daily_logs']); 
+            // Refreshing the cache for all related tables can help Supabase find the RPC function.
+            await refreshSchemaCache(client, ['projects', 'tasks', 'daily_logs', 'task_attachments', 'task_comments', 'meetings', 'expense_claims', 'overtime_requests']); 
             const { error: retryError } = await client.rpc('delete_project_and_related_data', { p_id: id });
             if (retryError) throw retryError; // If it fails again, throw the new error.
         } else if (error) {

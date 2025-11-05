@@ -33,9 +33,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
 
     const { data: projects = [], isLoading } = useQuery({
         queryKey: ['projects'],
-        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects', 'id, name, status, budget_hours, budget_amount, budget_notification_sent'),
+        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects'),
         enabled: !!supabaseClient,
-        staleTime: 5 * 60 * 1000,
     });
     
     useEffect(() => {
@@ -46,6 +45,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
 
     const filteredProjects = useMemo(() => {
         return projects.filter(p => {
+            if (!p.name) return false; // Guard against incomplete cached data
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             return matchesSearch && matchesStatus;

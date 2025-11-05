@@ -15,18 +15,17 @@ export const AuthPage: React.FC = () => {
         e.preventDefault();
         setIsLoggingIn(true);
         setLoginError('');
-        try {
-            const { error } = await handleLogin(email, password);
-            if (error) {
-                setLoginError(error.message === 'Invalid login credentials' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : error.message);
-            }
-            // On success, AuthContext handles navigation.
-        } catch (e: any) {
-            console.error("Login failed unexpectedly:", e);
-            setLoginError(e.message || 'حدث خطأ غير متوقع.');
-        } finally {
-            setIsLoggingIn(false);
+        
+        const { error } = await handleLogin(email, password);
+        
+        if (error) {
+            const errorMessage = error.message === 'Invalid login credentials' 
+                ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' 
+                : error.message;
+            setLoginError(errorMessage);
+            setIsLoggingIn(false); // Only stop loading spinner on error. On success, the component unmounts.
         }
+        // On success, AuthContext handles the state change and AppContent will render the dashboard.
     };
 
     return (

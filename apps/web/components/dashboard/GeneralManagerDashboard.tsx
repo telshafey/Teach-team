@@ -4,7 +4,7 @@ import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { Card } from '../ui/Card';
 import { BarChart, LineChart } from '../ui/Charts';
 import { FolderIcon, ClockIcon, BellIcon, CurrencyDollarIcon, PlusIcon, CheckIcon, WrenchScrewdriverIcon, XMarkIcon } from '../ui/Icons';
-import { Project, Meeting } from '@shared/types';
+import { Project, Meeting, Task } from '@shared/types';
 import { isThisWeek, parseISO, eachDayOfInterval, subDays, format } from 'date-fns';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
@@ -15,12 +15,36 @@ import { StatCard } from './StatCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
-import { Responsive, WidthProvider } from 'react-grid-layout';
+import { Responsive, WidthProvider, Layouts, Layout } from 'react-grid-layout';
 import { useAuth } from '@shared/contexts/AuthContext';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const areLayoutsEqual = (a: Layouts, b: Layouts): boolean => {
+    if (!a || !b) return a === b;
+    const breakpoints = ['lg', 'md', 'sm'];
+    for (const bp of breakpoints) {
+        const key = bp as keyof Layouts;
+        const layoutA = a[key] || [];
+        const layoutB = b[key] || [];
+        if (layoutA.length !== layoutB.length) return false;
+
+        // FIX: Corrected the type annotation for 'item' from 'Layout[0]' to 'Layout'.
+        const layoutBMap = new Map(layoutB.map((item: Layout) => [item.i, item]));
+
+        for (const itemA of layoutA) {
+            const itemB = layoutBMap.get(itemA.i);
+            if (!itemB) return false;
+            if (itemA.x !== itemB.x || itemA.y !== itemB.y || itemA.w !== itemB.w || itemA.h !== itemB.h) {
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
 
 // Widget Components
 const StatCardsWidget: React.FC<{ data: { activeProjects: number; weeklyHours: number; pendingItems: number; totalBudget: number; }; currency: string; onNavigate: (view: any, props?: any) => void; }> = ({ data, currency, onNavigate }) => (
@@ -91,12 +115,12 @@ export const GeneralManagerDashboard: React.FC = () => {
     });
     const { data: projects = [] } = useQuery<Project[]>({ 
         queryKey: ['projects'], 
-        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name, status, budget_hours, budget_amount'), 
+        queryFn: () => api.getAll(supabaseClient!, 'projects'), 
         enabled: !!supabaseClient,
         staleTime: 5 * 60 * 1000,
     });
 
-    const defaultLayouts = {
+    const defaultLayouts: Layouts = {
         lg: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
             { i: 'productivity', x: 0, y: 1, w: 8, h: 4 },
@@ -120,23 +144,24 @@ export const GeneralManagerDashboard: React.FC = () => {
         ]
     };
 
-    const [layouts, setLayouts] = useState(defaultLayouts);
-    const [layoutsAtEditStart, setLayoutsAtEditStart] = useState<typeof defaultLayouts | null>(null);
+    const [layouts, setLayouts] = useState<Layouts>(defaultLayouts);
+    const [layoutsAtEditStart, setLayoutsAtEditStart] = useState<Layouts | null>(null);
 
     const { data: savedLayouts } = useQuery({
         queryKey: ['user_preference', 'dashboard_layout_gm'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_gm'),
+        queryFn: () => api.getUserPreference<Layouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_gm'),
         enabled: !!supabaseClient && !!currentUser,
     });
 
     useEffect(() => {
         if (savedLayouts && !isEditing) {
-            const newLayouts: any = {};
+            const newLayouts: Layouts = { lg: [], md: [], sm: [] };
             for (const breakpoint of ['lg', 'md', 'sm']) {
-                const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
-                const savedItems = savedLayouts[breakpoint as keyof typeof savedLayouts] || [];
+                const bp = breakpoint as keyof Layouts;
+                const defaultItems = defaultLayouts[bp];
+                const savedItems = savedLayouts[bp] || [];
                 const savedItemsMap = new Map(savedItems.map(item => [item.i, item]));
-                newLayouts[breakpoint] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
+                newLayouts[bp] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
             }
             setLayouts(newLayouts);
         }
@@ -144,12 +169,12 @@ export const GeneralManagerDashboard: React.FC = () => {
 
     const isDirty = useMemo(() => {
         if (!isEditing || !layoutsAtEditStart) return false;
-        return JSON.stringify(layouts) !== JSON.stringify(layoutsAtEditStart);
+        return !areLayoutsEqual(layouts, layoutsAtEditStart);
     }, [isEditing, layouts, layoutsAtEditStart]);
 
 
     const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm', newLayouts),
+        mutationFn: (newLayouts: Layouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
             setIsEditing(false);
@@ -231,7 +256,7 @@ export const GeneralManagerDashboard: React.FC = () => {
                              <button 
                                 onClick={handleSaveLayout} 
                                 disabled={!isDirty || saveLayoutMutation.isPending} 
-                                title={!isDirty ? "لا توجد تغييرات للحفظ" : "حفظ التخطيط"}
+                                title={!isDirty ? "No changes to save" : "حفظ التخطيط"}
                                 className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
                                 {saveLayoutMutation.isPending ? <LoadingSpinner /> : <CheckIcon className="w-5 h-5"/>}
                                 <span>حفظ التخطيط</span>
@@ -263,7 +288,7 @@ export const GeneralManagerDashboard: React.FC = () => {
                 isDraggable={isEditing}
                 isResizable={isEditing}
             >
-                {layouts.lg.map(item => (
+                {(layouts.lg || []).map(item => (
                     <div key={item.i}>
                         {widgetMap[item.i] || <Card title="Widget not found" />}
                     </div>

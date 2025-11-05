@@ -44,10 +44,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const getSession = async () => {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        const userProfile = await fetchUserProfile(session?.user ?? null);
-        setCurrentUser(userProfile);
-        if (userProfile) {
-            refreshCache(); // Don't await, let it run in the background
+        if (session) {
+            const userProfile = await fetchUserProfile(session.user);
+            if (userProfile) {
+                setCurrentUser(userProfile);
+                refreshCache(); // Don't await
+            } else {
+                // Has a session but no profile is a critical error state. Sign out to prevent loops.
+                await supabaseClient.auth.signOut();
+                setCurrentUser(null);
+            }
+        } else {
+            setCurrentUser(null);
         }
       } catch (error) {
         console.error("Error during initial session fetch:", error);
@@ -60,14 +68,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const { data: authListener } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
-        const userProfile = await fetchUserProfile(session?.user ?? null);
-        setCurrentUser(userProfile);
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          if (userProfile) {
-            refreshCache();
-          }
-        }
-        if (event === 'SIGNED_OUT') {
+        const user = session?.user ?? null;
+        if (user) {
+            const userProfile = await fetchUserProfile(user);
+            if (userProfile) {
+                setCurrentUser(userProfile);
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                  refreshCache();
+                }
+            } else {
+                // Critical error: authenticated user without a profile. Force sign out.
+                await supabaseClient.auth.signOut();
+                setCurrentUser(null);
+                addToast('فشل تحميل الملف الشخصي. تم تسجيل خروجك تلقائيًا.', 'error');
+            }
+        } else if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
         }
       }
@@ -76,12 +91,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabaseClient, fetchUserProfile]);
+  }, [supabaseClient, fetchUserProfile, addToast]);
 
   const handleLogin = async (email: string, password: string) => {
-    if (!supabaseClient) return { error: new Error('Supabase client not initialized') };
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    return { error: error ? new Error(error.message) : null };
+    if (!supabaseClient) {
+      return { error: new Error('Supabase client not initialized') };
+    }
+    
+    // Step 1: Sign in
+    const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+    
+    if (authError) {
+      return { error: new Error(authError.message) };
+    }
+    
+    if (!authData.user) {
+        return { error: new Error('Authentication successful but no user returned.') };
+    }
+
+    // Step 2: Fetch profile immediately after successful auth
+    try {
+      const userProfile = await fetchUserProfile(authData.user);
+
+      if (userProfile) {
+        // Step 3: Success. The onAuthStateChange listener will set the user. Return no error.
+        return { error: null };
+      } else {
+        // Step 3: Failure. Profile not found. Clean up session and return specific error.
+        await supabaseClient.auth.signOut();
+        return { error: new Error('فشل تحميل الملف الشخصي بعد تسجيل الدخول. يرجى مراجعة المسؤول.') };
+      }
+    } catch (profileError: any) {
+        // Catch any unexpected error during profile fetch
+        await supabaseClient.auth.signOut();
+        return { error: new Error(profileError.message || 'An unknown error occurred while fetching user profile.') };
+    }
   };
 
   const handleLogout = async () => {

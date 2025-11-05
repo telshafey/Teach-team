@@ -24,19 +24,20 @@ interface ProjectDetailPageProps {
 }
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId, initialTaskIdToOpen }) => {
-    // --- HOOKS ---
-    // All hooks must be called at the top level, before any conditional returns.
+    // --- HOOKS (ALL AT THE TOP) ---
     const { onNavigate } = useNavigation();
     const { handleAddTask, handleUpdateTask, handleDeleteTask, handleUpdateProject, handleDeleteProject } = useProjectContext();
     const { hasPermission } = useTeamContext();
     const { supabaseClient } = useSupabase();
     
+    // State hooks
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+    // Data fetching with react-query
     const { data: project, isLoading: isProjectLoading } = useQuery({
         queryKey: ['project', projectId],
         queryFn: () => api.getById<Project>(supabaseClient!, 'projects', projectId),
@@ -46,7 +47,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const { data: tasksForProject = [], isLoading: areTasksLoading } = useQuery({
         queryKey: ['tasks', projectId],
         queryFn: async () => {
-          const { data, error } = await supabaseClient!.from('tasks').select('*').eq('project_id', projectId);
+          if (!supabaseClient) return [];
+          const { data, error } = await supabaseClient.from('tasks').select('*').eq('project_id', projectId);
           if (error) throw error;
           return api.keysToCamel(data) as Task[];
         },
@@ -55,6 +57,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     
     const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(projectId);
 
+    // Effect hooks
     useEffect(() => {
         if (initialTaskIdToOpen && tasksForProject.length > 0) {
             const taskToOpen = tasksForProject.find(t => t.id === initialTaskIdToOpen);
@@ -64,6 +67,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         }
     }, [initialTaskIdToOpen, tasksForProject]);
     
+    // Callback hooks
     const handleUpdateTaskStatus = useCallback(async (taskId: string, newStatus: TaskStatus) => {
         await handleUpdateTask({ id: taskId, status: newStatus });
     }, [handleUpdateTask]);
@@ -86,8 +90,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     
     const isLoading = isProjectLoading || areTasksLoading;
 
-    // --- CONDITIONAL RENDERING ---
-    // Now that all hooks are called, we can have early returns.
+    // --- CONDITIONAL RENDERING (AFTER ALL HOOKS) ---
     if (isLoading) {
         return <div className="p-6 flex justify-center items-center h-full"><LoadingSpinner /></div>;
     }
