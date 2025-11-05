@@ -33,8 +33,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
 
     const { data: projects = [], isLoading } = useQuery({
         queryKey: ['projects'],
-        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects'),
+        queryFn: () => api.getAll<Project>(supabaseClient!, 'projects', 'id, name, status, budget_hours, budget_amount, budget_notification_sent'),
         enabled: !!supabaseClient,
+        staleTime: 5 * 60 * 1000,
     });
     
     useEffect(() => {

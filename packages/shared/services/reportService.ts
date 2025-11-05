@@ -36,7 +36,7 @@ export const generateTasksDetail = (
     projects: Project[],
     teamMembers: TeamMember[],
     filters: Filters
-): { headers: string[], rows: any[] } => {
+): { headers: string[], rows: any[][] } => {
     const headers = ["المهمة", "المشروع", "مسندة إلى", "الحالة", "تاريخ الاستحقاق"];
     let tasksToReport = tasks;
     if (filters.includeUnassigned) {
@@ -58,7 +58,7 @@ export const generateEmployeePerformance = (
     projects: Project[],
     filters: Filters,
     byProject: boolean
-): { headers: string[], rows: any[] } | null => {
+): { headers: string[], rows: any[][] } | null => {
     if (!filters.memberId) return null;
     const headers = ["التاريخ", "المشروع", "الوصف", "الساعات"];
     
@@ -69,7 +69,7 @@ export const generateEmployeePerformance = (
             (!byProject || !filters.projectId || l.projectId === filters.projectId)
         );
 
-    const rows = logsToReport.map(l => [l.date, projects.find(p => p.id === l.projectId)?.name || 'N/A', l.description, l.hours]);
+    const rows: any[][] = logsToReport.map(l => [l.date, projects.find(p => p.id === l.projectId)?.name || 'N/A', l.description, l.hours]);
 
     const totalHours = logsToReport.reduce((sum, log) => sum + log.hours, 0);
     rows.push(['', '', 'المجموع', totalHours.toFixed(2)]);
@@ -83,7 +83,7 @@ export const generateExpenses = (
     currency: string,
     filters: Filters,
     byProject: boolean
-): { headers: string[], rows: any[] } => {
+): { headers: string[], rows: any[][] } => {
     const headers = ["التاريخ", "الموظف", "المشروع", "المبلغ", "الوصف"];
 
     const claimsToReport = expenseClaims
@@ -92,7 +92,7 @@ export const generateExpenses = (
             (!byProject || !filters.projectId || e.projectId === filters.projectId)
         );
 
-    const rows = claimsToReport.map(e => {
+    const rows: any[][] = claimsToReport.map(e => {
             const member = teamMembers.find(m => m.id === e.teamMemberId);
             const project = projects.find(p => p.id === e.projectId);
             return [e.date, member?.name || '', project?.name || 'N/A', `${e.amount} ${currency}`, e.description];

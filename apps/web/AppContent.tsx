@@ -51,6 +51,9 @@ export const AppContent: React.FC = () => {
     };
     window.addEventListener('hashchange', handleHashChange);
     // Set initial route
+    if(!window.location.hash) {
+        window.location.hash = '#/dashboard';
+    }
     handleHashChange();
     
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -71,10 +74,6 @@ export const AppContent: React.FC = () => {
       // Update the URL hash. The hashchange listener will trigger the state update.
       if (window.location.hash !== newHash) {
         window.location.hash = newHash;
-      } else {
-        // If hash is the same, listener won't fire, manually trigger a re-parse.
-        // This handles cases where we navigate to the same view but with different modal states (which are props but not in URL)
-        setHash(newHash);
       }
   }, []);
 

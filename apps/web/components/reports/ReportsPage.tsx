@@ -37,12 +37,14 @@ export const ReportsPage: React.FC = () => {
       queryKey: ['projects'],
       queryFn: () => api.getAll(supabaseClient!, 'projects'),
       enabled: !!supabaseClient,
+      staleTime: 5 * 60 * 1000,
     });
     
     const { data: tasks = [] } = useQuery<Task[]>({
       queryKey: ['tasks'],
       queryFn: () => api.getAll(supabaseClient!, 'tasks'),
       enabled: !!supabaseClient,
+      staleTime: 5 * 60 * 1000,
     });
 
     // State

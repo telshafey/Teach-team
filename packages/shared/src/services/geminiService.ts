@@ -184,7 +184,7 @@ export const scanReceipt = async (
       text: prompt
     };
 
-    // FIX: Using recommended model 'gemini-2.5-flash'
+    // FIX: Using recommended model 'gemini-2.5-flash' which is multimodal.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [imagePart, textPart] },

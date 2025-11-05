@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { useAuth } from '@shared/contexts/AuthContext';
-import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTeamContext } from '../contexts/TeamContext';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '@shared/contexts/SupabaseContext';
-import * as api from '@shared/services/apiService';
-import { Project } from '@shared/types';
+import { useSupabase } from '../contexts/SupabaseContext';
+import * as api from '../services/apiService';
+import { Project } from '../types';
 
 export const useProjectPermissions = (projectId?: string) => {
     const { currentUser } = useAuth();

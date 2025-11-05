@@ -3,12 +3,12 @@ import { useTeamContext } from '@shared/contexts/TeamContext';
 import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { Card } from '../ui/Card';
 import { BarChart, LineChart } from '../ui/Charts';
-import { FolderIcon, ClockIcon, BellIcon, CurrencyDollarIcon, PlusIcon, CheckIcon, WrenchScrewdriverIcon } from '../ui/Icons';
-import { Project, Meeting, Task } from '@shared/types';
+import { FolderIcon, ClockIcon, BellIcon, CurrencyDollarIcon, PlusIcon, CheckIcon, WrenchScrewdriverIcon, XMarkIcon } from '../ui/Icons';
+import { Project, Meeting } from '@shared/types';
 import { isThisWeek, parseISO, eachDayOfInterval, subDays, format } from 'date-fns';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '../../contexts/NavigationContext';
-import { usePendingApprovals } from '../../hooks/usePendingApprovals';
+import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
 import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { StatusBadge } from '../ui/StatusBadge';
 import { StatCard } from './StatCard';
@@ -82,9 +82,19 @@ export const GeneralManagerDashboard: React.FC = () => {
     const { supabaseClient } = useSupabase();
 
     const [isEditing, setIsEditing] = useState(false);
-
-    const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ['meetings'], queryFn: () => api.getAll(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
-    const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => api.getAll(supabaseClient!, 'projects'), enabled: !!supabaseClient });
+    
+    const { data: meetings = [] } = useQuery<Meeting[]>({ 
+        queryKey: ['meetings'], 
+        queryFn: () => api.getAll(supabaseClient!, 'meetings'), 
+        enabled: !!supabaseClient,
+        staleTime: 5 * 60 * 1000,
+    });
+    const { data: projects = [] } = useQuery<Project[]>({ 
+        queryKey: ['projects'], 
+        queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name, status, budget_hours, budget_amount'), 
+        enabled: !!supabaseClient,
+        staleTime: 5 * 60 * 1000,
+    });
 
     const defaultLayouts = {
         lg: [
@@ -111,6 +121,7 @@ export const GeneralManagerDashboard: React.FC = () => {
     };
 
     const [layouts, setLayouts] = useState(defaultLayouts);
+    const [layoutsAtEditStart, setLayoutsAtEditStart] = useState<typeof defaultLayouts | null>(null);
 
     const { data: savedLayouts } = useQuery({
         queryKey: ['user_preference', 'dashboard_layout_gm'],
@@ -119,8 +130,7 @@ export const GeneralManagerDashboard: React.FC = () => {
     });
 
     useEffect(() => {
-        if (savedLayouts) {
-            // Merge saved layout with default to ensure new widgets are included
+        if (savedLayouts && !isEditing) {
             const newLayouts: any = {};
             for (const breakpoint of ['lg', 'md', 'sm']) {
                 const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
@@ -130,14 +140,21 @@ export const GeneralManagerDashboard: React.FC = () => {
             }
             setLayouts(newLayouts);
         }
-    }, [savedLayouts]);
+    }, [savedLayouts, isEditing]);
+
+    const isDirty = useMemo(() => {
+        if (!isEditing || !layoutsAtEditStart) return false;
+        return JSON.stringify(layouts) !== JSON.stringify(layoutsAtEditStart);
+    }, [isEditing, layouts, layoutsAtEditStart]);
+
 
     const saveLayoutMutation = useMutation({
         mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_gm'] });
             setIsEditing(false);
+            setLayoutsAtEditStart(null);
+            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_gm'] });
         },
         onError: (error) => {
             addToast(`فشل حفظ التخطيط: ${error.message}`, 'error');
@@ -180,12 +197,21 @@ export const GeneralManagerDashboard: React.FC = () => {
         'meetings': <UpcomingMeetingsWidget meetings={meetings} onJoin={handleJoinMeeting} />,
     };
 
-    const handleToggleEdit = () => {
-        if (isEditing) {
+    const handleSaveLayout = () => {
+        if (isDirty) {
             saveLayoutMutation.mutate(layouts);
-        } else {
-            setIsEditing(true);
         }
+    };
+    
+    const handleStartEditing = () => {
+        setLayoutsAtEditStart(layouts);
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        if(layoutsAtEditStart) setLayouts(layoutsAtEditStart);
+        setIsEditing(false);
+        setLayoutsAtEditStart(null);
     };
 
     return (
@@ -196,11 +222,28 @@ export const GeneralManagerDashboard: React.FC = () => {
                     <p className="text-md text-slate-500 dark:text-slate-400">نظرة عامة على أداء المنظومة.</p>
                 </div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
-                    <button onClick={handleToggleEdit} disabled={saveLayoutMutation.isPending} className={`w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'}`}>
-                        {saveLayoutMutation.isPending ? <LoadingSpinner /> : isEditing ? <CheckIcon className="w-5 h-5"/> : <WrenchScrewdriverIcon className="w-5 h-5" />}
-                        <span>{saveLayoutMutation.isPending ? 'جارٍ الحفظ...' : isEditing ? 'حفظ التخطيط' : 'تخصيص اللوحة'}</span>
-                    </button>
-                    <button onClick={() => onNavigate('projects', { isModalOpen: true })} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
+                     {isEditing ? (
+                        <>
+                            <button onClick={handleCancelEdit} className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600">
+                                <XMarkIcon className="w-5 h-5"/>
+                                <span>إلغاء</span>
+                            </button>
+                             <button 
+                                onClick={handleSaveLayout} 
+                                disabled={!isDirty || saveLayoutMutation.isPending} 
+                                title={!isDirty ? "لا توجد تغييرات للحفظ" : "حفظ التخطيط"}
+                                className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed">
+                                {saveLayoutMutation.isPending ? <LoadingSpinner /> : <CheckIcon className="w-5 h-5"/>}
+                                <span>حفظ التخطيط</span>
+                            </button>
+                        </>
+                    ) : (
+                         <button onClick={handleStartEditing} className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600">
+                            <WrenchScrewdriverIcon className="w-5 h-5" />
+                            <span>تخصيص اللوحة</span>
+                        </button>
+                    )}
+                    <button onClick={() => onNavigate('projects', { isModalOpen: true })} className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                         <PlusIcon className="w-5 h-5" /><span>مشروع جديد</span>
                     </button>
                 </div>
@@ -209,7 +252,11 @@ export const GeneralManagerDashboard: React.FC = () => {
             <ResponsiveGridLayout
                 className={`layout ${isEditing ? 'rgl-editing' : ''}`}
                 layouts={layouts}
-                onLayoutChange={(layout, allLayouts) => setLayouts(allLayouts)}
+                onLayoutChange={(layout, allLayouts) => {
+                    if (isEditing) {
+                        setLayouts(allLayouts);
+                    }
+                }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                 cols={{ lg: 12, md: 12, sm: 6 }}
                 rowHeight={60}

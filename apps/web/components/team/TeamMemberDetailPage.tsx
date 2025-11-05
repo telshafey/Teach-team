@@ -31,7 +31,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
 
     const { data: tasks = [] } = useQuery<Task[]>({
       queryKey: ['tasks'],
-      queryFn: () => api.getAll(supabaseClient!, 'tasks'),
+      queryFn: () => api.getAll(supabaseClient!, 'tasks', 'id, title, assigned_to, status, due_date'),
       enabled: !!supabaseClient,
     });
 
