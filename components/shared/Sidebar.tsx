@@ -20,7 +20,7 @@ const NavItem: React.FC<NavItemProps> = ({ view, label, icon, currentView, onNav
     return (
         <li>
             <a
-                href={`#/${view}`}
+                href={`/${view}`}
                 onClick={(e) => { e.preventDefault(); onNavigate(view); }}
                 className={`flex items-center p-2 text-base font-normal rounded-lg transition-colors ${isActive ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300' : 'text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700'}`}
             >

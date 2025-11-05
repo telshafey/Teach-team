@@ -11,24 +11,20 @@ import { LoadingSpinner } from './components/ui/LoadingSpinner';
 const MeetingRoom = lazy(() => import('./components/meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
 
 
-const parseHash = (hash: string): { view: View; props: any } => {
-  const path = hash.substring(1) || '/';
-  const parts = path.split('/').filter(Boolean);
+const parsePathname = (pathname: string): { view: View; props: any } => {
+  const parts = pathname.split('/').filter(Boolean);
   let view = (parts[0] as View) || 'dashboard';
   let props: any = {};
 
   if (view === 'projectDetail' && parts[1]) {
     props.projectId = parts[1];
   } else if (view === 'team' && parts[1] && !isNaN(parseInt(parts[1], 10))) {
-    // This is for team member detail view, e.g., #/team/123
     props.initialMemberId = parseInt(parts[1], 10);
   } else if (view === 'teamDetail' && parts[1]) {
-      // Legacy support for navigating to teamDetail
       view = 'team';
       props.initialMemberId = parseInt(parts[1], 10);
   }
 
-  // Handle views that are part of settings
   if (view === 'roles' || view === 'database') {
       props.initialView = view;
       view = 'settings';
@@ -42,38 +38,38 @@ const parseHash = (hash: string): { view: View; props: any } => {
 export const AppContent: React.FC = () => {
   const { currentUser } = useAuth();
   
-  // State is now derived from the URL hash
-  const [hash, setHash] = useState(() => window.location.hash);
+  const [pathname, setPathname] = useState(() => window.location.pathname);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setHash(window.location.hash);
+    const handlePopState = () => {
+      setPathname(window.location.pathname);
     };
-    window.addEventListener('hashchange', handleHashChange);
-    // Set initial route
-    if(!window.location.hash) {
-        window.location.hash = '#/dashboard';
-    }
-    handleHashChange();
+    window.addEventListener('popstate', handlePopState);
     
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    // Set initial route if it's just the root, redirect to dashboard
+    if(window.location.pathname === '/') {
+        window.history.replaceState({}, '', '/dashboard');
+        handlePopState(); // Update state to reflect the change
+    }
+    
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const { view: currentView, props: viewProps } = useMemo(() => parseHash(hash), [hash]);
+  const { view: currentView, props: viewProps } = useMemo(() => parsePathname(pathname), [pathname]);
 
   const handleNavigate = useCallback((view: View, props: any = {}) => {
-      let newHash = `#/${view}`;
+      let newPath = `/${view}`;
 
       if (view === 'projectDetail' && props.projectId) {
-          newHash = `#/projectDetail/${props.projectId}`;
+          newPath = `/projectDetail/${props.projectId}`;
       } else if (view === 'teamDetail' && props.memberId) {
-          // Navigate to /team/:id to show member detail within the team management page
-          newHash = `#/team/${props.memberId}`;
+          newPath = `/team/${props.memberId}`;
       }
       
-      // Update the URL hash. The hashchange listener will trigger the state update.
-      if (window.location.hash !== newHash) {
-        window.location.hash = newHash;
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({}, '', newPath);
+        // Manually trigger a re-render by updating state, since pushState doesn't trigger popstate
+        setPathname(newPath);
       }
   }, []);
 
