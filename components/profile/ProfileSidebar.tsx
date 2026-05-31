@@ -1,10 +1,10 @@
 import React, { useState, FormEvent } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { Card } from '../ui/Card';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { fileToBase64 } from '../../utils/files';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { fileToBase64 } from '@shared/utils/files';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { CurrencyDollarIcon, ClockIcon } from '../ui/Icons';
 
 export const ProfileSidebar: React.FC = () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DailyLog } from '../../types';
+import { DailyLog } from '@shared/types';
 import { Card } from '../ui/Card';
 
 interface MemberRecentActivityCardProps {

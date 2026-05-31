@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { Card } from '../ui/Card';
 import { BarChart, PieChart, LineChart } from '../ui/Charts';
 import { FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { Project, Task } from '../../types';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
+import { Project, Task } from '@shared/types';
 
 export const AnalyticsPage: React.FC = () => {
     const { teamMembers } = useTeamContext();

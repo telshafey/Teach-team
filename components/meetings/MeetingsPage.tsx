@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useMeetingContext } from '../../contexts/MeetingContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useMeetingContext } from '@shared/contexts/MeetingContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { Card } from '../ui/Card';
 import { PlusIcon, VideoCameraIcon, TrashIcon, ChevronUpDownIcon, ArrowUpIcon, ArrowDownIcon } from '../ui/Icons';
-import { Meeting, TeamMember, Project } from '../../types';
+import { Meeting, TeamMember, Project } from '@shared/types';
 import { MeetingFormModal } from '../modals/MeetingFormModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { EmptyState } from '../ui/EmptyState';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 type SortableKeys = 'title' | 'project' | 'startTime' | 'attendees';
 

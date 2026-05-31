@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Project, BillingProposalFormData } from '../../types';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { Project, BillingProposalFormData } from '@shared/types';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface FreelancerBillingModalProps {
   isOpen: boolean;

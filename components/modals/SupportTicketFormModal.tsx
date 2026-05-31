@@ -1,6 +1,6 @@
 import React, { useState, FormEvent } from 'react';
-import { useSupportContext } from '../../contexts/SupportContext';
-import { TicketCategory, TicketPriority } from '../../types';
+import { useSupportContext } from '@shared/contexts/SupportContext';
+import { TicketCategory, TicketPriority } from '@shared/types';
 
 interface SupportTicketFormModalProps {
   isOpen: boolean;

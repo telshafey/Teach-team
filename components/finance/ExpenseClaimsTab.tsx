@@ -1,17 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { ExpenseClaim, ExpenseClaimStatus, Project } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { ExpenseClaim, ExpenseClaimStatus, Project } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { PlusIcon, CheckIcon, NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { StatusBadge } from '../ui/StatusBadge';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface ExpenseClaimsTabProps {
     onNewClaim: () => void;

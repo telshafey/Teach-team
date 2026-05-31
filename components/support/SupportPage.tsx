@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useSupportContext } from '../../contexts/SupportContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { SupportTicket, TicketStatus, TicketPriority } from '../../types';
+import { useSupportContext } from '@shared/contexts/SupportContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { SupportTicket, TicketStatus, TicketPriority } from '@shared/types';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { LoadingSpinner } from '../ui/LoadingSpinner';

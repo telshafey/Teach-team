@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useCallback, lazy, Suspense, useEffect } from 'react';
-import { useAuth } from './contexts/AuthContext';
-import { useSupabase } from './contexts/SupabaseContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { Logo } from './components/ui/Logo';
 import { AuthPage } from './components/auth/AuthPage';
-import { View } from './navigation.types';
-import { NavigationContext } from './contexts/NavigationContext';
+import { View } from '@shared/navigation.types';
+import { NavigationContext } from '@shared/contexts/NavigationContext';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
 const MeetingRoom = lazy(() => import('./components/meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));

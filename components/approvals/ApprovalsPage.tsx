@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { usePendingApprovals } from '../../hooks/usePendingApprovals';
-import { DecisionItem, Project } from '../../types';
+import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
+import { DecisionItem, Project } from '@shared/types';
 import { DecisionDetailModal } from '../modals/DecisionDetailModal';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { ClipboardDocumentListIcon } from '../ui/Icons';
 import { ApprovalItemCard } from './ApprovalItemCard';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '@shared/utils/typeGuards';
 import { ApprovalGroup } from './ApprovalGroup';
 
 type ApprovalCategory = 'tasks' | 'plans' | 'contracts' | 'overtime' | 'leave' | 'contractChanges' | 'penalties' | 'expenses';

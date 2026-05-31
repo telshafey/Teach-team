@@ -1,9 +1,4 @@
 // --- SETTINGS ---
-export interface DatabaseSettings {
-    supabaseUrl: string;
-    supabaseAnonKey: string;
-}
-
 export interface MeetingSettings {
     startWithAudioMuted: boolean;
     startWithVideoMuted: boolean;
@@ -24,7 +19,6 @@ export interface SiteSettings {
     isMeetingsModuleEnabled: boolean;
     isAnalyticsModuleEnabled: boolean;
     isReportsModuleEnabled: boolean;
-    databaseSettings: DatabaseSettings;
     meetingSettings: MeetingSettings;
 }
 

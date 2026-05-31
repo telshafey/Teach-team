@@ -48,7 +48,15 @@ const DashboardScreen: React.FC = () => {
     });
 
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
-    const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
+    
+    const { hasPermission } = useTeamContext();
+    const canViewAllTasks = hasPermission('manage_team') || hasPermission('view_reports') || hasPermission('manage_projects');
+    const myTasks = useMemo(() => {
+        if (!currentUser) return [];
+        if (canViewAllTasks) return tasks;
+        return tasks.filter(task => task.assignedTo === currentUser.id || task.creatorId === currentUser.id);
+    }, [tasks, currentUser, canViewAllTasks]);
+
     const myOpenTasks = useMemo(() => myTasks.filter(task => task.status !== 'done'), [myTasks]);
     
     const myMeetings = useMemo(() => {

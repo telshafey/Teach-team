@@ -1,11 +1,11 @@
 import React from 'react';
-import { Task, Project } from '../../types';
+import { Task, Project } from '@shared/types';
 import { Card } from '../ui/Card';
 import { ClipboardDocumentListIcon, FolderIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface UnassignedTasksCardProps {
     tasks: Task[];

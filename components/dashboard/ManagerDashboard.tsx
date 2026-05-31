@@ -1,26 +1,26 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { Meeting, Task, Project } from '../../types';
+import { Meeting, Task, Project } from '@shared/types';
 import { EmptyState } from '../ui/EmptyState';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 import { UnassignedTasksCard } from './UnassignedTasksCard';
 import { UsersIcon, ClockIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, BellIcon, WrenchScrewdriverIcon, CheckIcon } from '../ui/Icons';
-import { usePendingApprovals } from '../../hooks/usePendingApprovals';
+import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
 import { isToday, parseISO, isPast, isSameDay } from 'date-fns';
 import { ApprovalItemCard } from '../approvals/ApprovalItemCard';
 import { StatCard } from './StatCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 import { Responsive, WidthProvider } from 'react-grid-layout';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { TaskDetailModal } from '../modals/TaskDetailModal';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { TaskDetailInline } from '../tasks/TaskDetailInline';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -190,6 +190,19 @@ export const ManagerDashboard: React.FC = () => {
         }
     };
 
+    if (taskToAssign) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+                <TaskDetailInline
+                    onClose={() => setTaskToAssign(null)}
+                    task={taskToAssign}
+                    onSave={handleSaveTask}
+                    initialMode="edit"
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6" dir="rtl">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -224,16 +237,6 @@ export const ManagerDashboard: React.FC = () => {
                     </div>
                 ))}
             </ResponsiveGridLayout>
-
-             {taskToAssign && (
-                <TaskDetailModal
-                    isOpen={!!taskToAssign}
-                    onClose={() => setTaskToAssign(null)}
-                    task={taskToAssign}
-                    onSave={handleSaveTask}
-                    initialMode="edit"
-                />
-            )}
         </div>
     );
 };

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Task, TaskStatus, TeamMember } from '../../types';
+import { Task, TaskStatus, TeamMember } from '@shared/types';
 import { TaskCard } from './TaskCard';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { QuickAddTask } from './QuickAddTask';
 
 interface TaskColumnProps {

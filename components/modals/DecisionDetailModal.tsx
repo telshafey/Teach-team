@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { DecisionItem, Task, Project, TeamMember, OvertimeRequest, LeaveRequest, WorkContractChangeRequest, Penalty, ExpenseClaim } from '../../types';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { DecisionItem, Task, Project, TeamMember, OvertimeRequest, LeaveRequest, WorkContractChangeRequest, Penalty, ExpenseClaim } from '@shared/types';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '@shared/utils/typeGuards';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 

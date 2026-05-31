@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Project, TeamMember, ProjectRole } from '../../types';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useProjectContext } from '../../contexts/ProjectContext';
+import { Project, TeamMember, ProjectRole } from '@shared/types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
 import { Card } from '../ui/Card';
 import { TrashIcon } from '../ui/Icons';
 

@@ -1,15 +1,15 @@
 import React from 'react';
-import { Task, TeamMember, Project } from '../../types';
+import { Task, TeamMember, Project } from '@shared/types';
 import { Card } from '../ui/Card';
 import { ClockIcon, BellIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface TaskItemProps {
     task: Task;

@@ -1,7 +1,7 @@
 import React, { useState, FormEvent, useMemo, useEffect } from 'react';
-import { Project, TeamMember, FreelancerContract } from '../../types';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { Project, TeamMember, FreelancerContract } from '@shared/types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface FreelancerContractModalProps {
   isOpen: boolean;

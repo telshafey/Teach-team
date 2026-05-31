@@ -49,13 +49,15 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const handleTableChange = <T extends {id: string | number}>(queryKey: string) => (payload: RealtimePostgresChangesPayload<T>) => {
         queryClient.setQueryData([queryKey], (oldData: T[] | undefined) => {
             if (oldData === undefined) return [];
+            
+            const newItem = api.keysToCamel(payload.new) as T;
 
             if (payload.eventType === 'INSERT') {
-                if (oldData.some(item => item.id === payload.new.id)) return oldData;
-                return [payload.new as T, ...oldData];
+                if (oldData.some(item => item.id === newItem.id)) return oldData;
+                return [newItem, ...oldData];
             }
             if (payload.eventType === 'UPDATE') {
-                return oldData.map(item => item.id === payload.new.id ? payload.new as T : item);
+                return oldData.map(item => item.id === newItem.id ? newItem : item);
             }
             if (payload.eventType === 'DELETE') {
                 const oldId = (payload.old as { id: string | number }).id;
@@ -80,7 +82,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentUserRole) return false;
-    if (currentUserRole.id === 'gm') return true;
+    if (currentUserRole.name.includes('(GM)')) return true;
     return currentUserRole.permissions.includes(permission);
   }, [currentUserRole]);
 
@@ -96,17 +98,27 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const visibleMemberIds = useMemo((): Set<number> => {
-    if (!currentUser) return new Set();
-    if (currentUser.roleId === 'gm') {
+    if (!currentUser || !roles) return new Set();
+    const role = roles.find(r => r.id === currentUser.roleId);
+    
+    // GM sees everyone
+    if (role?.name.includes('(GM)')) {
       return new Set(teamMembers.map(m => m.id));
     }
-    if (currentUser.roleId === 'manager') {
+    
+    // People with manage_team can see everyone
+    if (role?.permissions.includes('manage_team')) {
+      return new Set(teamMembers.map(m => m.id));
+    }
+
+    // Manager sees only direct reports (or if they manage projects, maybe they see project members, but let's stick to reporting line)
+    if (role?.name.includes('(Manager)')) {
       const reportIds = getReportIdsRecursive(currentUser.id, teamMembers);
       reportIds.add(currentUser.id);
       return reportIds;
     }
     return new Set([currentUser.id]);
-  }, [currentUser, teamMembers, getReportIdsRecursive]);
+  }, [currentUser, teamMembers, getReportIdsRecursive, roles]);
 
   const handleAddMember = useCallback(async (formData: TeamMemberFormData) => {
     if (!supabaseClient) return;
@@ -115,21 +127,17 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!password) {
         throw new Error("Password is required for new members.");
       }
-      const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
-      if (authError) throw authError;
-      const memberData = { ...restOfData, email, authUserId: authData.user.id };
-      await api.insert<TeamMember>(supabaseClient, 'team_members', memberData as Omit<TeamMember, 'id' | 'weeklyPlan' | 'daysOff'>);
+      
+      const memberData = { ...restOfData, email };
+      await api.insert<TeamMember>(supabaseClient, 'team_members', memberData as unknown as Omit<TeamMember, 'id' | 'weeklyPlan' | 'daysOff'>);
+      queryClient.invalidateQueries({ queryKey: ['team_members'] });
       addToast('Team member added successfully.', 'success');
     } catch (error: any) {
       addToast(`Failed to add team member: ${error.message}`, 'error');
       console.error(error);
       throw error;
     }
-  }, [supabaseClient, addToast]);
+  }, [supabaseClient, addToast, queryClient]);
 
   const handleUpdateMember = useCallback(async (memberId: number, updates: Partial<TeamMemberFormData>) => {
     if (!supabaseClient) return;
@@ -137,13 +145,14 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const member = teamMembers.find(m => m.id === memberId);
         if (!member) throw new Error("Member not found");
         await api.updateTeamMemberWithPassword(supabaseClient, member, updates);
+        queryClient.invalidateQueries({ queryKey: ['team_members'] });
         addToast('Team member updated successfully.', 'success');
     } catch (error: any) {
         addToast(`Failed to update team member: ${error.message}`, 'error');
         console.error(error);
         throw error;
     }
-  }, [supabaseClient, addToast, teamMembers]);
+  }, [supabaseClient, addToast, teamMembers, queryClient]);
   
   const handleDeleteMember = useCallback(async (memberId: number) => {
     if (!supabaseClient) return;
@@ -151,19 +160,14 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const member = teamMembers.find(m => m.id === memberId);
       if (!member) throw new Error("Member not found");
       await api.deleteById(supabaseClient, 'team_members', memberId);
-      if (member.authUserId) {
-        const { error: authError } = await supabaseClient.auth.admin.deleteUser(member.authUserId);
-        if (authError) {
-          console.warn(`Could not delete auth user ${member.authUserId}:`, authError.message);
-        }
-      }
+      queryClient.invalidateQueries({ queryKey: ['team_members'] });
       addToast('Team member deleted successfully.', 'success');
     } catch (error: any) {
       addToast(`Failed to delete team member: ${error.message}`, 'error');
       console.error(error);
       throw error;
     }
-  }, [supabaseClient, addToast, teamMembers]);
+  }, [supabaseClient, addToast, teamMembers, queryClient]);
 
   const handleAddRole = useCallback(async (roleData: { name: string }) => {
     if (!supabaseClient) return;

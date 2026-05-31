@@ -1,18 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { Task, TaskStatus, TeamMember, Project } from '../../types';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { Task, TaskStatus, TeamMember, Project } from '@shared/types';
 import { Card } from '../ui/Card';
 import { TaskTableRow } from './TaskTableRow';
-import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { TaskDetailInline } from './TaskDetailInline';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { EmptyState } from '../ui/EmptyState';
 import { ClipboardDocumentListIcon, PlusIcon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 type SortKey = 'title' | 'projectName' | 'assigneeName' | 'dueDate' | 'status';
 
@@ -28,7 +28,7 @@ export const AllTasksPage: React.FC = () => {
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
-        assignee: 'me', // 'me', 'all', or memberId
+        assignee: 'all', // 'me', 'all', or memberId
         status: 'open', // 'open', 'all', or TaskStatus
     });
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'dueDate', direction: 'asc' });
@@ -115,6 +115,19 @@ export const AllTasksPage: React.FC = () => {
         return <div className="p-6 flex justify-center items-center h-full"><LoadingSpinner /></div>;
     }
 
+    if (isFormOpen || selectedTask) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+                <TaskDetailInline 
+                    onClose={() => { setIsFormOpen(false); setSelectedTask(null); }} 
+                    task={selectedTask} 
+                    onSave={handleSaveTask} 
+                    initialMode={isFormOpen && !selectedTask ? 'edit' : 'view'} 
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -131,12 +144,12 @@ export const AllTasksPage: React.FC = () => {
             
             <Card>
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-4">
-                    <input type="text" placeholder="ابحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full md:w-auto flex-grow p-2 border rounded-md" />
-                    <select value={filters.assignee} onChange={e => setFilters({...filters, assignee: e.target.value})} className="p-2 border rounded-md">
+                    <input type="text" placeholder="ابحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full md:w-auto flex-grow p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900" />
+                    <select value={filters.assignee} onChange={e => setFilters({...filters, assignee: e.target.value})} className="p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900">
                         <option value="me">الخاصة بي</option>
                         <option value="all">الكل</option>
                     </select>
-                    <select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="p-2 border rounded-md">
+                    <select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900">
                         <option value="open">المفتوحة</option>
                         <option value="all">الكل</option>
                         <option value="todo">لم تبدأ</option>
@@ -180,7 +193,6 @@ export const AllTasksPage: React.FC = () => {
                 )}
             </Card>
 
-            {(isFormOpen || selectedTask) && <TaskDetailModal isOpen={isFormOpen || !!selectedTask} onClose={() => { setIsFormOpen(false); setSelectedTask(null); }} task={selectedTask} onSave={handleSaveTask} initialMode={isFormOpen && !selectedTask ? 'edit' : 'view'} />}
             {taskToDelete && <ConfirmationModal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} onConfirm={async () => { if(taskToDelete) await handleDeleteTask(taskToDelete); setTaskToDelete(null); }} title="تأكيد الحذف" message={`هل أنت متأكد من حذف مهمة "${taskToDelete.title}"؟`} isDestructive />}
         </div>
     );

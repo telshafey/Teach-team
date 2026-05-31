@@ -1,7 +1,7 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { TeamMember } from '../../types';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { useToast } from '../../contexts/ToastContext';
+import { TeamMember } from '@shared/types';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { ConfirmationModal } from './ConfirmationModal';
 
 interface SalaryEditModalProps {

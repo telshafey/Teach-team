@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Project } from '../../types';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { Project } from '@shared/types';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { ExclamationTriangleIcon } from '../ui/Icons';
 import { StatusBadge } from '../ui/StatusBadge';
 

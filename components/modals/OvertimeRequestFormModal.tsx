@@ -1,10 +1,10 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { OvertimeRequestFormData, Project } from '../../types';
+import { OvertimeRequestFormData, Project } from '@shared/types';
 import { ConfirmationModal } from './ConfirmationModal';
 import { startOfWeek, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface OvertimeRequestFormModalProps {
   isOpen: boolean;

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { generateTaskPlan } from '../../services/geminiService';
+import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '@shared/types';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { generateTaskPlan } from '@shared/services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon, TrashIcon } from '../ui/Icons';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useToast } from '../../contexts/ToastContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useToast } from '@shared/contexts/ToastContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 
 interface ProjectFormModalProps {
   isOpen: boolean;

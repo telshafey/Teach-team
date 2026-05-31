@@ -28,17 +28,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     queryFn: async () => {
       if (!supabaseClient) throw new Error("Supabase client not available");
       const { data, error } = await supabaseClient.from('site_settings').select('*').limit(1).single();
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116: Not found is ok
+      if (error && error.code !== 'PGRST116' && error.code !== '42P01' && error.code !== 'PGRST205') {
+        setTimeout(() => alert('Error loading site settings: ' + error.message), 1000);
+        throw error;
+      }
+      if (!data) {
+        // setTimeout(() => alert('No site settings found in DB! Falling back to defaults.'), 1000);
+      }
       return data ? api.keysToCamel(data) : initialData.siteSettings;
     },
     enabled: !!supabaseClient && !!currentUser,
     staleTime: Infinity, // Settings don't change often, rely on realtime for updates
-    initialData: initialData.siteSettings,
   });
 
   useEffect(() => {
     const handleSettingsChange = (payload: any) => {
-      if (payload.eventType === 'UPDATE' && payload.table === 'site_settings' && payload.new.id === 1) {
+      if (payload.eventType === 'UPDATE' && payload.table === 'site_settings' && payload.new.id === '1') {
         queryClient.invalidateQueries({ queryKey: ['site_settings'] });
       }
     };

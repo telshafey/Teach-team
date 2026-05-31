@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { DailyLog, DailyLogFormData, Task } from '../../types';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { DailyLog, DailyLogFormData, Task } from '@shared/types';
 import { Calendar } from '../ui/Calendar';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
@@ -10,8 +10,8 @@ import { format, isSameDay, isToday, isThisWeek as isWithinThisWeek, startOfMont
 import { Card } from '../ui/Card';
 import { PlusIcon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface TimeSheetPageProps {
   openLogModal?: boolean;

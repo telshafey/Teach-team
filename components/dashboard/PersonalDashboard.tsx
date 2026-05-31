@@ -1,27 +1,28 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { Card } from '../ui/Card';
 import { Calendar } from '../ui/Calendar';
-import { DailyLog, DailyLogFormData, Task, Meeting, Project } from '../../types';
+import { DailyLog, DailyLogFormData, Task, Meeting, Project } from '@shared/types';
 import { format, isSameDay, isFuture, differenceInCalendarDays, parseISO, isThisWeek } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { DailyLogDetailModal } from '../modals/DailyLogDetailModal';
 import { LogFormModal } from '../modals/LogFormModal';
-import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { TaskDetailInline } from '../tasks/TaskDetailInline';
 import { EmptyState } from '../ui/EmptyState';
 import { FolderIcon, PlusIcon, ClockIcon, CalendarDaysIcon, ClipboardDocumentListIcon, BellIcon, WrenchScrewdriverIcon, CheckIcon } from '../ui/Icons';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
-import { useTimeManagement } from '../../contexts/TimeManagementContext';
+import { useTimeManagement } from '@shared/contexts/TimeManagementContext';
 import { TaskCardSkeleton } from '../project/TaskCardSkeleton';
 import { StatCard } from './StatCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 import { Responsive, WidthProvider } from 'react-grid-layout';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -59,7 +60,7 @@ const PunchClockWidget: React.FC = () => {
 
 const MyTasksWidget: React.FC<{ tasks: Task[]; projects: Project[]; onTaskClick: (task: Task) => void; onNavigate: (view: any, props?: any) => void; isLoading: boolean; }> = ({ tasks, projects, onTaskClick, onNavigate, isLoading }) => (
      <Card 
-        title="مهامي المفتوحة" 
+        title="المهام المفتوحة" 
         headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
      >
         {isLoading ? (
@@ -165,12 +166,21 @@ export const PersonalDashboard: React.FC = () => {
         }
     });
 
+    const { hasPermission } = useTeamContext();
+
     const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => api.getAll<Meeting>(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
     const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects_list'], queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'), enabled: !!supabaseClient });
     const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({ queryKey: ['tasks'], queryFn: () => api.getAll(supabaseClient!, 'tasks'), enabled: !!supabaseClient });
 
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
-    const myTasks = useMemo(() => tasks.filter(task => task.assignedTo === currentUser?.id), [tasks, currentUser]);
+    
+    const canViewAllTasks = hasPermission('manage_team') || hasPermission('view_reports') || hasPermission('manage_projects');
+    const myTasks = useMemo(() => {
+        if (!currentUser) return [];
+        if (canViewAllTasks) return tasks;
+        return tasks.filter(task => task.assignedTo === currentUser.id || task.creatorId === currentUser.id);
+    }, [tasks, currentUser, canViewAllTasks]);
+
     const myOpenTasks = useMemo(() => myTasks.filter(task => task.status !== 'done'), [myTasks]);
     
     const isDateEditableForLogging = useCallback((date: Date): boolean => {
@@ -232,6 +242,17 @@ export const PersonalDashboard: React.FC = () => {
         else setIsEditingLayout(true);
     };
 
+    if (viewingTask) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+                <TaskDetailInline 
+                    onClose={() => setViewingTask(null)} 
+                    task={viewingTask} 
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6" dir="rtl">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -282,8 +303,6 @@ export const PersonalDashboard: React.FC = () => {
                     memberId={currentUser.id}
                 />
             )}
-
-            {viewingTask && ( <TaskDetailModal isOpen={!!viewingTask} onClose={() => setViewingTask(null)} task={viewingTask}/> )}
         </div>
     );
 };

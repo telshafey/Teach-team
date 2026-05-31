@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { TeamMember, Role, TeamMemberFormData } from '../../types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { TeamMember, Role, TeamMemberFormData } from '@shared/types';
 import { Card } from '../ui/Card';
 import { TeamOrgChart } from './TeamOrgChart';
 import { TeamMemberDetailPage } from './TeamMemberDetailPage';
-import { TeamMemberFormModal } from '../modals/TeamMemberFormModal';
+import { TeamMemberForm } from './TeamMemberForm';
 import { PlusIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 
 interface TeamManagementPageProps {
   initialMemberId?: number;
@@ -22,14 +22,13 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
   }, [allTeamMembers, visibleMemberIds]);
   
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialMemberId || (visibleTeamMembers.length > 0 ? visibleTeamMembers.find(m => !m.reportsTo)?.id ?? visibleTeamMembers[0].id : null));
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
   const canManageTeam = hasPermission('manage_team');
   const canEditMembers = hasPermission('edit_team_members');
 
   const selectedMember = useMemo(() => {
-    // A member can be selected even if not in the visible list (e.g., via search), so search all members
     return allTeamMembers.find(m => m.id === selectedMemberId);
   }, [allTeamMembers, selectedMemberId]);
 
@@ -49,22 +48,42 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
     } else {
       await handleAddMember(formData);
     }
+    setViewMode('list');
   }, [handleAddMember, handleUpdateMember]);
   
   const handleOpenEditModal = useCallback((member: TeamMember) => {
       setEditingMember(member);
-      setIsModalOpen(true);
+      setViewMode('form');
   }, []);
+
+  const handleDeleteMemberClick = useCallback(async (memberId: number) => {
+      await handleDeleteMember(memberId);
+      if (selectedMemberId === memberId) {
+          setSelectedMemberId(null);
+      }
+  }, [handleDeleteMember, selectedMemberId]);
 
   const openAddModal = useCallback(() => {
       setEditingMember(null);
-      setIsModalOpen(true);
+      setViewMode('form');
   }, []);
   
   const handleMoveMember = useCallback(async (memberId: number, newManagerId: number | null) => {
       await handleUpdateMember(memberId, { reportsTo: newManagerId });
       addToast('تم تحديث الهيكل التنظيمي بنجاح.', 'success');
   }, [handleUpdateMember, addToast]);
+
+  if (viewMode === 'form') {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <TeamMemberForm 
+           member={editingMember}
+           onSave={handleSaveMember}
+           onCancel={() => setViewMode('list')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -98,6 +117,7 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
                         role={selectedMemberRole} 
                         manager={selectedMemberManager} 
                         onEdit={handleOpenEditModal}
+                        onDelete={canManageTeam ? handleDeleteMemberClick : undefined}
                         canEdit={canManageTeam || canEditMembers}
                     />
                 ) : (
@@ -107,14 +127,6 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
                 )}
             </div>
         </div>
-        {isModalOpen && (
-            <TeamMemberFormModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveMember}
-                member={editingMember}
-            />
-        )}
     </div>
   );
 };

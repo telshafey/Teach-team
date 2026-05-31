@@ -1,14 +1,12 @@
 import React, { useState, lazy, useMemo, Suspense } from 'react';
 import { SiteSettingsPage } from './SiteSettingsPage';
 import { RoleManagementPage } from './RoleManagementPage';
-import { View } from '../../navigation.types';
+import { View } from '@shared/navigation.types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { Card } from '../ui/Card';
 import { LockClosedIcon } from '../ui/Icons';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-
-const DatabaseSettingsPage = lazy(() => import('./DatabaseSettingsPage').then(module => ({ default: module.DatabaseSettingsPage })));
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 
 interface SettingsPageProps {
     initialView?: View;
@@ -21,18 +19,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initial
 
     const canManageSite = hasPermission('manage_site_settings');
     const canManageRoles = hasPermission('manage_roles');
-    const canManageDb = hasPermission('manage_db_settings');
 
     const availableTabs = useMemo(() => {
         const tabs: string[] = [];
         if (canManageSite) tabs.push('site');
         if (canManageRoles) tabs.push('roles');
-        if (canManageDb) tabs.push('database');
         return tabs;
-    }, [canManageSite, canManageRoles, canManageDb]);
+    }, [canManageSite, canManageRoles]);
 
     const getInitialTab = () => {
-        const initialTab = initialView === 'roles' ? 'roles' : initialView === 'database' ? 'database' : 'site';
+        const initialTab = initialView === 'roles' ? 'roles' : 'site';
         if (availableTabs.includes(initialTab)) {
             return initialTab;
         }
@@ -78,20 +74,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ initialView, initial
                         الأدوار والصلاحيات
                     </button>
                 )}
-                {canManageDb && (
-                     <button
-                        onClick={() => setActiveTab('database')}
-                        className={`px-4 py-2 text-sm font-medium ${activeTab === 'database' ? 'border-b-2 border-sky-500 text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        إعدادات قاعدة البيانات
-                    </button>
-                )}
             </div>
             
             <Suspense fallback={<div className="flex justify-center p-8"><LoadingSpinner /></div>}>
                 {activeTab === 'site' && canManageSite && <SiteSettingsPage />}
                 {activeTab === 'roles' && canManageRoles && <RoleManagementPage initialRoleId={initialProps?.initialRoleId} />}
-                {activeTab === 'database' && canManageDb && <DatabaseSettingsPage />}
             </Suspense>
         </div>
     );

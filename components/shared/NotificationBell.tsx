@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useNotificationContext } from '../../contexts/NotificationContext';
-import { Notification } from '../../types';
+import { useNotificationContext } from '@shared/contexts/NotificationContext';
+import { Notification } from '@shared/types';
 import { BellIcon } from '../ui/Icons';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 
 export const NotificationBell: React.FC = () => {
   const { onNavigate } = useNavigation();

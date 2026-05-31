@@ -1,15 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { calculateProjectCostBreakdown } from '../../utils/costs';
+import { calculateProjectCostBreakdown } from '@shared/utils/costs';
 import { ChevronDownIcon } from '../ui/Icons';
-import { Project } from '../../types';
+import { Project } from '@shared/types';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 const ProjectFinancialsRow: React.FC<{ project: Project }> = ({ project }) => {
     const { teamMembers } = useTeamContext();

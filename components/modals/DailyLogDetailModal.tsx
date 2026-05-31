@@ -1,11 +1,11 @@
 import React from 'react';
-import { DailyLog, Project } from '../../types';
+import { DailyLog, Project } from '@shared/types';
 import { PencilIcon, PlusIcon, TrashIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface DailyLogDetailModalProps {
   isOpen: boolean;

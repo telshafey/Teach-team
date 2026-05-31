@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { LeaveRequestFormData, LeaveType } from '../../types';
+import { LeaveRequestFormData, LeaveType } from '@shared/types';
 import { ConfirmationModal } from './ConfirmationModal';
 import { format } from 'date-fns';
 

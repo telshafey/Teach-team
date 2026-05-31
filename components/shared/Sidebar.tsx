@@ -1,11 +1,11 @@
 import React from 'react';
 import { Logo } from '../ui/Logo';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon, TicketIcon } from '../ui/Icons';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { View } from '../../navigation.types';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { View } from '@shared/navigation.types';
 
 interface NavItemProps {
     view: View;

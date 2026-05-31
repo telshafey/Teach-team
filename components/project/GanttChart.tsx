@@ -1,6 +1,6 @@
 import React from 'react';
-import { Project, Task } from '../../types';
-import { prepareGanttData } from '../../utils/gantt';
+import { Project, Task } from '@shared/types';
+import { prepareGanttData } from '@shared/utils/gantt';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 

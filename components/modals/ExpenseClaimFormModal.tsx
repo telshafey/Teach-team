@@ -1,17 +1,17 @@
 import React, { useState, useEffect, FormEvent, useRef } from 'react';
-import { ExpenseClaim, ExpenseClaimFormData, Project } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { ExpenseClaim, ExpenseClaimFormData, Project } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { SparklesIcon } from '../ui/Icons';
-import { fileToBase64 } from '../../utils/files';
-import { scanReceipt } from '../../services/geminiService';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { fileToBase64 } from '@shared/utils/files';
+import { scanReceipt } from '@shared/services/geminiService';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 
 interface ExpenseClaimFormModalProps {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Task } from '../../types';
+import { Task } from '@shared/types';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { StatusBadge } from '../ui/StatusBadge';

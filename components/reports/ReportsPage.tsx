@@ -1,19 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { downloadCSV } from '../../utils/csv';
+import { downloadCSV } from '@shared/utils/csv';
 import { DocumentArrowDownIcon, DocumentDuplicateIcon, LockClosedIcon } from '../ui/Icons';
 import { EmptyState } from '../ui/EmptyState';
 import { ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
-import { useAuth } from '../../contexts/AuthContext';
-import * as reportService from '../../services/reportService';
+import { useAuth } from '@shared/contexts/AuthContext';
+import * as reportService from '@shared/services/reportService';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { Project, Task } from '../../types';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
+import { Project, Task } from '@shared/types';
 
 type ReportType =
   | 'projects_summary'

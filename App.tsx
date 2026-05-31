@@ -1,21 +1,21 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { ToastProvider } from './contexts/ToastContext';
+import { AuthProvider } from '@shared/contexts/AuthContext';
+import { ThemeProvider } from '@shared/contexts/ThemeContext';
+import { ToastProvider } from '@shared/contexts/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
-import { SupabaseProvider } from './contexts/SupabaseContext';
-import { SettingsProvider } from './contexts/SettingsContext';
-import { TeamProvider } from './contexts/TeamContext';
-import { ProjectProvider } from './contexts/ProjectContext';
-import { TimeLogProvider } from './contexts/TimeLogContext';
-import { RequestsProvider } from './contexts/RequestsContext';
-import { MeetingProvider } from './contexts/MeetingContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { SupabaseProvider } from '@shared/contexts/SupabaseContext';
+import { SettingsProvider } from '@shared/contexts/SettingsContext';
+import { TeamProvider } from '@shared/contexts/TeamContext';
+import { ProjectProvider } from '@shared/contexts/ProjectContext';
+import { TimeLogProvider } from '@shared/contexts/TimeLogContext';
+import { RequestsProvider } from '@shared/contexts/RequestsContext';
+import { MeetingProvider } from '@shared/contexts/MeetingContext';
+import { NotificationProvider } from '@shared/contexts/NotificationContext';
 import { AppBootstrap } from './AppContent';
-import { RealtimeProvider } from './contexts/RealtimeContext';
-import { SupportProvider } from './contexts/SupportContext';
-import { TimeManagementProvider } from './contexts/TimeManagementContext';
+import { RealtimeProvider } from '@shared/contexts/RealtimeContext';
+import { SupportProvider } from '@shared/contexts/SupportContext';
+import { TimeManagementProvider } from '@shared/contexts/TimeManagementContext';
 
 const queryClient = new QueryClient();
 

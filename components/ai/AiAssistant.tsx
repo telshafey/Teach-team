@@ -2,13 +2,13 @@ import React, { useState, FormEvent, useRef, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import type { Chat } from "@google/genai";
 import { SparklesIcon, PaperAirplaneIcon, XMarkIcon } from '../ui/Icons';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { Project, Task, Meeting } from '../../types';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
+import { Project, Task, Meeting } from '@shared/types';
 import { format, isToday, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 

@@ -1,9 +1,9 @@
 import React from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { TeamMember } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { TeamMember } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { PencilIcon } from '../ui/Icons';
 
 interface SalariesTabProps {

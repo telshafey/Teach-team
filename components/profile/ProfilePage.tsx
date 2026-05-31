@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { ProfileSidebar } from './ProfileSidebar';
 import { ProfileRequests } from './ProfileRequests';
 import { ProfileSalaryReport } from './ProfileSalaryReport';
@@ -12,8 +12,8 @@ import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
 import { OvertimeRequestFormModal } from '../modals/OvertimeRequestFormModal';
 import { WorkContractChangeRequestModal } from '../modals/WorkContractChangeRequestModal';
 import { AppealPenaltyModal } from '../modals/AppealPenaltyModal';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { Penalty } from '../../types';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { Penalty } from '@shared/types';
 
 type ProfileTab = 'requests' | 'performance' | 'work_hours' | 'salary' | 'penalties' | 'settings';
 

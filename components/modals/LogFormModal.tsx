@@ -1,9 +1,9 @@
 import React, { useState, useEffect, FormEvent, useMemo } from 'react';
-import { DailyLog, DailyLogFormData, Task, Project } from '../../types';
-import { useToast } from '../../contexts/ToastContext';
+import { DailyLog, DailyLogFormData, Task, Project } from '@shared/types';
+import { useToast } from '@shared/contexts/ToastContext';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 
 interface LogFormModalProps {

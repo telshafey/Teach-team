@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
-import { DAYS_OF_WEEK } from '../../constants';
+import { DAYS_OF_WEEK } from '@shared/constants';
 
 interface CalendarEvent {
   date: Date;

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { TeamMember, Role, Task } from '../../types';
+import { TeamMember, Role, Task } from '@shared/types';
 import { PerformanceSummaryCard } from '../dashboard/PerformanceSummaryCard';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import {
   startOfMonth,
   endOfMonth,
@@ -10,8 +10,8 @@ import {
   parseISO,
 } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 import { MemberInfoCard } from './MemberInfoCard';
 import { MemberOpenTasksCard } from './MemberOpenTasksCard';
 import { MemberRecentActivityCard } from './MemberRecentActivityCard';
@@ -22,10 +22,11 @@ interface TeamMemberDetailPageProps {
   role: Role | undefined;
   manager: TeamMember | undefined;
   onEdit: (member: TeamMember) => void;
+  onDelete?: (memberId: number) => void;
   canEdit: boolean;
 }
 
-export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, role, manager, onEdit, canEdit }) => {
+export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ member, role, manager, onEdit, onDelete, canEdit }) => {
     const { dailyLogs } = useTimeLogContext();
     const { supabaseClient } = useSupabase();
 
@@ -84,6 +85,7 @@ export const TeamMemberDetailPage: React.FC<TeamMemberDetailPageProps> = ({ memb
                         role={role}
                         manager={manager}
                         onEdit={onEdit}
+                        onDelete={onDelete}
                         canEdit={canEdit}
                      />
                 </div>

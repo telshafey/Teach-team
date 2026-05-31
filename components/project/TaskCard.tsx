@@ -1,8 +1,8 @@
 import React from 'react';
-import { Task, TeamMember } from '../../types';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { Task, TeamMember } from '@shared/types';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { PencilIcon, ClockIcon, CheckCircleIcon, XCircleIcon, InformationCircleIcon, PaperClipIcon, ChatBubbleLeftEllipsisIcon, PlayIcon, PauseIcon, TrashIcon, BellIcon, ExclamationTriangleIcon } from '../ui/Icons';
-import { useTimeManagement } from '../../contexts/TimeManagementContext';
+import { useTimeManagement } from '@shared/contexts/TimeManagementContext';
 import { format, parseISO, isToday, isPast } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TeamMember } from '../../types';
+import { TeamMember } from '@shared/types';
 import { UserIcon } from '../ui/Icons';
 
 interface TeamTreeViewProps {

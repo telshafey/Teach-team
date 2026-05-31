@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Role } from '../../types';
+import { Role } from '@shared/types';
 
 interface RoleFormModalProps {
   isOpen: boolean;

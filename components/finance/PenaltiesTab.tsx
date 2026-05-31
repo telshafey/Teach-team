@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { Penalty, PenaltyStatus } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { Penalty, PenaltyStatus } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { PlusIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';

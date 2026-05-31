@@ -1,8 +1,8 @@
 import React, { useState, useMemo, FormEvent, useEffect } from 'react';
-import { SupportTicket, TicketComment, TicketStatus, TicketPriority, TeamMember } from '../../types';
-import { useSupportContext } from '../../contexts/SupportContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { SupportTicket, TicketComment, TicketStatus, TicketPriority, TeamMember } from '@shared/types';
+import { useSupportContext } from '@shared/contexts/SupportContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { StatusBadge } from '../ui/StatusBadge';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';

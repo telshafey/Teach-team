@@ -1,8 +1,8 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { PenaltyFormData } from '../../types';
+import { PenaltyFormData } from '@shared/types';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { format } from 'date-fns';
 
 interface PenaltyFormModalProps {

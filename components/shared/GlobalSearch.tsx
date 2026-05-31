@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { GlobalSearchResults } from '../../types';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
+import { GlobalSearchResults } from '@shared/types';
 import { SearchIcon, FolderIcon, UserIcon, ClipboardDocumentListIcon, PlusIcon, VideoCameraIcon, UserCircleIcon, Cog8ToothIcon } from '../ui/Icons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { View } from '../../navigation.types';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { View } from '@shared/navigation.types';
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface Command {
     id: string;

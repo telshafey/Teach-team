@@ -1,8 +1,8 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { WorkContractChangeRequestFormData } from '../../types';
+import { WorkContractChangeRequestFormData } from '@shared/types';
 import { ConfirmationModal } from './ConfirmationModal';
-import { useAuth } from '../../contexts/AuthContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface WorkContractChangeRequestModalProps {
   isOpen: boolean;

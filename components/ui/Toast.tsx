@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircleIcon, XCircleIcon } from './Icons';
-import { ToastType } from '../../contexts/ToastContext';
+import { ToastType } from '@shared/contexts/ToastContext';
 
 interface ToastProps {
   message: string;

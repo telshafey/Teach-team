@@ -1,22 +1,22 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Project, Task, TaskStatus } from '../../types';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { Project, Task, TaskStatus } from '@shared/types';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { Card } from '../ui/Card';
 import { KanbanBoard } from './KanbanBoard';
-import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { TaskDetailInline } from '../tasks/TaskDetailInline';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { ProjectMembers } from './ProjectMembers';
-import { ProjectFormModal } from '../modals/ProjectFormModal';
+import { ProjectForm } from './ProjectForm';
 import { GanttChart } from './GanttChart';
 import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon } from '../ui/Icons';
 import { StatusBadge } from '../ui/StatusBadge';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { useProjectPermissions } from '../../hooks/useProjectPermissions';
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { useProjectPermissions } from '@shared/hooks/useProjectPermissions';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface ProjectDetailPageProps {
     projectId: string;
@@ -55,7 +55,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         enabled: !!supabaseClient && !!projectId,
     });
     
-    const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(projectId);
+    const { canEditProjectSettings, canManageTasks, canManageMembers } = useProjectPermissions(project?.id);
 
     // Effect hooks
     useEffect(() => {
@@ -97,6 +97,33 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
 
     if (!project) {
         return <div className="p-6 text-center">لم يتم العثور على المشروع.</div>;
+    }
+
+    if (isProjectFormOpen && canEditProjectSettings) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto">
+                <ProjectForm 
+                    project={project} 
+                    onCancel={() => setIsProjectFormOpen(false)} 
+                    onSave={async (data, projToUpdate) => { await handleUpdateProject({ ...data, id: projToUpdate!.id }); setIsProjectFormOpen(false); }} 
+                />
+            </div>
+        );
+    }
+    
+    if (selectedTask || isNewTaskModalOpen) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+                <TaskDetailInline 
+                    onClose={() => { setSelectedTask(null); setIsNewTaskModalOpen(false); }} 
+                    task={selectedTask} 
+                    onSave={handleSaveTask} 
+                    projectId={project.id} 
+                    isProjectFixed={true} 
+                    initialMode={isNewTaskModalOpen ? 'edit' : 'view'} 
+                />
+            </div>
+        );
     }
     
     // --- RENDER ---
@@ -140,9 +167,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                 onQuickAddTask={handleQuickAddTask}
             />
 
-            {(selectedTask || isNewTaskModalOpen) && <TaskDetailModal isOpen={!!selectedTask || isNewTaskModalOpen} onClose={() => {setSelectedTask(null); setIsNewTaskModalOpen(false)}} task={selectedTask} onSave={handleSaveTask} projectId={project.id} isProjectFixed={true} initialMode={isNewTaskModalOpen ? 'edit' : 'view'} />}
-            {taskToDelete && <ConfirmationModal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} onConfirm={async () => { if(taskToDelete) {await handleDeleteTask(taskToDelete);} setTaskToDelete(null); }} title="تأكيد حذف المهمة" message={`هل أنت متأكد من رغبتك في حذف مهمة "${taskToDelete.title}"؟`} isDestructive />}
-            {isProjectFormOpen && canEditProjectSettings && <ProjectFormModal isOpen={isProjectFormOpen} onClose={() => setIsProjectFormOpen(false)} onSave={async (data, projToUpdate) => await handleUpdateProject({ ...data, id: projToUpdate!.id })} project={project} />}
+            {taskToDelete && <ConfirmationModal isOpen={!!taskToDelete} onClose={() => setTaskToDelete(null)} onConfirm={async () => { if(taskToDelete) {await handleDeleteTask(taskToDelete);} setTaskToDelete(null); }} title="تأكيد حذف المهمة" message={`هل أنت متأكد من حذف مهمة "${taskToDelete.title}"؟`} isDestructive />}
             {isDeleteConfirmOpen && hasPermission('manage_projects') && <ConfirmationModal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} onConfirm={async () => { await handleDeleteProject(project.id); onNavigate('projects'); }} title="تأكيد حذف المشروع" message={`هل أنت متأكد من حذف مشروع "${project.name}"؟ سيتم حذف جميع المهام والسجلات المتعلقة به.`} isDestructive />}
         </div>
     );

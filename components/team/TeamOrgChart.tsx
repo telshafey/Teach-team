@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { TeamMember, Role } from '../../types';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { TeamMember, Role } from '@shared/types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 
 interface TreeNodeProps {
   member: TeamMember;

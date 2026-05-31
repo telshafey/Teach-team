@@ -1,6 +1,6 @@
 import React from 'react';
-import { SalarySlipData } from '../../types';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { SalarySlipData } from '@shared/types';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { DocumentDuplicateIcon } from '../ui/Icons';

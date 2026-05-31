@@ -1,6 +1,6 @@
 import React from 'react';
 import { HomeIcon, FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
-import { View } from '../../navigation.types';
+import { View } from '@shared/navigation.types';
 
 
 interface BottomNavItemProps {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTimeManagement } from '../../contexts/TimeManagementContext';
+import { useTimeManagement } from '@shared/contexts/TimeManagementContext';
 import { ClockIcon, XCircleIcon } from '../ui/Icons';
 
 const formatDuration = (seconds: number) => {

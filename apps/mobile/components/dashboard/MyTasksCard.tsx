@@ -16,7 +16,7 @@ const MyTasksCard: React.FC<MyTasksCardProps> = ({ tasks, projects, onTaskPress,
     const projectsMap = React.useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {} as Record<string, string>), [projects]);
 
     return (
-        <Card title="مهامي المفتوحة">
+        <Card title="المهام المفتوحة">
             <View>
                 {tasks.length > 0 ? (
                     tasks.slice(0, 5).map(task => (
@@ -31,7 +31,7 @@ const MyTasksCard: React.FC<MyTasksCardProps> = ({ tasks, projects, onTaskPress,
                         </TouchableOpacity>
                     ))
                 ) : (
-                    <Text style={styles.emptyText}>لا توجد مهام مفتوحة لديك حاليًا.</Text>
+                    <Text style={styles.emptyText}>لا توجد مهام مفتوحة حاليًا.</Text>
                 )}
 
                 {tasks.length > 0 && (

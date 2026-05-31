@@ -1,10 +1,10 @@
 import React from 'react';
-import { DecisionItem } from '../../types';
-import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '../../utils/typeGuards';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { DecisionItem } from '@shared/types';
+import { isTask, isProject, isOvertimeRequest, isLeaveRequest, isWorkContractChangeRequest, isPenalty, isTeamMember, isExpenseClaim } from '@shared/utils/typeGuards';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface ApprovalItemCardProps {
     item: DecisionItem;

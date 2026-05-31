@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { TeamMember, SalarySlipData } from '../../types';
-import { generateSalarySlipData } from '../../utils/salarySlip';
+import { TeamMember, SalarySlipData } from '@shared/types';
+import { generateSalarySlipData } from '@shared/utils/salarySlip';
 import { SalarySlipModal } from '../modals/SalarySlipModal';
 import { format } from 'date-fns';
 

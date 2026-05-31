@@ -16,132 +16,56 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { supabaseClient } = useSupabase();
   const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { addToast } = useToast();
-
-  const fetchUserProfile = useCallback(async (user: User | null): Promise<TeamMember | null> => {
-    if (!user || !supabaseClient) return null;
-    const { data, error } = await supabaseClient.from('team_members').select('*').eq('auth_user_id', user.id).single();
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-    return api.keysToCamel(data);
-  }, [supabaseClient]);
-
-  const handleLogout = useCallback(async () => {
-    if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
-    setCurrentUser(null);
-  }, [supabaseClient]);
+  const { supabaseClient } = useSupabase();
 
   useEffect(() => {
-    if (!supabaseClient) {
-      setIsLoading(false);
-      return;
-    }
-
-    const refreshCache = async () => {
-        await api.refreshSchemaCache(supabaseClient, ['team_members', 'meetings', 'projects', 'tasks', 'support_tickets', 'ticket_comments']);
-    };
-
-    // This function handles the initial session check on app load.
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) {
-            const userProfile = await fetchUserProfile(session.user);
-            if (userProfile) {
-                setCurrentUser(userProfile);
-                refreshCache(); // Don't await
-            } else {
-                // Has a session but no profile is a critical error state. Sign out to prevent loops.
-                addToast('تم العثور على جلسة غير صالحة، تم تسجيل الخروج تلقائياً.', 'error');
-                await handleLogout();
-            }
-        } else {
-            setCurrentUser(null);
-        }
-      } catch (error) {
-        console.error("Error during initial session fetch:", error);
-        setCurrentUser(null);
-      } finally {
+    const savedUserId = localStorage.getItem('mockUserId');
+    if (savedUserId && supabaseClient) {
+        api.getById<TeamMember>(supabaseClient, 'team_members', parseInt(savedUserId)).then(user => {
+            setCurrentUser(user);
+        }).catch(err => {
+            console.error("Error fetching saved user", err);
+        }).finally(() => setIsLoading(false));
+    } else {
         setIsLoading(false);
-      }
-    };
-    getSession();
-
-    // This listener handles background state changes (e.g., sign out in another tab, token refresh)
-    const { data: authListener } = supabaseClient.auth.onAuthStateChange(
-      async (event, session) => {
-        const user = session?.user ?? null;
-        if (user) {
-            const userProfile = await fetchUserProfile(user);
-            if (userProfile) {
-                setCurrentUser(userProfile);
-                if (event === 'TOKEN_REFRESHED') {
-                  refreshCache();
-                }
-            } else {
-                // Safety net: if an authenticated user somehow loses their profile, log them out.
-                await handleLogout();
-            }
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, [supabaseClient, fetchUserProfile, addToast, handleLogout]);
+    }
+  }, [supabaseClient]);
 
   const handleLogin = async (email: string, password: string) => {
-    if (!supabaseClient) {
-      return { error: new Error('Supabase client not initialized') };
-    }
+    if (!supabaseClient) return { error: new Error('Database not connected') };
     
-    // Step 1: Sign in to get the user session
-    const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
-    
-    if (authError) {
-      return { error: new Error(authError.message) };
-    }
-    
-    if (!authData.user) {
-        return { error: new Error('Authentication successful but no user object was returned.') };
-    }
-
-    // Step 2: Immediately fetch the corresponding profile.
     try {
-      const userProfile = await fetchUserProfile(authData.user);
-
-      if (userProfile) {
-        // Step 3 (Success): Set the current user state directly. This is the key change.
-        setCurrentUser(userProfile);
-        // Do not add a toast here, it feels abrupt. Let the dashboard welcome the user.
-        return { error: null };
-      } else {
-        // Step 3 (Failure): If profile not found, it's a critical issue.
-        // Clean up the invalid auth session and return a specific error.
-        await handleLogout();
-        return { error: new Error('فشل تحميل الملف الشخصي بعد تسجيل الدخول. يرجى مراجعة المسؤول.') };
-      }
-    } catch (profileError: any) {
-        // Step 3 (Failure): Catch any other unexpected error during profile fetching.
-        await handleLogout();
-        return { error: new Error(profileError.message || 'An unknown error occurred while fetching user profile.') };
+        // Prototype login matching just email as we don't have passwords stored in plain text
+        // and we aren't using deep Supabase Auth integrations yet.
+        const { data: users, error } = await supabaseClient.from('team_members').select('*').eq('email', email);
+        if (error) throw error;
+        
+        if (users && users.length > 0) {
+            const user = api.keysToCamel(users[0]) as TeamMember;
+            setCurrentUser(user);
+            localStorage.setItem('mockUserId', String(user.id));
+            return { error: null };
+        }
+        
+        return { error: new Error('المستخدم غير موجود') };
+    } catch(err: any) {
+        return { error: err };
     }
+  };
+
+  const handleLogout = async () => {
+    setCurrentUser(null);
+    localStorage.removeItem('mockUserId');
   };
 
   const updateCurrentUser = async (updates: Partial<TeamMember>) => {
       if (!currentUser || !supabaseClient) return;
       try {
-        const updatedUser = await api.update<TeamMember>(supabaseClient, 'team_members', currentUser.id, updates);
-        setCurrentUser(updatedUser);
+        const updated = await api.update<TeamMember>(supabaseClient, 'team_members', currentUser.id, updates);
+        setCurrentUser(updated);
       } catch (error: any) {
         addToast(`فشل تحديث الملف الشخصي: ${error.message}`, 'error');
         console.error("Failed to update current user:", error);
@@ -167,3 +91,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

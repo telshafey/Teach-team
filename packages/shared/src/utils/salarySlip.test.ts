@@ -28,7 +28,6 @@ describe('generateSalarySlipData', () => {
         isMeetingsModuleEnabled: true,
         isAnalyticsModuleEnabled: true,
         isReportsModuleEnabled: true,
-        databaseSettings: { supabaseUrl: '', supabaseAnonKey: '' },
         meetingSettings: { startWithAudioMuted: true, startWithVideoMuted: true, hideChat: false, hidePeople: false, defaultMeetingRoom: '', wherebyHostRoomKey: '' },
     };
 

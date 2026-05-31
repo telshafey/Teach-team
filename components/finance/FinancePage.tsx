@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { TeamMember, Project, Penalty } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { TeamMember, Project, Penalty } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { SalaryEditModal } from '../modals/SalaryEditModal';
 import { ExpenseClaimFormModal } from '../modals/ExpenseClaimFormModal';
 import { DecisionDetailModal } from '../modals/DecisionDetailModal';

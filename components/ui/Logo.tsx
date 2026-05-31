@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 export const Logo: React.FC = () => {
     const { siteSettings } = useSettingsContext();

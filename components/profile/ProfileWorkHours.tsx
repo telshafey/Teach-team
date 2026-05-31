@@ -1,6 +1,6 @@
 import React from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { WeeklyHoursTracker } from './WeeklyHoursTracker';
 
 interface ProfileWorkHoursProps {

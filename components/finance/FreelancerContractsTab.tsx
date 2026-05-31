@@ -1,16 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { Card } from '../ui/Card';
-import { Project, TeamMember, FreelancerContract, BillingProposalFormData } from '../../types';
+import { Project, TeamMember, FreelancerContract, BillingProposalFormData } from '@shared/types';
 import { StatusBadge } from '../ui/StatusBadge';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { FreelancerBillingModal } from '../modals/FreelancerBillingModal';
 import { FreelancerContractModal } from '../modals/AssignFreelancerModal';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface FreelancerContractsTabProps {
     onReview: (project: Project) => void;

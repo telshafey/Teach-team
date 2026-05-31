@@ -1,10 +1,10 @@
 import React, { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
-import { SiteSettings, MeetingSettings } from '../../types';
-import { useToast } from '../../contexts/ToastContext';
+import { SiteSettings, MeetingSettings } from '@shared/types';
+import { useToast } from '@shared/contexts/ToastContext';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
-import { useSupabase } from '../../contexts/SupabaseContext';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { ArrowUpTrayIcon } from '../ui/Icons';
 
@@ -105,10 +105,8 @@ export const SiteSettingsPage: React.FC = () => {
         try {
             await handleUpdateSiteSettings(settings as SiteSettings);
             // The context already optimistically updates and handles persistence.
-            addToast('تم حفظ الإعدادات بنجاح.', 'success');
         } catch (error: any) {
             console.error("Failed to update site settings", error);
-            addToast(error.message || 'فشل حفظ الإعدادات. يرجى المحاولة مرة أخرى.', 'error');
         } finally {
             setIsSaving(false);
         }

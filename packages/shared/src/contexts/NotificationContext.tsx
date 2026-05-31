@@ -42,8 +42,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     if (!currentUser?.id) return () => {};
     
-    const handleNotificationChange = (payload: RealtimePostgresChangesPayload<Notification>) => {
-        if (payload.new?.recipientId !== currentUser.id && payload.old?.recipientId !== currentUser.id) {
+    const handleNotificationChange = (payload: any) => {
+        const newRecipientId = payload.new?.recipient_id || payload.new?.recipientId;
+        const oldRecipientId = payload.old?.recipient_id || payload.old?.recipientId;
+        if (newRecipientId !== currentUser.id && oldRecipientId !== currentUser.id) {
             return;
         }
 

@@ -107,15 +107,16 @@ export const LineChart: React.FC<LineChartProps> = ({ data, height = 200 }) => {
 
   const width = 500; // Fixed width for simplicity
   const padding = 20;
-  const maxValue = Math.max(...data.map(d => d.value));
+  const safeData = data.map(d => ({ ...d, value: isNaN(d.value) ? 0 : Number(d.value) }));
+  const maxValue = Math.max(...safeData.map(d => d.value));
   const minValue = 0; // Assuming we start from 0
   const axisLabelColor = 'rgb(100 116 139)'; // slate-500
   const darkAxisLabelColor = 'rgb(148 163 184)'; // slate-400
 
-  const getX = (index: number) => padding + (index / (data.length - 1)) * (width - padding * 2);
-  const getY = (value: number) => height - padding - ((value - minValue) / (maxValue - minValue)) * (height - padding * 2);
+  const getX = (index: number) => padding + (index / (safeData.length - 1)) * (width - padding * 2);
+  const getY = (value: number) => height - padding - (maxValue === minValue ? 0 : ((value - minValue) / (maxValue - minValue)) * (height - padding * 2));
 
-  const path = data.map((point, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(point.value)}`).join(' ');
+  const path = safeData.map((point, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(point.value)}`).join(' ');
 
   return (
      <div className="w-full overflow-x-auto">
@@ -131,14 +132,14 @@ export const LineChart: React.FC<LineChartProps> = ({ data, height = 200 }) => {
           <text x={padding - 5} y={height - padding} textAnchor="end" fontSize="10" className="axis-label">{minValue.toFixed(0)}</text>
           
           {/* X-axis labels */}
-          <text x={padding} y={height - 5} textAnchor="start" fontSize="10" className="axis-label">{data[0].label}</text>
-          <text x={width - padding} y={height - 5} textAnchor="end" fontSize="10" className="axis-label">{data[data.length - 1].label}</text>
+          <text x={padding} y={height - 5} textAnchor="start" fontSize="10" className="axis-label">{safeData[0].label}</text>
+          <text x={width - padding} y={height - 5} textAnchor="end" fontSize="10" className="axis-label">{safeData[safeData.length - 1].label}</text>
           
           {/* The line */}
           <path d={path} fill="none" stroke="#0ea5e9" strokeWidth="2" />
 
           {/* Data points */}
-          {data.map((point, i) => (
+          {safeData.map((point, i) => (
              <circle key={i} cx={getX(i)} cy={getY(point.value)} r="3" fill="#0ea5e9" />
           ))}
         </svg>

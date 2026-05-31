@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { Role, Permission } from '../../types';
-import { PERMISSION_GROUPS, PERMISSION_DESCRIPTIONS } from '../../permissions';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { Role, Permission } from '@shared/types';
+import { PERMISSION_GROUPS, PERMISSION_DESCRIPTIONS } from '@shared/permissions';
 import { Card } from '../ui/Card';
 import { PlusIcon, TrashIcon, PencilIcon, LockClosedIcon } from '../ui/Icons';
 import { RoleFormModal } from '../modals/RoleFormModal';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { EmptyState } from '../ui/EmptyState';
 
 interface RoleManagementPageProps {

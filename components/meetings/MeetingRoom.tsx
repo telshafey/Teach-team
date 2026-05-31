@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Meeting } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
-import { useMeetingContext } from '../../contexts/MeetingContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { Meeting } from '@shared/types';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useMeetingContext } from '@shared/contexts/MeetingContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 import { ArrowRightOnRectangleIcon } from '../ui/Icons';
 
 interface MeetingRoomProps {

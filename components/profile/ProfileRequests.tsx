@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { StatusBadge } from '../ui/StatusBadge';
-import { LeaveType } from '../../types';
+import { LeaveType } from '@shared/types';
 
 const RequestTable: React.FC<{
     title: string;

@@ -1,17 +1,17 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useProjectContext } from '../../contexts/ProjectContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '../../types';
+import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '@shared/types';
 import { ProjectCard } from './ProjectCard';
-import { ProjectFormModal } from '../modals/ProjectFormModal';
+import { ProjectForm } from './ProjectForm';
 import { PlusIcon, FolderIcon } from '../ui/Icons';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { useNavigation } from '@shared/contexts/NavigationContext';
 import { ProjectCardSkeleton } from './ProjectCardSkeleton';
 import { EmptyState } from '../ui/EmptyState';
-import { useTeamContext } from '../../contexts/TeamContext';
+import { useTeamContext } from '@shared/contexts/TeamContext';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface ProjectsPageProps {
     isModalOpen?: boolean;
@@ -27,7 +27,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
     const { hasPermission } = useTeamContext();
     const { supabaseClient } = useSupabase();
 
-    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>(initialState?.statusFilter || 'all');
 
@@ -39,7 +39,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
     
     useEffect(() => {
         if(openModal) {
-            setIsFormModalOpen(true);
+            setViewMode('form');
         }
     }, [openModal]);
 
@@ -60,9 +60,22 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
     
     const canManageProjects = hasPermission('manage_projects');
 
-    const handleSaveNewProject = useCallback((projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
-        return handleAddProject(projectData, suggestedTasks);
+    const handleSaveNewProject = useCallback(async (projectData: ProjectFormData, projectToUpdate: Project | null, suggestedTasks?: SuggestedTask[]) => {
+        await handleAddProject(projectData, suggestedTasks);
+        setViewMode('list');
     }, [handleAddProject]);
+
+    if (viewMode === 'form') {
+        return (
+            <div className="p-6 max-w-4xl mx-auto">
+                <ProjectForm 
+                    project={null}
+                    onSave={handleSaveNewProject}
+                    onCancel={() => setViewMode('list')}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">
@@ -72,7 +85,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
                     <p className="text-md text-slate-500 dark:text-slate-400">تصفح وإدارة جميع المشاريع.</p>
                 </div>
                 {canManageProjects && (
-                    <button onClick={() => setIsFormModalOpen(true)} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
+                    <button onClick={() => setViewMode('form')} className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto">
                         <PlusIcon className="w-5 h-5"/><span>مشروع جديد</span>
                     </button>
                 )}
@@ -110,16 +123,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
                     icon={<FolderIcon className="w-12 h-12" />}
                     title="لا توجد مشاريع"
                     message="لم يتم العثور على مشاريع تطابق بحثك أو الفلتر المطبق."
-                    action={canManageProjects && <button onClick={() => setIsFormModalOpen(true)} className="px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">إنشاء مشروع جديد</button>}
-                />
-            )}
-
-            {isFormModalOpen && canManageProjects && (
-                <ProjectFormModal
-                    isOpen={isFormModalOpen}
-                    onClose={() => setIsFormModalOpen(false)}
-                    onSave={handleSaveNewProject}
-                    project={null}
+                    action={canManageProjects && <button onClick={() => setViewMode('form')} className="px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">إنشاء مشروع جديد</button>}
                 />
             )}
         </div>

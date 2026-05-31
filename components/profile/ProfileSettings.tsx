@@ -1,7 +1,7 @@
 import React, { useState, FormEvent } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { Card } from '../ui/Card';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 

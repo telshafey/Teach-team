@@ -1,7 +1,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { TeamMember, Role, TeamMemberFormData, EmploymentType } from '../../types';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { TeamMember, Role, TeamMemberFormData, EmploymentType } from '@shared/types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 
 interface TeamMemberFormModalProps {
   isOpen: boolean;
@@ -36,7 +36,7 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
         name: member.name || '',
         email: member.email || '',
         password: '',
-        roleId: member.roleId || '',
+        roleId: member.roleId || roles[0]?.id || '',
         reportsTo: member.reportsTo || undefined,
         avatarUrl: member.avatarUrl || `https://api.dicebear.com/8.x/initials/svg?seed=${member.name}`,
         employmentType: member.employmentType || 'full-time',
@@ -47,13 +47,13 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({ isOpen
       });
     } else {
       setFormData({
-        name: '', email: '', password: '', roleId: 'employee', reportsTo: undefined,
+        name: '', email: '', password: '', roleId: roles[0]?.id || '', reportsTo: undefined,
         avatarUrl: 'https://api.dicebear.com/8.x/initials/svg?seed=New',
         employmentType: 'full-time',
         salary: undefined, hourlyRate: undefined, weeklyHoursRequirement: undefined, daysOff: [],
       });
     }
-  }, [member, isOpen]);
+  }, [member, isOpen, roles]);
 
   if (!isOpen) return null;
 

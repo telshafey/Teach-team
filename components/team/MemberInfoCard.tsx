@@ -1,19 +1,22 @@
-import React from 'react';
-import { TeamMember, Role } from '../../types';
+import React, { useState } from 'react';
+import { TeamMember, Role } from '@shared/types';
 import { Card } from '../ui/Card';
-import { useSettingsContext } from '../../contexts/SettingsContext';
-import { BriefcaseIcon, ClockIcon, CurrencyDollarIcon, EnvelopeIcon, PencilIcon } from '../ui/Icons';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
+import { BriefcaseIcon, ClockIcon, CurrencyDollarIcon, EnvelopeIcon, PencilIcon, TrashIcon } from '../ui/Icons';
+import { ConfirmationModal } from '../modals/ConfirmationModal';
 
 interface MemberInfoCardProps {
     member: TeamMember;
     role: Role | undefined;
     manager: TeamMember | undefined;
     onEdit: (member: TeamMember) => void;
+    onDelete?: (memberId: number) => void;
     canEdit: boolean;
 }
 
-export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({ member, role, manager, onEdit, canEdit }) => {
+export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({ member, role, manager, onEdit, onDelete, canEdit }) => {
     const { currency } = useSettingsContext();
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const employmentTypeMap: Record<TeamMember['employmentType'], string> = {
         'full-time': 'دوام كامل',
@@ -22,14 +25,29 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({ member, role, ma
     };
     const employmentType = employmentTypeMap[member.employmentType] || 'غير محدد';
 
+    const handleDeleteConfirm = () => {
+        if (onDelete) {
+            onDelete(member.id);
+        }
+        setIsDeleteModalOpen(false);
+    };
+
     return (
         <Card
             title="معلومات الموظف"
             headerActions={canEdit && (
-                <button onClick={() => onEdit(member)} className="flex items-center space-x-1 rtl:space-x-reverse px-2 py-1 text-xs font-semibold text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200">
-                    <PencilIcon className="w-3 h-3" />
-                    <span>تعديل</span>
-                </button>
+                <div className="flex space-x-2 rtl:space-x-reverse">
+                    <button onClick={() => onEdit(member)} className="flex items-center space-x-1 rtl:space-x-reverse px-2 py-1 text-xs font-semibold text-sky-700 bg-sky-100 rounded-md hover:bg-sky-200">
+                        <PencilIcon className="w-3 h-3" />
+                        <span>تعديل</span>
+                    </button>
+                    {onDelete && (
+                        <button onClick={() => setIsDeleteModalOpen(true)} className="flex items-center space-x-1 rtl:space-x-reverse px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-md hover:bg-red-200">
+                            <TrashIcon className="w-3 h-3" />
+                            <span>حذف</span>
+                        </button>
+                    )}
+                </div>
             )}
         >
             <div className="flex flex-col items-center space-y-4">
@@ -76,6 +94,16 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({ member, role, ma
                     )
                 )}
             </div>
+            
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                title="تأكيد حذف الموظف"
+                message={`هل أنت متأكد من رغبتك في حذف ${member.name}؟ لا يمكن التراجع عن هذا الإجراء.`}
+                confirmText="حذف الموظف"
+                confirmStyle="danger"
+            />
         </Card>
     );
 };

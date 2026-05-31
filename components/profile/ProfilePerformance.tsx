@@ -1,15 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { Card } from '../ui/Card';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useToast } from '../../contexts/ToastContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { ClockIcon, CheckCircleIcon, SparklesIcon } from '../ui/Icons';
-import { generatePerformanceNotes } from '../../services/geminiService';
+import { generatePerformanceNotes } from '@shared/services/geminiService';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
-import { Task } from '../../types';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
+import { Task } from '@shared/types';
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number; }> = ({ icon, label, value }) => (
     <div className="flex items-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">

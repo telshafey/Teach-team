@@ -1,12 +1,12 @@
 import React, { useState, FormEvent, useMemo, useEffect } from 'react';
-import { MeetingFormData, Project } from '../../types';
-import { useTeamContext } from '../../contexts/TeamContext';
-import { useToast } from '../../contexts/ToastContext';
+import { MeetingFormData, Project } from '@shared/types';
+import { useTeamContext } from '@shared/contexts/TeamContext';
+import { useToast } from '@shared/contexts/ToastContext';
 import { SearchIcon } from '../ui/Icons';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { useSupabase } from '../../contexts/SupabaseContext';
-import * as api from '../../services/apiService';
+import { useSupabase } from '@shared/contexts/SupabaseContext';
+import * as api from '@shared/services/apiService';
 
 interface MeetingFormModalProps {
   isOpen: boolean;

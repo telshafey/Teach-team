@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { NoSymbolIcon } from '../ui/Icons';
 import { format, parseISO } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { Penalty, PenaltyStatus } from '../../types';
+import { Penalty, PenaltyStatus } from '@shared/types';
 import { StatusBadge } from '../ui/StatusBadge';
 
 interface ProfilePenaltiesProps {

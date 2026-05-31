@@ -1,17 +1,17 @@
 import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Header } from '../shared/Header';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@shared/contexts/AuthContext';
 import { ActiveTimerBar } from '../shared/ActiveTimerBar';
 import { PunchClockBar } from '../shared/PunchClockBar';
 import { LogFormModal } from '../modals/LogFormModal';
-import { useTimeLogContext } from '../../contexts/TimeLogContext';
+import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { BottomNavBar } from './BottomNavBar';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { AiAssistant } from '../ai/AiAssistant';
-import { View } from '../../navigation.types';
-import { useNavigation } from '../../contexts/NavigationContext';
-import { useTimeManagement } from '../../contexts/TimeManagementContext';
+import { View } from '@shared/navigation.types';
+import { useNavigation } from '@shared/contexts/NavigationContext';
+import { useTimeManagement } from '@shared/contexts/TimeManagementContext';
 
 
 // Lazy load page components for code splitting

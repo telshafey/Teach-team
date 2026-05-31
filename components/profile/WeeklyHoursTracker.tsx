@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { TeamMember, DailyLog } from '../../types';
+import { TeamMember, DailyLog } from '@shared/types';
 import { Card } from '../ui/Card';
 import { ClockIcon, BriefcaseIcon } from '../ui/Icons';
 import {

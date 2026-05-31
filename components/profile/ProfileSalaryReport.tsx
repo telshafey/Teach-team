@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useRequestsContext } from '../../contexts/RequestsContext';
-import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useAuth } from '@shared/contexts/AuthContext';
+import { useRequestsContext } from '@shared/contexts/RequestsContext';
+import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { Card } from '../ui/Card';
 import { CurrencyDollarIcon, ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
 import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths, subMonths, isSameMonth, isAfter } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { generateSalarySlipData } from '../../utils/salarySlip';
+import { generateSalarySlipData } from '@shared/utils/salarySlip';
 import { SalarySlipModal } from '../modals/SalarySlipModal';
-import { SalarySlipData } from '../../types';
+import { SalarySlipData } from '@shared/types';
 
 export const ProfileSalaryReport: React.FC = () => {
     const { currentUser } = useAuth();

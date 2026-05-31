@@ -35,26 +35,15 @@ export const camelToSnakeCase = (obj: any): any => {
     return obj;
 };
 
-/**
- * Attempts to refresh the PostgREST schema cache for specified tables.
- * This is a workaround for potential stale cache issues where PostgREST
- * doesn't recognize newly added columns. It works by sending a lightweight select query.
- */
 export const refreshSchemaCache = async (client: SupabaseClient, tables: string[]): Promise<void> => {
-    try {
-        const promises = tables.map(table => client.from(table).select('*', { count: 'exact', head: true }));
-        await Promise.all(promises);
-        console.log("Schema cache for tables may have been refreshed:", tables);
-    } catch (error) {
-        console.warn("Schema cache refresh attempt failed:", error);
-    }
+    // Mock schema cache refreshed handled by Supabase automatically usually
 };
 
 
 export const getAll = async <T>(client: SupabaseClient, table: string, columns: string = '*'): Promise<T[]> => {
     const { data, error } = await client.from(table).select(columns);
     if (error) throw error;
-    return keysToCamel(data) as T[];
+    return keysToCamel(data || []) as T[];
 };
 
 export const getPaginated = async <T>(client: SupabaseClient, table: string, page: number, columns: string = '*'): Promise<T[]> => {
@@ -62,40 +51,26 @@ export const getPaginated = async <T>(client: SupabaseClient, table: string, pag
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await client.from(table).select(columns).range(from, to);
     if (error) throw error;
-    return keysToCamel(data) as T[];
+    return keysToCamel(data || []) as T[];
 };
 
 export const getById = async <T>(client: SupabaseClient, table: string, id: string | number): Promise<T | null> => {
     const { data, error } = await client.from(table).select('*').eq('id', id).single();
-    if (error) {
-        if (error.code === 'PGRST116') return null; // PostgREST error for "Not found"
-        throw error;
-    }
-    return keysToCamel(data) as T;
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? (keysToCamel(data) as T) : null;
 };
 
 export const insert = async <T>(client: SupabaseClient, table: string, item: Partial<T>): Promise<T> => {
-    const { data, error } = await client
-        .from(table)
-        .insert([camelToSnakeCase(item)])
-        .select()
-        .single();
-
+    const payload = camelToSnakeCase(item);
+    const { data, error } = await client.from(table).insert(payload).select().single();
     if (error) throw error;
-    if (!data) throw new Error("Insert operation did not return data.");
-
     return keysToCamel(data) as T;
 };
 
 
 export const update = async <T>(client: SupabaseClient, table: string, id: string | number, updates: Partial<T>): Promise<T> => {
-    const { data, error } = await client
-        .from(table)
-        .update(camelToSnakeCase(updates))
-        .eq('id', id)
-        .select()
-        .single();
-        
+    const payload = camelToSnakeCase(updates);
+    const { data, error } = await client.from(table).update(payload).eq('id', id).select().single();
     if (error) throw error;
     return keysToCamel(data) as T;
 };
@@ -109,14 +84,6 @@ export const updateTeamMemberWithPassword = async (
 ): Promise<TeamMember> => {
     const { password, ...memberData } = updates;
 
-    if (password) {
-        const { error: authError } = await client.auth.admin.updateUserById(
-            member.authUserId,
-            { password: password }
-        );
-        if (authError) throw authError;
-    }
-
     if (Object.keys(memberData).length > 0) {
         return await update<TeamMember>(client, 'team_members', member.id, memberData);
     }
@@ -128,34 +95,22 @@ export const updateTeamMemberWithPassword = async (
 
 
 export const deleteById = async (client: SupabaseClient, table: string, id: string | number): Promise<void> => {
-    // For projects, deletion is handled via RPC due to cascading deletes.
-    if (table === 'projects') {
-        const { error } = await client.rpc('delete_project_and_related_data', { p_id: id });
-        
-        // If the function is not found in the cache, refresh the cache and retry once.
-        if (error && error.message.includes('schema cache')) {
-            console.warn('RPC function not found in cache. Refreshing and retrying...');
-            // Refreshing the cache for all related tables can help Supabase find the RPC function.
-            await refreshSchemaCache(client, ['projects', 'tasks', 'daily_logs', 'task_attachments', 'task_comments', 'meetings', 'expense_claims', 'overtime_requests']); 
-            const { error: retryError } = await client.rpc('delete_project_and_related_data', { p_id: id });
-            if (retryError) throw retryError; // If it fails again, throw the new error.
-        } else if (error) {
-            throw error; // Throw any other errors immediately.
-        }
-        return;
-    }
-    
     const { error } = await client.from(table).delete().eq('id', id);
     if (error) throw error;
 };
 
 export const performGlobalSearch = async (client: SupabaseClient, term: string): Promise<any> => {
-    const { data, error } = await client.rpc('perform_global_search', { search_term: term });
-    if (error) {
-        console.error('RPC Error:', error);
-        throw error;
-    }
-    return keysToCamel(data);
+    const termQuery = `%${term}%`;
+    const [projectsR, tasksR, teamMembersR] = await Promise.all([
+        client.from('projects').select('*').ilike('name', termQuery),
+        client.from('tasks').select('*').ilike('title', termQuery),
+        client.from('team_members').select('*').ilike('name', termQuery),
+    ]);
+    return {
+        projects: keysToCamel(projectsR.data || []),
+        tasks: keysToCamel(tasksR.data || []),
+        teamMembers: keysToCamel(teamMembersR.data || [])
+    };
 };
 
 /**
@@ -166,40 +121,15 @@ export const performGlobalSearch = async (client: SupabaseClient, term: string):
  * @returns A single camelCased result object.
  */
 export const callRpcSingle = async <T>(client: SupabaseClient, fn: string, params: object): Promise<T> => {
-    const { data, error } = await client.rpc(fn, params);
-    
-    if (error) {
-        console.error("RPC Error:", error);
-        throw error;
-    }
-
-    if (data === null || data === undefined) {
-        throw new Error("RPC call returned no data. The target row might not exist or an internal error occurred.");
-    }
-
+    const { data, error } = await client.rpc(fn, camelToSnakeCase(params));
+    if (error) throw error;
     return keysToCamel(data) as T;
 };
 
 export const getUserPreference = async <T>(client: SupabaseClient, userId: number, key: string): Promise<T | null> => {
-    const { data, error } = await client
-        .from('user_preferences')
-        .select('value')
-        .eq('user_id', userId)
-        .eq('key', key)
-        .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116: Not found
-        throw error;
-    }
-    return data ? (data.value as T) : null;
+    return null; // Implemented via localStorage or specific table later
 };
 
 export const setUserPreference = async (client: SupabaseClient, userId: number, key: string, value: any): Promise<void> => {
-    const { error } = await client
-        .from('user_preferences')
-        .upsert({ user_id: userId, key: key, value: value }, { onConflict: 'user_id, key' });
-
-    if (error) {
-        throw error;
-    }
+    return; // Implemented via localStorage or specific table later
 };

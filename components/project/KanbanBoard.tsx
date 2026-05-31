@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Task, TaskStatus } from '../../types';
+import { Task, TaskStatus } from '@shared/types';
 import { TaskColumn } from './TaskColumn';
 
 interface KanbanBoardProps {
