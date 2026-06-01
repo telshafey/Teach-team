@@ -6,10 +6,11 @@ import { Task, TaskStatus, TeamMember, Project } from '@shared/types';
 import { Card } from '../ui/Card';
 import { TaskTableRow } from './TaskTableRow';
 import { TaskDetailInline } from './TaskDetailInline';
+import { TaskKanbanBoard } from './TaskKanbanBoard';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { EmptyState } from '../ui/EmptyState';
-import { ClipboardDocumentListIcon, PlusIcon } from '../ui/Icons';
+import { ClipboardDocumentListIcon, PlusIcon, ListBulletIcon, Squares2X2Icon } from '../ui/Icons';
 import { useQuery } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
@@ -25,6 +26,7 @@ export const AllTasksPage: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
     
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
@@ -143,7 +145,7 @@ export const AllTasksPage: React.FC = () => {
             </div>
             
             <Card>
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-4">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4">
                     <input type="text" placeholder="ابحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full md:w-auto flex-grow p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900" />
                     <select value={filters.assignee} onChange={e => setFilters({...filters, assignee: e.target.value})} className="p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900">
                         <option value="me">الخاصة بي</option>
@@ -156,37 +158,58 @@ export const AllTasksPage: React.FC = () => {
                         <option value="inprogress">قيد التنفيذ</option>
                         <option value="done">مكتملة</option>
                     </select>
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-md">
+                        <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                            <ListBulletIcon className="w-5 h-5"/>
+                        </button>
+                        <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md ${viewMode === 'kanban' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                            <Squares2X2Icon className="w-5 h-5"/>
+                        </button>
+                    </div>
                 </div>
 
                 {filteredAndSortedTasks.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-right">
-                             <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50">
-                                <tr>
-                                    <th className="px-6 py-3">المهمة</th>
-                                    <th className="px-6 py-3">المشروع</th>
-                                    <th className="px-6 py-3">المسؤول</th>
-                                    <th className="px-6 py-3">تاريخ الاستحقاق</th>
-                                    <th className="px-6 py-3">الحالة</th>
-                                    {(canEditTasks || canDeleteTasks) && <th className="px-6 py-3">الإجراءات</th>}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredAndSortedTasks.map(task => (
-                                    <TaskTableRow 
-                                        key={task.id}
-                                        task={task}
-                                        projectName={task.projectId ? projectsMap[task.projectId] || '-' : '-'}
-                                        assigneeName={task.assignedTo ? membersMap[task.assignedTo] || 'غير معروف' : 'غير مسندة'}
-                                        onEdit={() => { setSelectedTask(task); setIsFormOpen(true); }}
-                                        onDelete={() => setTaskToDelete(task)}
-                                        onSelect={() => setSelectedTask(task)}
-                                        canEdit={canEditTasks}
-                                        canDelete={canDeleteTasks}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="p-4">
+                        {viewMode === 'kanban' ? (
+                            <TaskKanbanBoard 
+                                tasks={filteredAndSortedTasks} 
+                                onTaskClick={(task) => setSelectedTask(task)}
+                                onUpdateTaskStatus={async (taskId, newStatus) => {
+                                    await handleUpdateTask({ id: taskId, status: newStatus });
+                                }}
+                                membersMap={membersMap}
+                            />
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-right">
+                                    <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50">
+                                        <tr>
+                                            <th className="px-6 py-3">المهمة</th>
+                                            <th className="px-6 py-3">المشروع</th>
+                                            <th className="px-6 py-3">المسؤول</th>
+                                            <th className="px-6 py-3">تاريخ الاستحقاق</th>
+                                            <th className="px-6 py-3">الحالة</th>
+                                            {(canEditTasks || canDeleteTasks) && <th className="px-6 py-3">الإجراءات</th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredAndSortedTasks.map(task => (
+                                            <TaskTableRow 
+                                                key={task.id}
+                                                task={task}
+                                                projectName={task.projectId ? projectsMap[task.projectId] || '-' : '-'}
+                                                assigneeName={task.assignedTo ? membersMap[task.assignedTo] || 'غير معروف' : 'غير مسندة'}
+                                                onEdit={() => { setSelectedTask(task); setIsFormOpen(true); }}
+                                                onDelete={() => setTaskToDelete(task)}
+                                                onSelect={() => setSelectedTask(task)}
+                                                canEdit={canEditTasks}
+                                                canDelete={canDeleteTasks}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <EmptyState icon={<ClipboardDocumentListIcon className="w-12 h-12"/>} title="لا توجد مهام" message="لم يتم العثور على مهام تطابق الفلاتر المطبقة."/>

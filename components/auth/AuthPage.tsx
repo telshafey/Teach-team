@@ -15,12 +15,16 @@ export const AuthPage: React.FC = () => {
       e.preventDefault();
       setIsLoggingIn(true);
       setLoginError('');
-      const { error } = await handleLogin(email, password);
-      if (error) {
-        setLoginError(error.message === 'Invalid login credentials' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : error.message);
+      try {
+        const { error } = await handleLogin(email, password);
+        if (error) {
+          setLoginError(error.message === 'Invalid login credentials' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : error.message);
+        }
+      } catch (err: any) {
+        setLoginError('حدث خطأ غير متوقع.');
+      } finally {
+        setIsLoggingIn(false);
       }
-      // On success, the AuthContext's onAuthStateChange listener will handle navigation.
-      setIsLoggingIn(false);
     };
 
     return (

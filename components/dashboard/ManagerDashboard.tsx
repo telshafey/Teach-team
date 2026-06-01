@@ -21,6 +21,7 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { TaskDetailInline } from '../tasks/TaskDetailInline';
 import { useProjectContext } from '@shared/contexts/ProjectContext';
+import { AnalyticsChart } from '../ui/AnalyticsChart';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -68,6 +69,28 @@ const UpcomingMeetingsWidget: React.FC<{ meetings: Meeting[]; onJoin: (m: Meetin
     <UpcomingMeetingsCard title="اجتماعات الفريق القادمة" meetings={meetings} onJoinMeeting={onJoin} />
 );
 
+const TasksStatusWidget: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
+    const data = useMemo(() => {
+        const statuses = { 'todo': 'قيد الانتظار', 'in_progress': 'قيد التنفيذ', 'done': 'مكتملة', 'cancelled': 'ملغاة' };
+        const counts = { 'todo': 0, 'in_progress': 0, 'done': 0, 'cancelled': 0 };
+        tasks.forEach(t => {
+            if (counts[t.status] !== undefined) {
+                counts[t.status]++;
+            }
+        });
+        return Object.entries(counts).map(([key, value]) => ({
+            name: statuses[key as keyof typeof statuses],
+            value
+        }));
+    }, [tasks]);
+
+    return (
+        <Card title="حالة مهام الفريق">
+            <AnalyticsChart data={data} color="#8b5cf6" height={220} />
+        </Card>
+    );
+};
+
 // Main Dashboard Component
 export const ManagerDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
@@ -91,24 +114,27 @@ export const ManagerDashboard: React.FC = () => {
     const defaultLayouts = {
         lg: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'teamActivity', x: 0, y: 1, w: 8, h: 5 },
-            { i: 'approvals', x: 8, y: 1, w: 4, h: 5 },
-            { i: 'unassigned', x: 0, y: 6, w: 8, h: 4 },
-            { i: 'meetings', x: 8, y: 6, w: 4, h: 4 },
+            { i: 'tasksStatus', x: 0, y: 1, w: 12, h: 4 },
+            { i: 'teamActivity', x: 0, y: 5, w: 8, h: 5 },
+            { i: 'approvals', x: 8, y: 5, w: 4, h: 5 },
+            { i: 'unassigned', x: 0, y: 10, w: 8, h: 4 },
+            { i: 'meetings', x: 8, y: 10, w: 4, h: 4 },
         ],
         md: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'teamActivity', x: 0, y: 1, w: 12, h: 5 },
-            { i: 'approvals', x: 0, y: 6, w: 6, h: 5 },
-            { i: 'unassigned', x: 0, y: 11, w: 12, h: 4 },
-            { i: 'meetings', x: 6, y: 6, w: 6, h: 5 },
+            { i: 'tasksStatus', x: 0, y: 1, w: 12, h: 4 },
+            { i: 'teamActivity', x: 0, y: 5, w: 12, h: 5 },
+            { i: 'approvals', x: 0, y: 10, w: 6, h: 5 },
+            { i: 'unassigned', x: 0, y: 15, w: 12, h: 4 },
+            { i: 'meetings', x: 6, y: 10, w: 6, h: 5 },
         ],
         sm: [
              { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
-             { i: 'teamActivity', x: 0, y: 2, w: 6, h: 5 },
-             { i: 'approvals', x: 0, y: 7, w: 6, h: 5 },
-             { i: 'unassigned', x: 0, y: 12, w: 6, h: 4 },
-             { i: 'meetings', x: 0, y: 16, w: 6, h: 4 },
+             { i: 'tasksStatus', x: 0, y: 2, w: 6, h: 4 },
+             { i: 'teamActivity', x: 0, y: 6, w: 6, h: 5 },
+             { i: 'approvals', x: 0, y: 11, w: 6, h: 5 },
+             { i: 'unassigned', x: 0, y: 16, w: 6, h: 4 },
+             { i: 'meetings', x: 0, y: 20, w: 6, h: 4 },
         ]
     };
     const [layouts, setLayouts] = useState(defaultLayouts);
@@ -155,6 +181,7 @@ export const ManagerDashboard: React.FC = () => {
 
         return {
             myTeam,
+            teamTasks,
             stats: {
                 pending: pendingItems.length,
                 hours: teamLogsToday.reduce((sum, l) => sum + l.hours, 0),
@@ -176,6 +203,7 @@ export const ManagerDashboard: React.FC = () => {
 
     const widgetMap: { [key: string]: React.ReactNode } = {
         'stats': <StatCardsWidget data={dashboardData.stats} onNavigate={onNavigate} />,
+        'tasksStatus': <TasksStatusWidget tasks={dashboardData.teamTasks} />,
         'teamActivity': <TeamActivityWidget team={dashboardData.myTeam} tasks={tasks} />,
         'unassigned': <UnassignedTasksCard tasks={dashboardData.unassignedTasks} onAssign={setTaskToAssign} />,
         'approvals': <PendingApprovalsWidget items={pendingItems} onNavigate={onNavigate} />,

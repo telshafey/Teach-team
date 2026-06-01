@@ -14,6 +14,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
 import { Project, Task } from '@shared/types';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2pdf from 'html2pdf.js';
 
 type ReportType =
   | 'projects_summary'
@@ -153,6 +156,19 @@ export const ReportsPage: React.FC = () => {
         );
     }
 
+    const handleExportPDF = () => {
+        const element = document.getElementById('print-area');
+        if (!element) return;
+        const opt = {
+            margin:       10,
+            filename:     'report.pdf',
+            image:        { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'landscape' as const }
+        };
+        html2pdf().set(opt).from(element).save();
+    };
+
     return (
         <div className="p-6">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">التقارير المخصصة</h2>
@@ -224,6 +240,9 @@ export const ReportsPage: React.FC = () => {
                         </button>
                          <button onClick={() => window.print()} disabled={!generatedReport} className="w-full sm:w-auto flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">
                            <DocumentDuplicateIcon className="w-5 h-5"/> <span>طباعة</span>
+                        </button>
+                        <button onClick={handleExportPDF} disabled={!generatedReport} className="w-full sm:w-auto flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">
+                           <DocumentArrowDownIcon className="w-5 h-5"/> <span>تصدير PDF</span>
                         </button>
                     </div>
                 </div>

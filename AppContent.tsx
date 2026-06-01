@@ -7,6 +7,8 @@ import { AuthPage } from './components/auth/AuthPage';
 import { View } from '@shared/navigation.types';
 import { NavigationContext } from '@shared/contexts/NavigationContext';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { useRealtime } from '@shared/contexts/RealtimeContext';
+import { useToast } from '@shared/contexts/ToastContext';
 
 const MeetingRoom = lazy(() => import('./components/meetings/MeetingRoom').then(module => ({ default: module.MeetingRoom })));
 
@@ -37,8 +39,29 @@ const parsePathname = (pathname: string): { view: View; props: any } => {
 // Renders the main dashboard or auth page based on auth state
 export const AppContent: React.FC = () => {
   const { currentUser } = useAuth();
+  const { subscribe } = useRealtime();
+  const { addToast } = useToast();
   
   const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubTasks = subscribe('tasks', (payload) => {
+        if (payload.eventType === 'INSERT') {
+            if (payload.new.assignedTo === currentUser.id || payload.new.assigned_to === currentUser.id) {
+                addToast(`مهمة جديدة أُسندت إليك: ${payload.new.title}`, 'info');
+            }
+        } else if (payload.eventType === 'UPDATE') {
+            const isAssigned = payload.new.assignedTo === currentUser.id || payload.new.assigned_to === currentUser.id;
+            if (isAssigned && payload.old.status !== payload.new.status) {
+                const statusMap: any = { 'todo': 'قيد الانتظار', 'inprogress': 'قيد التنفيذ', 'done': 'مكتملة', 'cancelled': 'ملغاة' };
+                addToast(`تغيرت حالة المهمة "${payload.new.title}" إلى ${statusMap[payload.new.status] || payload.new.status}`, 'info');
+            }
+        }
+    });
+
+    return () => { unsubTasks(); };
+  }, [currentUser, subscribe, addToast]);
 
   useEffect(() => {
     const handlePopState = () => {

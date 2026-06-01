@@ -38,25 +38,33 @@ const CompanyProductivityWidget: React.FC<{ data: { label: string; value: number
 
 const ProjectOverviewWidget: React.FC<{ projects: Project[]; dailyLogs: any[]; currency: string; }> = ({ projects, dailyLogs, currency }) => (
     <Card title="نظرة عامة على المشاريع النشطة">
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-right">
-                <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50"><tr>
-                    <th className="px-4 py-2">المشروع</th><th className="px-4 py-2">الحالة</th><th className="px-4 py-2">تقدم الساعات</th><th className="px-4 py-2">التكلفة</th>
-                </tr></thead>
-                <tbody>
-                    {projects.filter(p => p.status === 'نشط').slice(0, 5).map(p => {
-                        const hours = dailyLogs.filter(l => l.projectId === p.id).reduce((s, l) => s + l.hours, 0);
-                        return (
-                            <tr key={p.id} className="border-b dark:border-slate-700">
-                                <td className="px-4 py-2 font-medium">{p.name}</td>
-                                <td className="px-4 py-2"><StatusBadge status={p.status} type="project" /></td>
-                                <td className="px-4 py-2">{hours.toFixed(1)} / {p.budgetHours || '∞'}</td>
-                                <td className="px-4 py-2">{p.budgetAmount?.toLocaleString() || '-'} {currency}</td>
-                            </tr>
-                        )
-                    })}
-                </tbody>
-            </table>
+        <div className="flex flex-col space-y-4 pt-2">
+            {projects.filter(p => p.status === 'نشط').slice(0, 5).map(p => {
+                const hours = dailyLogs.filter(l => l.projectId === p.id).reduce((s, l) => s + l.hours, 0);
+                const progressPercent = p.budgetHours ? Math.min(100, Math.round((hours / p.budgetHours) * 100)) : 0;
+                
+                return (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors dark:bg-slate-800/50 dark:border-slate-700/50 dark:hover:border-slate-700">
+                        <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name}</span>
+                            <span className="text-xs text-slate-500 mt-1 dark:text-slate-400">التكلفة:  {p.budgetAmount?.toLocaleString() || '-'} {currency}</span>
+                        </div>
+                        <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                    {hours.toFixed(1)} / {p.budgetHours || '∞'} س
+                                </span>
+                                {p.budgetHours && (
+                                    <div className="w-24 h-1.5 bg-slate-200 rounded-full mt-1.5 overflow-hidden dark:bg-slate-600">
+                                        <div className={`h-full ${progressPercent > 90 ? 'bg-red-500' : progressPercent > 70 ? 'bg-amber-500' : 'bg-sky-500'}`} style={{ width: `${progressPercent}%` }}></div>
+                                    </div>
+                                )}
+                            </div>
+                            <StatusBadge status={p.status} type="project" />
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     </Card>
 );

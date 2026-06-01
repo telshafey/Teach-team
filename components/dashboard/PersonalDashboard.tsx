@@ -24,6 +24,7 @@ import * as api from '@shared/services/apiService';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useToast } from '@shared/contexts/ToastContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { AnalyticsChart } from '../ui/AnalyticsChart';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -91,6 +92,32 @@ const CalendarWidget: React.FC<{ events: any[]; onDateClick: (date: Date) => voi
     <Card title="تقويمي"><Calendar events={events} onDateClick={onDateClick} highlightedDate={highlightedDate} /></Card>
 );
 
+const WeeklyActivityWidget: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
+    const data = useMemo(() => {
+        const today = new Date();
+        const days = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(today);
+            date.setDate(today.getDate() - (6 - i));
+            return date;
+        });
+
+        return days.map(day => {
+            const dayLogs = logs.filter(log => typeof log.date === 'string' ? log.date.startsWith(format(day, 'yyyy-MM-dd')) : isSameDay(new Date(log.date), day));
+            const hours = dayLogs.reduce((sum, log) => sum + (log.hoursLogged || 0), 0);
+            return {
+                name: format(day, 'EEEE', { locale: arSA }).split(' ')[0],
+                value: Number(hours.toFixed(1))
+            };
+        });
+    }, [logs]);
+
+    return (
+        <Card title="نشاط الأسبوع">
+            <AnalyticsChart data={data} color="#0ea5e9" height={220} />
+        </Card>
+    );
+};
+
 
 export const PersonalDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
@@ -113,23 +140,26 @@ export const PersonalDashboard: React.FC = () => {
         lg: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
             ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 4, h: 3 }] : []),
-            { i: 'myTasks', x: isEmployee ? 4 : 0, y: 1, w: isEmployee ? 8 : 12, h: 5 },
-            { i: 'meetings', x: 0, y: 4, w: 4, h: 4 },
-            { i: 'calendar', x: 8, y: 6, w: 4, h: 6 },
+            { i: 'weeklyActivity', x: isEmployee ? 4 : 0, y: 1, w: isEmployee ? 8 : 12, h: 4 },
+            { i: 'myTasks', x: 0, y: 5, w: 8, h: 5 },
+            { i: 'meetings', x: 8, y: 5, w: 4, h: 4 },
+            { i: 'calendar', x: 0, y: 10, w: 12, h: 6 },
         ].filter(Boolean),
         md: [
             { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
             ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 6, h: 3 }] : []),
-            { i: 'myTasks', x: isEmployee ? 6 : 0, y: 1, w: isEmployee ? 6 : 12, h: 5 },
-            { i: 'meetings', x: 0, y: 4, w: 6, h: 4 },
-            { i: 'calendar', x: 6, y: 6, w: 6, h: 6 },
+            { i: 'weeklyActivity', x: isEmployee ? 6 : 0, y: 1, w: isEmployee ? 6 : 12, h: 4 },
+            { i: 'myTasks', x: 0, y: 5, w: 12, h: 5 },
+            { i: 'meetings', x: 0, y: 10, w: 6, h: 4 },
+            { i: 'calendar', x: 6, y: 10, w: 6, h: 6 },
         ].filter(Boolean),
         sm: [
             { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
             ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 2, w: 6, h: 3 }] : []),
-            { i: 'myTasks', x: 0, y: 5, w: 6, h: 5 },
-            { i: 'meetings', x: 0, y: 10, w: 6, h: 4 },
-            { i: 'calendar', x: 0, y: 14, w: 6, h: 6 },
+            { i: 'weeklyActivity', x: 0, y: 5, w: 6, h: 4 },
+            { i: 'myTasks', x: 0, y: 9, w: 6, h: 5 },
+            { i: 'meetings', x: 0, y: 14, w: 6, h: 4 },
+            { i: 'calendar', x: 0, y: 18, w: 6, h: 6 },
         ].filter(Boolean),
     }), [isEmployee]);
 
@@ -232,6 +262,7 @@ export const PersonalDashboard: React.FC = () => {
             </div>
         ),
         'punchClock': isEmployee ? <PunchClockWidget /> : null,
+        'weeklyActivity': <WeeklyActivityWidget logs={myLogs} />,
         'myTasks': <MyTasksWidget tasks={myOpenTasks} projects={projects} onTaskClick={setViewingTask} onNavigate={onNavigate} isLoading={isTasksLoading} />,
         'meetings': <MeetingsWidget meetings={myMeetings} onJoin={handleJoinMeeting} />,
         'calendar': <CalendarWidget events={calendarEvents} onDateClick={handleDateClick} highlightedDate={selectedDate ? new Date(selectedDate) : null} />,
