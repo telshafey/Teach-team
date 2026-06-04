@@ -33,13 +33,17 @@ const StatCardsWidget: React.FC<{ data: { activeProjects: number; weeklyHours: n
 );
 
 const CompanyProductivityWidget: React.FC<{ data: { label: string; value: number }[] }> = ({ data }) => (
-    <Card title="إنتاجية الشركة (آخر 30 يوم)"><LineChart data={data} /></Card>
+    <Card title="إنتاجية الشركة (آخر 30 يوم)">
+        <div className="h-full min-h-[200px] flex items-center justify-center">
+            <LineChart data={data} height={200} />
+        </div>
+    </Card>
 );
 
 const ProjectOverviewWidget: React.FC<{ projects: Project[]; dailyLogs: any[]; currency: string; }> = ({ projects, dailyLogs, currency }) => (
     <Card title="نظرة عامة على المشاريع النشطة">
-        <div className="flex flex-col space-y-4 pt-2">
-            {projects.filter(p => p.status === 'نشط').slice(0, 5).map(p => {
+        <div className="flex-1 flex flex-col space-y-4 pt-2 overflow-y-auto pr-1 pb-2">
+            {projects.filter(p => p.status === 'نشط').slice(0, 20).map(p => {
                 const hours = dailyLogs.filter(l => l.projectId === p.id).reduce((s, l) => s + l.hours, 0);
                 const progressPercent = p.budgetHours ? Math.min(100, Math.round((hours / p.budgetHours) * 100)) : 0;
                 
@@ -70,7 +74,11 @@ const ProjectOverviewWidget: React.FC<{ projects: Project[]; dailyLogs: any[]; c
 );
 
 const TeamProductivityWidget: React.FC<{ data: { label: string; value: number }[] }> = ({ data }) => (
-    <Card title="أداء أفضل 10 موظفين (الأسبوع)"><BarChart title="" data={data} /></Card>
+    <Card title="أداء أفضل 10 موظفين (الأسبوع)">
+        <div className="flex-1 overflow-y-auto pr-1 pb-2">
+            <BarChart title="" data={data} />
+        </div>
+    </Card>
 );
 
 const UpcomingMeetingsWidget: React.FC<{ meetings: Meeting[]; onJoin: (m: Meeting) => void; }> = ({ meetings, onJoin }) => (
@@ -96,33 +104,33 @@ export const GeneralManagerDashboard: React.FC = () => {
 
     const defaultLayouts = {
         lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'productivity', x: 0, y: 1, w: 8, h: 4 },
-            { i: 'team', x: 8, y: 1, w: 4, h: 6 },
-            { i: 'projects', x: 0, y: 5, w: 8, h: 4 },
-            { i: 'meetings', x: 8, y: 7, w: 4, h: 2 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            { i: 'productivity', x: 0, y: 2, w: 8, h: 5 },
+            { i: 'team', x: 8, y: 2, w: 4, h: 6 },
+            { i: 'projects', x: 0, y: 7, w: 8, h: 6 },
+            { i: 'meetings', x: 8, y: 8, w: 4, h: 5 },
         ],
         md: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'productivity', x: 0, y: 1, w: 12, h: 4 },
-            { i: 'team', x: 0, y: 5, w: 6, h: 5 },
-            { i: 'projects', x: 0, y: 10, w: 12, h: 4 },
-            { i: 'meetings', x: 6, y: 5, w: 6, h: 5 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            { i: 'productivity', x: 0, y: 2, w: 12, h: 5 },
+            { i: 'team', x: 0, y: 7, w: 6, h: 6 },
+            { i: 'projects', x: 0, y: 13, w: 12, h: 5 },
+            { i: 'meetings', x: 6, y: 7, w: 6, h: 6 },
         ],
         sm: [
-            { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
-            { i: 'productivity', x: 0, y: 2, w: 6, h: 4 },
-            { i: 'team', x: 0, y: 6, w: 6, h: 5 },
-            { i: 'projects', x: 0, y: 11, w: 6, h: 4 },
-            { i: 'meetings', x: 0, y: 15, w: 6, h: 4 },
+            { i: 'stats', x: 0, y: 0, w: 6, h: 4 },
+            { i: 'productivity', x: 0, y: 4, w: 6, h: 5 },
+            { i: 'team', x: 0, y: 9, w: 6, h: 6 },
+            { i: 'projects', x: 0, y: 15, w: 6, h: 5 },
+            { i: 'meetings', x: 0, y: 20, w: 6, h: 5 },
         ]
     };
 
     const [layouts, setLayouts] = useState(defaultLayouts);
 
     const { data: savedLayouts } = useQuery({
-        queryKey: ['user_preference', 'dashboard_layout_gm'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_gm'),
+        queryKey: ['user_preference', 'dashboard_layout_gm_v4'],
+        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_gm_v4'),
         enabled: !!supabaseClient && !!currentUser,
     });
 
@@ -141,10 +149,10 @@ export const GeneralManagerDashboard: React.FC = () => {
     }, [savedLayouts]);
 
     const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm', newLayouts),
+        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm_v4', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_gm'] });
+            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_gm_v4'] });
             setIsEditing(false);
         },
         onError: (error) => {

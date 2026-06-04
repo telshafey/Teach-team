@@ -14,22 +14,22 @@ export const BarChart: React.FC<BarChartProps> = ({ title, data }) => {
   const maxValue = Math.max(...data.map(d => d.value), 0);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-4">{title}</h3>
+    <div className="w-full">
+      {title && <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-4">{title}</h3>}
       <div className="space-y-2">
         {data.map(item => (
           <div key={item.label} className="grid grid-cols-4 items-center gap-2 text-sm">
-            <div className="col-span-1 text-slate-600 dark:text-slate-400 truncate">{item.label}</div>
+            <div className="col-span-1 text-slate-600 dark:text-slate-400 truncate text-left rtl:text-right" title={item.label}>{item.label}</div>
             <div className="col-span-3">
               <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-4">
+                <div className="w-full bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-full h-4 overflow-hidden">
                   <div 
-                    className="bg-sky-500 h-4 rounded-full text-right"
+                    className="bg-sky-500 h-full text-right"
                     style={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%` }}
                   >
                   </div>
                 </div>
-                <span className="font-semibold text-slate-700 dark:text-slate-300 w-10 text-left">{item.value.toFixed(1)}</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300 w-10 text-left rtl:text-right text-xs">{item.value.toFixed(1)}</span>
               </div>
             </div>
           </div>

@@ -23,7 +23,7 @@ export const Card: React.FC<CardProps> = ({ title, icon, headerActions, children
           <div>{headerActions}</div>
         </div>
       )}
-      <div className={`flex-grow overflow-auto ${title || headerActions ? "p-4" : ""}`}>{children}</div>
+      <div className={`flex-grow flex flex-col overflow-auto ${title || headerActions ? "p-4" : ""}`}>{children}</div>
     </div>
   );
 };

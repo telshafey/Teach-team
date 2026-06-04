@@ -37,7 +37,7 @@ const StatCardsWidget: React.FC<{ data: { pending: number; hours: number; overdu
 
 const TeamActivityWidget: React.FC<{ team: any[]; tasks: Task[]; }> = ({ team, tasks }) => (
     <Card title="نشاط الفريق الحالي" icon={<UsersIcon className="w-5 h-5" />}>
-        <div className="space-y-3">
+        <div className="space-y-3 flex-1 overflow-y-auto pr-1 pb-2">
             {team.map(member => {
                 const memberTasks = tasks.filter(t => t.assignedTo === member.id && t.status === 'inprogress');
                 return (
@@ -57,8 +57,8 @@ const TeamActivityWidget: React.FC<{ team: any[]; tasks: Task[]; }> = ({ team, t
 );
 
 const PendingApprovalsWidget: React.FC<{ items: any[]; onNavigate: (v: any) => void; }> = ({ items, onNavigate }) => (
-    <Card title="موافقات بانتظارك" headerActions={<a onClick={() => onNavigate('approvals')} className="text-sm font-semibold text-sky-600 cursor-pointer">عرض الكل</a>}>
-        <div className="space-y-2">
+    <Card title="موافقات بانتظارك" headerActions={<a onClick={() => onNavigate('approvals')} className="text-sm font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer">عرض الكل</a>}>
+        <div className="space-y-2 flex-1 overflow-y-auto pr-1 pb-2">
             {items.slice(0, 5).map((item, i) => <ApprovalItemCard key={(item as any).id || i} item={item} onReview={() => onNavigate('approvals')} />)}
             {items.length === 0 && <EmptyState icon={<ClipboardDocumentListIcon className="w-8 h-8" />} title="لا توجد موافقات" message="كل شيء على ما يرام." />}
         </div>
@@ -86,7 +86,9 @@ const TasksStatusWidget: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 
     return (
         <Card title="حالة مهام الفريق">
-            <AnalyticsChart data={data} color="#8b5cf6" height={220} />
+            <div className="h-full w-full relative min-h-[200px]">
+                <AnalyticsChart data={data} color="#8b5cf6" />
+            </div>
         </Card>
     );
 };
@@ -113,35 +115,35 @@ export const ManagerDashboard: React.FC = () => {
 
     const defaultLayouts = {
         lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'tasksStatus', x: 0, y: 1, w: 12, h: 4 },
-            { i: 'teamActivity', x: 0, y: 5, w: 8, h: 5 },
-            { i: 'approvals', x: 8, y: 5, w: 4, h: 5 },
-            { i: 'unassigned', x: 0, y: 10, w: 8, h: 4 },
-            { i: 'meetings', x: 8, y: 10, w: 4, h: 4 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            { i: 'tasksStatus', x: 0, y: 2, w: 12, h: 5 },
+            { i: 'teamActivity', x: 0, y: 7, w: 8, h: 6 },
+            { i: 'approvals', x: 8, y: 7, w: 4, h: 5 },
+            { i: 'unassigned', x: 0, y: 13, w: 8, h: 5 },
+            { i: 'meetings', x: 8, y: 13, w: 4, h: 6 },
         ],
         md: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            { i: 'tasksStatus', x: 0, y: 1, w: 12, h: 4 },
-            { i: 'teamActivity', x: 0, y: 5, w: 12, h: 5 },
-            { i: 'approvals', x: 0, y: 10, w: 6, h: 5 },
-            { i: 'unassigned', x: 0, y: 15, w: 12, h: 4 },
-            { i: 'meetings', x: 6, y: 10, w: 6, h: 5 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            { i: 'tasksStatus', x: 0, y: 2, w: 12, h: 5 },
+            { i: 'teamActivity', x: 0, y: 7, w: 12, h: 5 },
+            { i: 'approvals', x: 0, y: 12, w: 6, h: 5 },
+            { i: 'unassigned', x: 0, y: 17, w: 12, h: 5 },
+            { i: 'meetings', x: 6, y: 12, w: 6, h: 5 },
         ],
         sm: [
-             { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
-             { i: 'tasksStatus', x: 0, y: 2, w: 6, h: 4 },
-             { i: 'teamActivity', x: 0, y: 6, w: 6, h: 5 },
-             { i: 'approvals', x: 0, y: 11, w: 6, h: 5 },
-             { i: 'unassigned', x: 0, y: 16, w: 6, h: 4 },
-             { i: 'meetings', x: 0, y: 20, w: 6, h: 4 },
+             { i: 'stats', x: 0, y: 0, w: 6, h: 4 },
+             { i: 'tasksStatus', x: 0, y: 4, w: 6, h: 5 },
+             { i: 'teamActivity', x: 0, y: 9, w: 6, h: 5 },
+             { i: 'approvals', x: 0, y: 14, w: 6, h: 5 },
+             { i: 'unassigned', x: 0, y: 19, w: 6, h: 5 },
+             { i: 'meetings', x: 0, y: 24, w: 6, h: 5 },
         ]
     };
     const [layouts, setLayouts] = useState(defaultLayouts);
 
     const { data: savedLayouts } = useQuery({
-        queryKey: ['user_preference', 'dashboard_layout_manager'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_manager'),
+        queryKey: ['user_preference', 'dashboard_layout_manager_v4'],
+        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_manager_v4'),
         enabled: !!supabaseClient && !!currentUser,
     });
 
@@ -159,10 +161,10 @@ export const ManagerDashboard: React.FC = () => {
     }, [savedLayouts]);
     
     const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_manager', newLayouts),
+        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_manager_v4', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_manager'] });
+            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_manager_v4'] });
             setIsEditing(false);
         },
         onError: (error) => {

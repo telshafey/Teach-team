@@ -62,25 +62,27 @@ const PunchClockWidget: React.FC = () => {
 const MyTasksWidget: React.FC<{ tasks: Task[]; projects: Project[]; onTaskClick: (task: Task) => void; onNavigate: (view: any, props?: any) => void; isLoading: boolean; }> = ({ tasks, projects, onTaskClick, onNavigate, isLoading }) => (
      <Card 
         title="المهام المفتوحة" 
-        headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600">عرض الكل</button> }
+        headerActions={ <button onClick={() => onNavigate('myTasks')} className="text-sm font-semibold text-sky-600 dark:text-sky-400 hover:underline">عرض الكل</button> }
      >
-        {isLoading ? (
-            <div className="space-y-3"><TaskCardSkeleton /><TaskCardSkeleton /><TaskCardSkeleton /></div>
-        ) : tasks.length > 0 ? (
-            <div className="space-y-3">
-                {tasks.slice(0, 10).map(task => (
-                    <div key={task.id} onClick={() => onTaskClick(task)} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{task.title}</p>
-                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            <span>{task.projectId ? projects.find(p=>p.id === task.projectId)?.name : 'مهمة خاصة'}</span>
-                            <span>{task.dueDate ? `تستحق في: ${format(parseISO(task.dueDate), 'd MMM', {locale: arSA})}` : 'بدون تاريخ'}</span>
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {isLoading ? (
+                <div className="space-y-3 pr-1 overflow-y-auto"><TaskCardSkeleton /><TaskCardSkeleton /><TaskCardSkeleton /></div>
+            ) : tasks.length > 0 ? (
+                <div className="space-y-3 pr-1 pb-2 overflow-y-auto">
+                    {tasks.slice(0, 50).map(task => (
+                        <div key={task.id} onClick={() => onTaskClick(task)} className="p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/20 hover:border-sky-100 dark:hover:border-sky-800 transition-all">
+                            <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-1">{task.title}</p>
+                            <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                                <span className="flex items-center gap-1"><FolderIcon className="w-3 h-3"/> {task.projectId ? projects.find(p=>p.id === task.projectId)?.name : 'مهمة خاصة'}</span>
+                                <span className="flex items-center gap-1"><ClockIcon className="w-3 h-3"/> {task.dueDate ? format(parseISO(task.dueDate), 'd MMM', {locale: arSA}) : 'بدون تاريخ'}</span>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
-        ) : (
-            <EmptyState icon={<FolderIcon className="w-8 h-8"/>} title="لا توجد مهام" message="لا توجد لديك مهام مفتوحة حاليًا." />
-        )}
+                    ))}
+                </div>
+            ) : (
+                <EmptyState icon={<FolderIcon className="w-8 h-8"/>} title="لا توجد مهام" message="لا توجد لديك مهام مفتوحة حاليًا." />
+            )}
+        </div>
     </Card>
 );
 
@@ -89,7 +91,11 @@ const MeetingsWidget: React.FC<{ meetings: Meeting[]; onJoin: (m: Meeting) => vo
 );
 
 const CalendarWidget: React.FC<{ events: any[]; onDateClick: (date: Date) => void; highlightedDate: Date | null }> = ({ events, onDateClick, highlightedDate }) => (
-    <Card title="تقويمي"><Calendar events={events} onDateClick={onDateClick} highlightedDate={highlightedDate} /></Card>
+    <Card title="تقويمي">
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <Calendar events={events} onDateClick={onDateClick} highlightedDate={highlightedDate} />
+        </div>
+    </Card>
 );
 
 const WeeklyActivityWidget: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
@@ -113,7 +119,9 @@ const WeeklyActivityWidget: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
 
     return (
         <Card title="نشاط الأسبوع">
-            <AnalyticsChart data={data} color="#0ea5e9" height={220} />
+            <div className="h-full w-full relative min-h-[200px]">
+                <AnalyticsChart data={data} color="#0ea5e9" />
+            </div>
         </Card>
     );
 };
@@ -138,36 +146,36 @@ export const PersonalDashboard: React.FC = () => {
 
     const defaultLayouts = useMemo(() => ({
         lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 4, h: 3 }] : []),
-            { i: 'weeklyActivity', x: isEmployee ? 4 : 0, y: 1, w: isEmployee ? 8 : 12, h: 4 },
-            { i: 'myTasks', x: 0, y: 5, w: 8, h: 5 },
-            { i: 'meetings', x: 8, y: 5, w: 4, h: 4 },
-            { i: 'calendar', x: 0, y: 10, w: 12, h: 6 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 2, w: 3, h: 4 }] : []),
+            { i: 'weeklyActivity', x: isEmployee ? 3 : 0, y: 2, w: isEmployee ? 9 : 12, h: 4 },
+            { i: 'myTasks', x: 0, y: 6, w: 8, h: 6 },
+            { i: 'meetings', x: 8, y: 6, w: 4, h: 6 },
+            { i: 'calendar', x: 0, y: 12, w: 12, h: 6 },
         ].filter(Boolean),
         md: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 1 },
-            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 1, w: 6, h: 3 }] : []),
-            { i: 'weeklyActivity', x: isEmployee ? 6 : 0, y: 1, w: isEmployee ? 6 : 12, h: 4 },
-            { i: 'myTasks', x: 0, y: 5, w: 12, h: 5 },
-            { i: 'meetings', x: 0, y: 10, w: 6, h: 4 },
-            { i: 'calendar', x: 6, y: 10, w: 6, h: 6 },
+            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 2, w: 6, h: 3 }] : []),
+            { i: 'weeklyActivity', x: isEmployee ? 6 : 0, y: 2, w: isEmployee ? 6 : 12, h: 5 },
+            { i: 'myTasks', x: 0, y: 7, w: 12, h: 6 },
+            { i: 'meetings', x: 0, y: 13, w: 6, h: 5 },
+            { i: 'calendar', x: 6, y: 13, w: 6, h: 7 },
         ].filter(Boolean),
         sm: [
-            { i: 'stats', x: 0, y: 0, w: 6, h: 2 },
-            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 2, w: 6, h: 3 }] : []),
-            { i: 'weeklyActivity', x: 0, y: 5, w: 6, h: 4 },
-            { i: 'myTasks', x: 0, y: 9, w: 6, h: 5 },
-            { i: 'meetings', x: 0, y: 14, w: 6, h: 4 },
-            { i: 'calendar', x: 0, y: 18, w: 6, h: 6 },
+            { i: 'stats', x: 0, y: 0, w: 6, h: 4 },
+            ...(isEmployee ? [{ i: 'punchClock', x: 0, y: 4, w: 6, h: 4 }] : []),
+            { i: 'weeklyActivity', x: 0, y: 8, w: 6, h: 5 },
+            { i: 'myTasks', x: 0, y: 13, w: 6, h: 6 },
+            { i: 'meetings', x: 0, y: 19, w: 6, h: 5 },
+            { i: 'calendar', x: 0, y: 24, w: 6, h: 7 },
         ].filter(Boolean),
     }), [isEmployee]);
 
     const [layouts, setLayouts] = useState(defaultLayouts);
 
     const { data: savedLayouts } = useQuery({
-        queryKey: ['user_preference', 'dashboard_layout_personal'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_personal'),
+        queryKey: ['user_preference', 'dashboard_layout_custom_personal_v4'],
+        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_custom_personal_v4'),
         enabled: !!supabaseClient && !!currentUser,
     });
 
@@ -185,10 +193,10 @@ export const PersonalDashboard: React.FC = () => {
     }, [savedLayouts, defaultLayouts]);
 
     const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_personal', newLayouts),
+        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_custom_personal_v4', newLayouts),
         onSuccess: () => {
             addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_personal'] });
+            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_custom_personal_v4'] });
             setIsEditingLayout(false);
         },
         onError: (error) => {
