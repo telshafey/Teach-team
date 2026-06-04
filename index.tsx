@@ -18,17 +18,15 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Monkey-patch navigator.locks for iframes (GoTrue JS bug)
-if (typeof navigator !== 'undefined' && 'locks' in navigator) {
-  try {
-    Object.defineProperty(navigator, 'locks', {
-        get: () => undefined
-    });
-    console.log('Disabled navigator.locks to prevent Supabase GoTrue from hanging in iframe.');
-  } catch (e) {
-      console.warn('Could not disable navigator.locks', e);
+// Clear any corrupted supabase caches globally
+try {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.includes('supabase') && key.includes('lock'))) {
+      localStorage.removeItem(key);
+    }
   }
-}
+} catch (e) {}
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

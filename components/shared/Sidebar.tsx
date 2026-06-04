@@ -2,7 +2,7 @@ import React from 'react';
 import { Logo } from '../ui/Logo';
 import { useAuth } from '@shared/contexts/AuthContext';
 import { useTeamContext } from '@shared/contexts/TeamContext';
-import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon, TicketIcon } from '../ui/Icons';
+import { HomeIcon, FolderIcon, UsersIcon, ClockIcon, ChartBarIcon, DocumentTextIcon, Cog8ToothIcon, CurrencyDollarIcon, VideoCameraIcon, ArrowRightOnRectangleIcon, ClipboardDocumentListIcon, TicketIcon, InformationCircleIcon } from '../ui/Icons';
 import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { useNavigation } from '@shared/contexts/NavigationContext';
 import { View } from '@shared/navigation.types';
@@ -57,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, isOpen, setIsOpen
         { id: 'finance', label: 'المالية', icon: <CurrencyDollarIcon className="w-6 h-6" />, permission: (hasPermission('view_finances') || hasPermission('submit_expenses')) && siteSettings?.isFinanceModuleEnabled },
         { id: 'meetings', label: 'الاجتماعات', icon: <VideoCameraIcon className="w-6 h-6" />, permission: siteSettings?.isMeetingsModuleEnabled },
         { id: 'support', label: 'الدعم الفني', icon: <TicketIcon className="w-6 h-6" />, permission: true },
+        { id: 'onboarding', label: 'الدليل التعريفي', icon: <InformationCircleIcon className="w-6 h-6" />, permission: true },
         { id: 'settings', label: 'الإعدادات', icon: <Cog8ToothIcon className="w-6 h-6" />, permission: hasPermission('manage_site_settings') || hasPermission('manage_roles') || hasPermission('manage_db_settings') },
     ];
     

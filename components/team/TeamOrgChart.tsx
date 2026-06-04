@@ -11,10 +11,13 @@ interface TreeNodeProps {
   canManage: boolean;
   roles: Role[];
   isLast: boolean;
+  visitedIds?: Set<number>;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onMemberClick, selectedMemberId, onMoveMember, canManage, roles, isLast }) => {
-  const reports = allMembers.filter(m => m.reportsTo === member.id);
+const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onMemberClick, selectedMemberId, onMoveMember, canManage, roles, isLast, visitedIds = new Set() }) => {
+  const currentVisited = useMemo(() => new Set([...visitedIds, member.id]), [visitedIds, member.id]);
+  const reports = allMembers.filter(m => m.reportsTo === member.id && !currentVisited.has(m.id));
+
   const isSelected = selectedMemberId === member.id;
   const role = roles.find(r => r.id === member.roleId);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -101,6 +104,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onMemberClick, 
               canManage={canManage}
               roles={roles}
               isLast={idx === reports.length - 1}
+              visitedIds={currentVisited}
             />
           ))}
         </div>
@@ -123,8 +127,18 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({ members, onMemberCli
   
   const topLevelMembers = useMemo(() => {
     const memberIdsInChart = new Set(members.map(m => m.id));
-    return members.filter(m => !m.reportsTo || !memberIdsInChart.has(m.reportsTo));
-  }, [members]);
+    const tops = members.filter(m => !m.reportsTo || !memberIdsInChart.has(m.reportsTo));
+    
+    // Fallback for circular dependencies or isolated groups
+    if (tops.length === 0 && members.length > 0) {
+       // Look for the GM first
+       const gmRoleIds = new Set(roles.filter(r => r.name.includes('(GM)')).map(r => r.id));
+       const gmMember = members.find(m => gmRoleIds.has(m.roleId));
+       return gmMember ? [gmMember] : [members[0]];
+    }
+    
+    return tops;
+  }, [members, roles]);
 
 
   if (members.length === 0) {
@@ -185,6 +199,7 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({ members, onMemberCli
                             canManage={canManage}
                             roles={roles}
                             isLast={reportIdx === reports.length - 1}
+                            visitedIds={new Set([member.id])}
                         />
                     ))}
                 </div>

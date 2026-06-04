@@ -16,4 +16,5 @@ export type View =
   | 'roles' // from settings
   | 'database' // from settings
   | 'profile'
-  | 'support';
+  | 'support'
+  | 'onboarding';

@@ -15,6 +15,7 @@ export const AuthPage: React.FC = () => {
       e.preventDefault();
       setIsLoggingIn(true);
       setLoginError('');
+      
       try {
         const { error } = await handleLogin(email, password);
         if (error) {

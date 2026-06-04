@@ -62,7 +62,11 @@ export const getById = async <T>(client: SupabaseClient, table: string, id: stri
 
 export const insert = async <T>(client: SupabaseClient, table: string, item: Partial<T>): Promise<T> => {
     const payload = camelToSnakeCase(item);
-    const { data, error } = await client.from(table).insert(payload).select().single();
+    
+    const insertPromise = client.from(table).insert(payload).select().single();
+    const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) => setTimeout(() => reject(new Error('Insert Request Timeout')), 15000));
+    
+    const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
     if (error) throw error;
     return keysToCamel(data) as T;
 };
@@ -70,7 +74,12 @@ export const insert = async <T>(client: SupabaseClient, table: string, item: Par
 
 export const update = async <T>(client: SupabaseClient, table: string, id: string | number, updates: Partial<T>): Promise<T> => {
     const payload = camelToSnakeCase(updates);
-    const { data, error } = await client.from(table).update(payload).eq('id', id).select().single();
+    
+    // Add timeout to prevent hanging forever
+    const updatePromise = client.from(table).update(payload).eq('id', id).select().single();
+    const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) => setTimeout(() => reject(new Error('Update Request Timeout')), 15000));
+    
+    const { data, error } = await Promise.race([updatePromise, timeoutPromise]);
     if (error) throw error;
     return keysToCamel(data) as T;
 };
@@ -83,6 +92,17 @@ export const updateTeamMemberWithPassword = async (
     updates: TeamMemberUpdateData
 ): Promise<TeamMember> => {
     const { password, ...memberData } = updates;
+
+    if (password) {
+        const { error: pwdError } = await client.rpc('update_member_password', {
+            p_member_id: member.id,
+            p_new_password: password
+        });
+        if (pwdError) {
+            console.error("Failed to update password:", pwdError);
+            throw new Error("لم نتمكن من تحديث كلمة المرور: " + pwdError.message);
+        }
+    }
 
     if (Object.keys(memberData).length > 0) {
         return await update<TeamMember>(client, 'team_members', member.id, memberData);

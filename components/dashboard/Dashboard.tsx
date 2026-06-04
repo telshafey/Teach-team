@@ -31,7 +31,7 @@ const ProfilePage = lazy(() => import('../profile/ProfilePage').then(module => (
 const AllTasksPage = lazy(() => import('../tasks/AllTasksPage').then(module => ({ default: module.AllTasksPage })));
 const ApprovalsPage = lazy(() => import('../approvals/ApprovalsPage').then(module => ({ default: module.ApprovalsPage })));
 const SupportPage = lazy(() => import('../support/SupportPage').then(module => ({ default: module.SupportPage })));
-
+const OnboardingPage = lazy(() => import('../onboarding/OnboardingPage').then(module => ({ default: module.OnboardingPage })));
 
 const DashboardContentComponent = () => {
     const { currentUser } = useAuth();
@@ -59,6 +59,7 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
     database: SettingsPage,
     profile: ProfilePage,
     support: SupportPage,
+    onboarding: OnboardingPage,
 };
 
 interface DashboardProps {

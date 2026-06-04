@@ -135,7 +135,12 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const secondaryClient = createClient(
         import.meta.env.VITE_SUPABASE_URL,
         import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false } }
+        { 
+          auth: { 
+            persistSession: false,
+            lock: async (name, acquireTimeout, fn) => await fn(),
+          } 
+        }
       );
       
       const { error: signUpError } = await secondaryClient.auth.signUp({

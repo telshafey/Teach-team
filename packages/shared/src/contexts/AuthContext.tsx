@@ -177,16 +177,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (!supabaseClient) return { error: new Error('Database not connected') };
 
     try {
-      const loginPromise = supabaseClient.auth.signInWithPassword({
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
-
-      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) => {
-        setTimeout(() => reject(new Error('Login Request Timeout')), 10000);
-      });
-
-      const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
 
       if (error) throw error;
       
@@ -194,10 +188,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       return { error: null };
     } catch (err: any) {
-      if (err.message === 'Login Request Timeout') {
-          console.warn('Login timeout detected. Could be due to navigator.locks hanging in iframe. Reloading...');
-          window.location.reload();
-      }
       return { error: err };
     }
   };
@@ -205,10 +195,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const handleLogout = async () => {
     if (!supabaseClient) return;
     try {
+      // Force clear local storage just in case GoTrue fails
+      window.localStorage.removeItem('supabase.auth.bokra.v2');
       await supabaseClient.auth.signOut();
-      setCurrentUser(null);
     } catch (error) {
       console.error("Logout error:", error);
+    } finally {
+      setCurrentUser(null);
+      window.location.reload();
     }
   };
 
