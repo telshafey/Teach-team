@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import * as api from '../services/apiService';
 import { useRealtime } from './RealtimeContext';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { createClient, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface TeamContextType {
   teamMembers: TeamMember[];
@@ -83,6 +83,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentUserRole) return false;
     if (currentUserRole.name.includes('(GM)')) return true;
+    if (currentUserRole.name.includes('(Manager)') && permission === 'manage_team') return true; // Allow Managers to manage the team as well
     return currentUserRole.permissions.includes(permission);
   }, [currentUserRole]);
 
@@ -111,11 +112,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return new Set(teamMembers.map(m => m.id));
     }
 
-    // Manager sees only direct reports (or if they manage projects, maybe they see project members, but let's stick to reporting line)
+    // Manager sees everyone for now based on user feedback
     if (role?.name.includes('(Manager)')) {
-      const reportIds = getReportIdsRecursive(currentUser.id, teamMembers);
-      reportIds.add(currentUser.id);
-      return reportIds;
+      return new Set(teamMembers.map(m => m.id));
     }
     return new Set([currentUser.id]);
   }, [currentUser, teamMembers, getReportIdsRecursive, roles]);
@@ -129,7 +128,26 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       const memberData = { ...restOfData, email };
+      // Insert into team_members first
       await api.insert<TeamMember>(supabaseClient, 'team_members', memberData as unknown as Omit<TeamMember, 'id' | 'weeklyPlan' | 'daysOff'>);
+      
+      // Secondary client to avoid mutating the current authenticated session
+      const secondaryClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+      
+      const { error: signUpError } = await secondaryClient.auth.signUp({
+        email,
+        password
+      });
+
+      if (signUpError) {
+        console.warn('Signup error inside handleAddMember, user may already exist or rate limited', signUpError);
+        // We don't throw here to avoid failing since the team_member record was created
+      }
+
       queryClient.invalidateQueries({ queryKey: ['team_members'] });
       addToast('Team member added successfully.', 'success');
     } catch (error: any) {

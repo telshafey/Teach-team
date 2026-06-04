@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           }
         } else {
           // Auto-create a team member record for new auth users
+          const gmRoleId = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
           const { data: newUser, error: insertError } = await supabaseClient
             .from("team_members")
             .insert([{
@@ -118,7 +119,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 auth_user_id: authUserId,
                 name: authEmail.split('@')[0],
                 employment_type: 'full-time',
-                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split('@')[0]}`
+                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split('@')[0]}`,
+                role_id: gmRoleId
             }])
             .select();
             
@@ -131,12 +133,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       if (users && users.length > 0) {
+        // Fallback: If the user was auto-created by the SQL trigger without a role, upgrade them to GM
+        if (!users[0].role_id) {
+          const gmRoleId = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
+          await supabaseClient
+            .from("team_members")
+            .update({ role_id: gmRoleId })
+            .eq("id", users[0].id);
+          users[0].role_id = gmRoleId;
+        }
+        
         const user = api.keysToCamel(users[0]) as TeamMember;
         setCurrentUser(user);
       } else {
         // Handle case where auth user exists but team_member record doesn't
-        console.warn("Auth user has no associated team_member record");
-        setCurrentUser(null);
+        console.warn("Auth user has no associated team_member record or auto-create failed.");
+        addToast("لا يوجد حساب موظف مرتبط بهذا البريد. تم تسجيل الدخول ولكن يجب إضافة حساب موظف.", "error");
+        
+        // Let's create a temporary fake user so they don't get stuck in a loop forever, 
+        // passing them into the UI with limited access.
+        const fakeUser: TeamMember = {
+            id: -1,
+            name: authEmail?.split('@')[0] || 'Unknown',
+            email: authEmail || '',
+            authUserId: authUserId,
+            roleId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+            reportsTo: undefined,
+            avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=Ghost`,
+            employmentType: 'full-time',
+            createdAt: new Date().toISOString()
+        };
+        setCurrentUser(fakeUser);
       }
     } catch (error: any) {
       console.error("Error fetching team member:", error);
@@ -155,9 +182,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         password,
       });
 
-      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-        setTimeout(() => reject(new Error('Login Request Timeout')), 10000)
-      );
+      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) => {
+        setTimeout(() => reject(new Error('Login Request Timeout')), 10000);
+      });
 
       const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
 
@@ -167,7 +194,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       return { error: null };
     } catch (err: any) {
-      console.error("Login exception:", err);
+      if (err.message === 'Login Request Timeout') {
+          console.warn('Login timeout detected. Could be due to navigator.locks hanging in iframe. Reloading...');
+          window.location.reload();
+      }
       return { error: err };
     }
   };

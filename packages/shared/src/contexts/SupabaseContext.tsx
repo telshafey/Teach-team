@@ -16,7 +16,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let globalSupabaseClient: SupabaseClient | null = null;
 
 if (supabaseUrl && supabaseAnonKey) {
-  globalSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  globalSupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storage: window.localStorage,
+      storageKey: 'supabase.auth.bokra.v2', // use custom key to avoid previous locks/bad data
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      // Disable the native navigator.locks which hangs infinitely in cross-origin iframes
+      lock: async (name, acquireTimeout, fn) => await fn(),
+    }
+  });
 }
 
 export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

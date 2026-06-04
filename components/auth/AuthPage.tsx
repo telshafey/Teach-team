@@ -21,7 +21,7 @@ export const AuthPage: React.FC = () => {
           setLoginError(error.message === 'Invalid login credentials' ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : error.message);
         }
       } catch (err: any) {
-        setLoginError('حدث خطأ غير متوقع.');
+        setLoginError(err.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
       } finally {
         setIsLoggingIn(false);
       }
