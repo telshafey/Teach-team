@@ -46,8 +46,12 @@ async function startServer() {
 
       res.json({ insights: response.text });
     } catch (error: any) {
-      console.error("AI Insights Error:", error);
-      res.status(500).json({ error: "Failed to generate insights: " + (error?.message || "Unknown error") });
+      console.error("AI Insights Error:", error?.message || error);
+      let errorMessage = "حدث خطأ غير معروف. يرجى المحاولة مرة أخرى.";
+      if (error?.message?.includes("429") || error?.message?.includes("credits are depleted")) {
+         errorMessage = "رصيد مفتاح الذكاء الاصطناعي الخاص بك قد نفد. يرجى الترقية أو استخدام مفتاح جديد.";
+      }
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -96,8 +100,14 @@ async function startServer() {
       const tasks = JSON.parse(text);
       res.json({ tasks });
     } catch (error: any) {
-      console.error("AI Tasks Error:", error);
-      res.status(500).json({ error: "Failed to generate tasks: " + (error?.message || "Unknown error") });
+      console.error("AI Tasks Error:", error?.message || error);
+      let errorMessage = "حدث خطأ غير معروف. يرجى المحاولة مرة أخرى.";
+      if (error?.message?.includes("429") || error?.message?.includes("credits are depleted") || error?.message?.includes("RESOURCE_EXHAUSTED")) {
+         errorMessage = "رصيد مفتاح الذكاء الاصطناعي الخاص بك قد نفد. يرجى الترقية و شحن حسابك، أو استخدام مفتاح جديد.";
+      } else if (error?.message) {
+         errorMessage = error.message;
+      }
+      res.status(500).json({ error: errorMessage });
     }
   });
 
