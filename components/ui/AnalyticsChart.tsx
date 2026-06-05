@@ -17,7 +17,7 @@ export const AnalyticsChart: React.FC<AnalyticsChartProps> = ({ data, color = "#
     return (
         <div className="w-full h-full relative" style={{ minHeight: "220px" }}>
             <div className="absolute inset-0">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />

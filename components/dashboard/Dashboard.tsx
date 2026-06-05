@@ -8,7 +8,6 @@ import { LogFormModal } from '../modals/LogFormModal';
 import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { BottomNavBar } from './BottomNavBar';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { AiAssistant } from '../ai/AiAssistant';
 import { View } from '@shared/navigation.types';
 import { useNavigation } from '@shared/contexts/NavigationContext';
 import { useTimeManagement } from '@shared/contexts/TimeManagementContext';
@@ -141,8 +140,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentView, viewProps }) 
                     <BottomNavBar currentView={currentView} onNavigate={onNavigate} />
                 </div>
             </div>
-            
-            <AiAssistant />
 
             {isLogModalOpen && currentUser && logModalData && (
                 <LogFormModal

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { Project, ProjectFormData, ProjectStatus, SuggestedTask } from '@shared/types';
 import { useSettingsContext } from '@shared/contexts/SettingsContext';
-import { generateTaskPlan } from '@shared/services/geminiService';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { SparklesIcon, TrashIcon } from '../ui/Icons';
 import { ConfirmationModal } from './ConfirmationModal';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useTeamContext } from '@shared/contexts/TeamContext';
@@ -29,7 +27,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     deadline: '',
   });
 
-  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [suggestedTasks, setSuggestedTasks] = useState<SuggestedTask[]>([]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -58,39 +55,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  const handleGenerateTasks = async () => {
-    if (!formData.description) return;
-    setIsGeneratingTasks(true);
-    try {
-        const tasks = await generateTaskPlan(formData.description);
-        setSuggestedTasks(tasks);
-        if (tasks.length === 0) {
-            addToast("لم يتمكن الذكاء الاصطناعي من اقتراح مهام. حاول وصف المشروع بتفصيل أكبر.", "info");
-        }
-    } catch (error) {
-        console.error("Error generating tasks:", error);
-        addToast("حدث خطأ أثناء اقتراح المهام. يرجى المحاولة مرة أخرى.", "error");
-    } finally {
-        setIsGeneratingTasks(false);
-    }
-  };
-  
-  const handleRemoveTask = (indexToRemove: number) => {
-    setSuggestedTasks(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-  
-  const handleAddTaskManually = () => {
-    setSuggestedTasks(prev => [...prev, { title: '', suggestedRole: 'any' }]);
-  };
-
-  const handleTaskTitleChange = (index: number, newTitle: string) => {
-    setSuggestedTasks(prev => {
-        const newTasks = [...prev];
-        newTasks[index].title = newTitle;
-        return newTasks;
-    });
-  };
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setIsConfirmOpen(true);
@@ -106,9 +70,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
             budgetAmount: formData.budgetAmount ? Number(formData.budgetAmount) : undefined,
             deadline: formData.deadline || undefined,
         };
-        // Filter out empty tasks before saving
-        const finalSuggestedTasks = suggestedTasks.filter(t => t.title.trim() !== '');
-        await onSave(dataToSend, project, finalSuggestedTasks);
+        await onSave(dataToSend, project);
         onClose(); // Close main modal only on success
     } catch (error) {
         console.error("Failed to save project", error);
@@ -135,39 +97,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                 <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">الوصف</label>
                 <textarea id="description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm" required></textarea>
               </div>
-
-              {!project && hasPermission('use_ai_features') && (
-                <div className="space-y-3">
-                  <button 
-                    type="button" 
-                    onClick={handleGenerateTasks} 
-                    disabled={isGeneratingTasks || !formData.description}
-                    className="w-full flex justify-center items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-slate-400"
-                  >
-                    {isGeneratingTasks ? <LoadingSpinner /> : <SparklesIcon className="w-5 h-5"/>}
-                    <span>اقترح المهام الرئيسية للمشروع (AI)</span>
-                  </button>
-                  {suggestedTasks.length > 0 && (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-md">
-                      <h4 className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200">خطة المهام المقترحة (سيتم إضافتها تلقائيًا):</h4>
-                      <div className="space-y-2">
-                        {suggestedTasks.map((task, index) => (
-                           <div key={index} className="flex items-center space-x-2 rtl:space-x-reverse">
-                             <input 
-                                type="text" 
-                                value={task.title}
-                                onChange={(e) => handleTaskTitleChange(index, e.target.value)}
-                                className="w-full p-1.5 border border-slate-300 dark:border-slate-500 rounded-md text-sm bg-white dark:bg-slate-600"
-                              />
-                             <button type="button" onClick={() => handleRemoveTask(index)} className="p-1 text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4" /></button>
-                           </div>
-                        ))}
-                      </div>
-                       <button type="button" onClick={handleAddTaskManually} className="mt-2 text-sm font-semibold text-sky-600 hover:text-sky-800">+ إضافة مهمة أخرى</button>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
