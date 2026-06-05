@@ -54,10 +54,33 @@ export const AllTasksPage: React.FC = () => {
     const membersMap = useMemo(() => teamMembers.reduce((acc, m) => ({ ...acc, [m.id]: m.name }), {} as Record<number, string>), [teamMembers]);
     const projectsMap = useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {} as Record<string, string>), [projects]);
 
+    const { roles } = useTeamContext();
+    const currentUserRole = roles?.find(r => r.id === currentUser?.roleId);
+    const isGM = currentUser?.roleId === 'gm' || currentUser?.roleId === 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d' || currentUserRole?.name.includes('(GM)');
+
     const filteredAndSortedTasks = useMemo(() => {
         if (!currentUser) return [];
 
         let filtered = tasks.filter(task => {
+            // Visibility Check
+            if (!isGM) {
+                if (task.projectId) {
+                    const project = projects.find(p => p.id === task.projectId);
+                    if (project) {
+                        const isMember = project.members?.some(m => m.teamMemberId === currentUser.id);
+                        if (!isMember) return false;
+                    } else {
+                        // If project is not found for some reason, we could hide it or show it. Let's hide it to be safe.
+                        return false;
+                    }
+                } else {
+                    // Task without project: only visible if assigned to me or created by me
+                    if (task.assignedTo !== currentUser.id && task.creatorId !== currentUser.id) {
+                        return false;
+                    }
+                }
+            }
+
             const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
             
             let matchesAssignee = false;

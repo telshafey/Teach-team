@@ -12,6 +12,7 @@ import { useTeamContext } from '@shared/contexts/TeamContext';
 import { useQuery } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
+import { useAuth } from '@shared/contexts/AuthContext';
 
 interface ProjectsPageProps {
     isModalOpen?: boolean;
@@ -43,13 +44,26 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ isModalOpen: openMod
         }
     }, [openModal]);
 
+    const { currentUser } = useAuth();
+    
+    // Determine if the user is a General Manager
+    const { roles } = useTeamContext();
+    const currentUserRole = roles?.find(r => r.id === currentUser?.roleId);
+    const isGM = currentUser?.roleId === 'gm' || currentUser?.roleId === 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d' || currentUserRole?.name.includes('(GM)');
+
     const filteredProjects = useMemo(() => {
         return projects.filter(p => {
+            // Check visibility
+            const isMember = p.members?.some(m => m.teamMemberId === currentUser?.id);
+            if (!isGM && !isMember) {
+                return false;
+            }
+
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
-    }, [projects, searchTerm, statusFilter]);
+    }, [projects, searchTerm, statusFilter, currentUser, isGM]);
 
     const statusFilters: { label: string; value: ProjectStatus | 'all' }[] = [
         { label: 'الكل', value: 'all' },

@@ -136,20 +136,36 @@ export const PersonalDashboard: React.FC = () => {
     
     const isEmployee = currentUser?.employmentType === 'full-time' || currentUser?.employmentType === 'part-time';
 
-    const { hasPermission } = useTeamContext();
+    const { hasPermission, roles } = useTeamContext();
+    const currentUserRole = roles?.find(r => r.id === currentUser?.roleId);
+    const isGM = currentUser?.roleId === 'gm' || currentUser?.roleId === 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d' || currentUserRole?.name.includes('(GM)');
 
     const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => api.getAll<Meeting>(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
-    const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects_list'], queryFn: () => api.getAll(supabaseClient!, 'projects', 'id, name'), enabled: !!supabaseClient });
+    const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => api.getAll(supabaseClient!, 'projects'), enabled: !!supabaseClient });
     const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({ queryKey: ['tasks'], queryFn: () => api.getAll(supabaseClient!, 'tasks'), enabled: !!supabaseClient });
 
     const myLogs = useMemo(() => dailyLogs.filter(log => log.teamMemberId === currentUser?.id), [dailyLogs, currentUser]);
     
-    const canViewAllTasks = hasPermission('manage_team') || hasPermission('view_reports') || hasPermission('manage_projects');
     const myTasks = useMemo(() => {
         if (!currentUser) return [];
-        if (canViewAllTasks) return tasks;
-        return tasks.filter(task => task.assignedTo === currentUser.id || task.creatorId === currentUser.id);
-    }, [tasks, currentUser, canViewAllTasks]);
+        return tasks.filter(task => {
+            if (isGM) return true;
+            
+            if (task.projectId) {
+                const project = projects.find(p => p.id === task.projectId);
+                if (project) {
+                    const isMember = project.members?.some(m => m.teamMemberId === currentUser.id);
+                    if (!isMember) return false;
+                } else {
+                    return false;
+                }
+            } else {
+                if (task.assignedTo !== currentUser.id && task.creatorId !== currentUser.id) return false;
+            }
+            
+            return task.assignedTo === currentUser.id || task.creatorId === currentUser.id;
+        });
+    }, [tasks, projects, currentUser, isGM]);
 
     const myOpenTasks = useMemo(() => myTasks.filter(task => task.status !== 'done'), [myTasks]);
     
