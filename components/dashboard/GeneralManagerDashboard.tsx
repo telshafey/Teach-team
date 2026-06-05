@@ -12,15 +12,10 @@ import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
 import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { StatusBadge } from '../ui/StatusBadge';
 import { StatCard } from './StatCard';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
-import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAuth } from '@shared/contexts/AuthContext';
-import { useToast } from '@shared/contexts/ToastContext';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Widget Components
 const StatCardsWidget: React.FC<{ data: { activeProjects: number; weeklyHours: number; pendingItems: number; totalBudget: number; }; currency: string; onNavigate: (view: any, props?: any) => void; }> = ({ data, currency, onNavigate }) => (
@@ -102,64 +97,6 @@ export const GeneralManagerDashboard: React.FC = () => {
     const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ['meetings'], queryFn: () => api.getAll(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
     const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => api.getAll(supabaseClient!, 'projects'), enabled: !!supabaseClient });
 
-    const defaultLayouts = {
-        lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
-            { i: 'productivity', x: 0, y: 2, w: 8, h: 5 },
-            { i: 'team', x: 8, y: 2, w: 4, h: 6 },
-            { i: 'projects', x: 0, y: 7, w: 8, h: 6 },
-            { i: 'meetings', x: 8, y: 8, w: 4, h: 5 },
-        ],
-        md: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
-            { i: 'productivity', x: 0, y: 2, w: 12, h: 5 },
-            { i: 'team', x: 0, y: 7, w: 6, h: 6 },
-            { i: 'projects', x: 0, y: 13, w: 12, h: 5 },
-            { i: 'meetings', x: 6, y: 7, w: 6, h: 6 },
-        ],
-        sm: [
-            { i: 'stats', x: 0, y: 0, w: 6, h: 4 },
-            { i: 'productivity', x: 0, y: 4, w: 6, h: 5 },
-            { i: 'team', x: 0, y: 9, w: 6, h: 6 },
-            { i: 'projects', x: 0, y: 15, w: 6, h: 5 },
-            { i: 'meetings', x: 0, y: 20, w: 6, h: 5 },
-        ]
-    };
-
-    const [layouts, setLayouts] = useState(defaultLayouts);
-
-    const { data: savedLayouts } = useQuery({
-        queryKey: ['user_preference', 'dashboard_layout_gm_v4'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_gm_v4'),
-        enabled: !!supabaseClient && !!currentUser,
-    });
-
-    useEffect(() => {
-        if (savedLayouts) {
-            // Merge saved layout with default to ensure new widgets are included
-            const newLayouts: any = {};
-            for (const breakpoint of ['lg', 'md', 'sm']) {
-                const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
-                const savedItems = savedLayouts[breakpoint as keyof typeof savedLayouts] || [];
-                const savedItemsMap = new Map(savedItems.map(item => [item.i, item]));
-                newLayouts[breakpoint] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
-            }
-            setLayouts(newLayouts);
-        }
-    }, [savedLayouts]);
-
-    const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_gm_v4', newLayouts),
-        onSuccess: () => {
-            addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_gm_v4'] });
-            setIsEditing(false);
-        },
-        onError: (error) => {
-            addToast(`فشل حفظ التخطيط: ${error.message}`, 'error');
-        }
-    });
-
     const dashboardData = useMemo(() => {
         const logsThisWeek = dailyLogs.filter(l => isThisWeek(parseISO(l.date), { weekStartsOn: 0 }));
         const endDate = new Date();
@@ -188,22 +125,6 @@ export const GeneralManagerDashboard: React.FC = () => {
 
     const handleJoinMeeting = (meeting: Meeting) => onNavigate('meetingRoom', { meeting });
     
-    const widgetMap: { [key: string]: React.ReactNode } = {
-        'stats': <StatCardsWidget data={dashboardData.stats} currency={currency} onNavigate={onNavigate} />,
-        'productivity': <CompanyProductivityWidget data={dashboardData.dailyProductivity} />,
-        'projects': <ProjectOverviewWidget projects={projects} dailyLogs={dailyLogs} currency={currency} />,
-        'team': <TeamProductivityWidget data={dashboardData.teamProductivity} />,
-        'meetings': <UpcomingMeetingsWidget meetings={meetings} onJoin={handleJoinMeeting} />,
-    };
-
-    const handleToggleEdit = () => {
-        if (isEditing) {
-            saveLayoutMutation.mutate(layouts);
-        } else {
-            setIsEditing(true);
-        }
-    };
-
     return (
         <div className="p-6" dir="rtl">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -212,32 +133,33 @@ export const GeneralManagerDashboard: React.FC = () => {
                     <p className="text-md text-slate-500 dark:text-slate-400">نظرة عامة على أداء المنظومة.</p>
                 </div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
-                    <button onClick={handleToggleEdit} disabled={saveLayoutMutation.isPending} className={`w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'}`}>
-                        {saveLayoutMutation.isPending ? <LoadingSpinner /> : isEditing ? <CheckIcon className="w-5 h-5"/> : <WrenchScrewdriverIcon className="w-5 h-5" />}
-                        <span>{saveLayoutMutation.isPending ? 'جارٍ الحفظ...' : isEditing ? 'حفظ التخطيط' : 'تخصيص اللوحة'}</span>
-                    </button>
                     <button onClick={() => onNavigate('projects', { isModalOpen: true })} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                         <PlusIcon className="w-5 h-5" /><span>مشروع جديد</span>
                     </button>
                 </div>
             </div>
 
-            <ResponsiveGridLayout
-                className={`layout ${isEditing ? 'rgl-editing' : ''}`}
-                layouts={layouts}
-                onLayoutChange={(layout, allLayouts) => setLayouts(allLayouts)}
-                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                cols={{ lg: 12, md: 12, sm: 6 }}
-                rowHeight={60}
-                isDraggable={isEditing}
-                isResizable={isEditing}
-            >
-                {layouts.lg.map(item => (
-                    <div key={item.i}>
-                        {widgetMap[item.i] || <Card title="Widget not found" />}
-                    </div>
-                ))}
-            </ResponsiveGridLayout>
+            <div className="mb-6">
+                <StatCardsWidget data={dashboardData.stats} currency={currency} onNavigate={onNavigate} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div className="lg:col-span-2 h-[400px]">
+                    <CompanyProductivityWidget data={dashboardData.dailyProductivity} />
+                </div>
+                <div className="lg:col-span-1 h-[400px]">
+                    <TeamProductivityWidget data={dashboardData.teamProductivity} />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 h-[400px]">
+                    <ProjectOverviewWidget projects={projects} dailyLogs={dailyLogs} currency={currency} />
+                </div>
+                <div className="lg:col-span-1 h-[400px]">
+                    <UpcomingMeetingsWidget meetings={meetings} onJoin={handleJoinMeeting} />
+                </div>
+            </div>
         </div>
     );
 };

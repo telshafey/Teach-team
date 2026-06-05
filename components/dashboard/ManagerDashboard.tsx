@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useTeamContext } from '@shared/contexts/TeamContext';
 import { useTimeLogContext } from '@shared/contexts/TimeLogContext';
 import { useAuth } from '@shared/contexts/AuthContext';
@@ -8,22 +8,17 @@ import { EmptyState } from '../ui/EmptyState';
 import { UpcomingMeetingsCard } from './UpcomingMeetingsCard';
 import { useNavigation } from '@shared/contexts/NavigationContext';
 import { UnassignedTasksCard } from './UnassignedTasksCard';
-import { UsersIcon, ClockIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, BellIcon, WrenchScrewdriverIcon, CheckIcon } from '../ui/Icons';
+import { UsersIcon, ClockIcon, ExclamationTriangleIcon, ClipboardDocumentListIcon, BellIcon } from '../ui/Icons';
 import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
 import { isToday, parseISO, isPast, isSameDay } from 'date-fns';
 import { ApprovalItemCard } from '../approvals/ApprovalItemCard';
 import { StatCard } from './StatCard';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
-import { Responsive, WidthProvider } from 'react-grid-layout';
-import { useToast } from '@shared/contexts/ToastContext';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { TaskDetailInline } from '../tasks/TaskDetailInline';
 import { useProjectContext } from '@shared/contexts/ProjectContext';
 import { AnalyticsChart } from '../ui/AnalyticsChart';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Widget Components
 const StatCardsWidget: React.FC<{ data: { pending: number; hours: number; overdue: number; unassigned: number; }; onNavigate: (view: any, props?: any) => void; }> = ({ data, onNavigate }) => (
@@ -97,80 +92,18 @@ const TasksStatusWidget: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 export const ManagerDashboard: React.FC = () => {
     const { onNavigate } = useNavigation();
     const { currentUser } = useAuth();
-    const { addToast } = useToast();
-    const queryClient = useQueryClient();
     const { teamMembers, visibleMemberIds } = useTeamContext();
     const { dailyLogs } = useTimeLogContext();
     const { handleUpdateTask } = useProjectContext();
     const { pendingItems } = usePendingApprovals();
     const { supabaseClient } = useSupabase();
 
-    const [isEditing, setIsEditing] = useState(false);
     const [taskToAssign, setTaskToAssign] = useState<Task | null>(null);
 
 
     const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ['meetings'], queryFn: () => api.getAll(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
     const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => api.getAll(supabaseClient!, 'projects'), enabled: !!supabaseClient });
     const { data: tasks = [] } = useQuery<Task[]>({ queryKey: ['tasks'], queryFn: () => api.getAll(supabaseClient!, 'tasks'), enabled: !!supabaseClient });
-
-    const defaultLayouts = {
-        lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
-            { i: 'tasksStatus', x: 0, y: 2, w: 12, h: 5 },
-            { i: 'teamActivity', x: 0, y: 7, w: 8, h: 6 },
-            { i: 'approvals', x: 8, y: 7, w: 4, h: 5 },
-            { i: 'unassigned', x: 0, y: 13, w: 8, h: 5 },
-            { i: 'meetings', x: 8, y: 13, w: 4, h: 6 },
-        ],
-        md: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 2 },
-            { i: 'tasksStatus', x: 0, y: 2, w: 12, h: 5 },
-            { i: 'teamActivity', x: 0, y: 7, w: 12, h: 5 },
-            { i: 'approvals', x: 0, y: 12, w: 6, h: 5 },
-            { i: 'unassigned', x: 0, y: 17, w: 12, h: 5 },
-            { i: 'meetings', x: 6, y: 12, w: 6, h: 5 },
-        ],
-        sm: [
-             { i: 'stats', x: 0, y: 0, w: 6, h: 4 },
-             { i: 'tasksStatus', x: 0, y: 4, w: 6, h: 5 },
-             { i: 'teamActivity', x: 0, y: 9, w: 6, h: 5 },
-             { i: 'approvals', x: 0, y: 14, w: 6, h: 5 },
-             { i: 'unassigned', x: 0, y: 19, w: 6, h: 5 },
-             { i: 'meetings', x: 0, y: 24, w: 6, h: 5 },
-        ]
-    };
-    const [layouts, setLayouts] = useState(defaultLayouts);
-
-    const { data: savedLayouts } = useQuery({
-        queryKey: ['user_preference', 'dashboard_layout_manager_v4'],
-        queryFn: () => api.getUserPreference<typeof defaultLayouts>(supabaseClient!, currentUser!.id, 'dashboard_layout_manager_v4'),
-        enabled: !!supabaseClient && !!currentUser,
-    });
-
-    useEffect(() => {
-        if (savedLayouts) {
-            const newLayouts: any = {};
-            for (const breakpoint of ['lg', 'md', 'sm']) {
-                const defaultItems = defaultLayouts[breakpoint as keyof typeof defaultLayouts];
-                const savedItems = savedLayouts[breakpoint as keyof typeof savedLayouts] || [];
-                const savedItemsMap = new Map(savedItems.map(item => [item.i, item]));
-                newLayouts[breakpoint] = defaultItems.map(defaultItem => savedItemsMap.get(defaultItem.i) || defaultItem);
-            }
-            setLayouts(newLayouts);
-        }
-    }, [savedLayouts]);
-    
-    const saveLayoutMutation = useMutation({
-        mutationFn: (newLayouts: typeof defaultLayouts) => api.setUserPreference(supabaseClient!, currentUser!.id, 'dashboard_layout_manager_v4', newLayouts),
-        onSuccess: () => {
-            addToast('تم حفظ تخطيط اللوحة بنجاح.', 'success');
-            queryClient.invalidateQueries({ queryKey: ['user_preference', 'dashboard_layout_manager_v4'] });
-            setIsEditing(false);
-        },
-        onError: (error) => {
-            addToast(`فشل حفظ التخطيط: ${error.message}`, 'error');
-        }
-    });
 
     const dashboardData = useMemo(() => {
         const myTeam = teamMembers.filter(m => m.id !== currentUser?.id && visibleMemberIds.has(m.id));
@@ -203,23 +136,6 @@ export const ManagerDashboard: React.FC = () => {
         setTaskToAssign(null);
     }, [taskToAssign, handleUpdateTask]);
 
-    const widgetMap: { [key: string]: React.ReactNode } = {
-        'stats': <StatCardsWidget data={dashboardData.stats} onNavigate={onNavigate} />,
-        'tasksStatus': <TasksStatusWidget tasks={dashboardData.teamTasks} />,
-        'teamActivity': <TeamActivityWidget team={dashboardData.myTeam} tasks={tasks} />,
-        'unassigned': <UnassignedTasksCard tasks={dashboardData.unassignedTasks} onAssign={setTaskToAssign} />,
-        'approvals': <PendingApprovalsWidget items={pendingItems} onNavigate={onNavigate} />,
-        'meetings': <UpcomingMeetingsWidget meetings={meetings} onJoin={handleJoinMeeting} />,
-    };
-
-    const handleToggleEdit = () => {
-        if (isEditing) {
-            saveLayoutMutation.mutate(layouts as any);
-        } else {
-            setIsEditing(true);
-        }
-    };
-
     if (taskToAssign) {
         return (
             <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
@@ -241,32 +157,36 @@ export const ManagerDashboard: React.FC = () => {
                     <p className="text-md text-slate-500 dark:text-slate-400">مرحباً {currentUser?.name}، إليك نظرة على فريقك.</p>
                 </div>
                  <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
-                    <button onClick={handleToggleEdit} disabled={saveLayoutMutation.isPending} className={`w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${isEditing ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'}`}>
-                        {saveLayoutMutation.isPending ? <LoadingSpinner /> : isEditing ? <CheckIcon className="w-5 h-5"/> : <WrenchScrewdriverIcon className="w-5 h-5" />}
-                        <span>{saveLayoutMutation.isPending ? 'جارٍ الحفظ...' : isEditing ? 'حفظ التخطيط' : 'تخصيص اللوحة'}</span>
-                    </button>
                     <button onClick={() => onNavigate('approvals')} className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700">
                         <ClipboardDocumentListIcon className="w-5 h-5" /><span>عرض الموافقات</span>
                     </button>
                 </div>
             </div>
 
-            <ResponsiveGridLayout
-                className={`layout ${isEditing ? 'rgl-editing' : ''}`}
-                layouts={layouts}
-                onLayoutChange={(layout, allLayouts) => setLayouts(allLayouts as any)}
-                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                cols={{ lg: 12, md: 12, sm: 6 }}
-                rowHeight={60}
-                isDraggable={isEditing}
-                isResizable={isEditing}
-            >
-                {layouts.lg.map(item => (
-                    <div key={item.i}>
-                        {widgetMap[item.i] || <Card title="Widget not found" />}
-                    </div>
-                ))}
-            </ResponsiveGridLayout>
+            <div className="mb-6">
+                <StatCardsWidget data={dashboardData.stats} onNavigate={onNavigate} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="h-[400px]">
+                    <TasksStatusWidget tasks={dashboardData.teamTasks} />
+                </div>
+                <div className="h-[400px]">
+                    <TeamActivityWidget team={dashboardData.myTeam} tasks={tasks} />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="h-[400px]">
+                    <PendingApprovalsWidget items={pendingItems} onNavigate={onNavigate} />
+                </div>
+                <div className="h-[400px]">
+                    <UnassignedTasksCard tasks={dashboardData.unassignedTasks} onAssign={setTaskToAssign} />
+                </div>
+                <div className="h-[400px]">
+                    <UpcomingMeetingsWidget meetings={meetings} onJoin={handleJoinMeeting} />
+                </div>
+            </div>
         </div>
     );
 };

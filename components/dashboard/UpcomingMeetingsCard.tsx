@@ -10,9 +10,10 @@ interface UpcomingMeetingsCardProps {
     title: string;
     meetings: Meeting[];
     onJoinMeeting: (meeting: Meeting) => void;
+    className?: string;
 }
 
-export const UpcomingMeetingsCard: React.FC<UpcomingMeetingsCardProps> = ({ title, meetings, onJoinMeeting }) => {
+export const UpcomingMeetingsCard: React.FC<UpcomingMeetingsCardProps> = ({ title, meetings, onJoinMeeting, className }) => {
     
     const upcomingMeetings = meetings
         .filter(m => m.endTime && new Date(m.endTime) > new Date())
@@ -20,7 +21,7 @@ export const UpcomingMeetingsCard: React.FC<UpcomingMeetingsCardProps> = ({ titl
         .slice(0, 5);
 
     return (
-        <Card title={title} icon={<VideoCameraIcon className="w-5 h-5" />}>
+        <Card title={title} icon={<VideoCameraIcon className="w-5 h-5" />} className={className}>
             <div className="flex-1 flex flex-col h-full">
                 {upcomingMeetings.length > 0 ? (
                     <div className="space-y-3 overflow-y-auto pr-1 pb-2">
