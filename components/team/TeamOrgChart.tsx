@@ -38,10 +38,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({ member, allMembers, onMemberClick, 
     const draggedMemberId = parseInt(e.dataTransfer.getData("memberId"), 10);
     if (draggedMemberId === member.id) return;
 
-    const isDescendant = (managerId: number, subordinateId: number): boolean => {
+    const isDescendant = (managerId: number, subordinateId: number, visited = new Set<number>()): boolean => {
+      if (visited.has(managerId)) return false;
+      visited.add(managerId);
       const directReports = allMembers.filter(m => m.reportsTo === managerId);
       if (directReports.some(r => r.id === subordinateId)) return true;
-      return directReports.some(r => isDescendant(r.id, subordinateId));
+      return directReports.some(r => isDescendant(r.id, subordinateId, visited));
     };
 
     if (isDescendant(draggedMemberId, member.id)) {
@@ -129,16 +131,29 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({ members, onMemberCli
     const memberIdsInChart = new Set(members.map(m => m.id));
     const tops = members.filter(m => !m.reportsTo || !memberIdsInChart.has(m.reportsTo));
     
-    // Fallback for circular dependencies or isolated groups
-    if (tops.length === 0 && members.length > 0) {
-       // Look for the GM first
-       const gmRoleIds = new Set(roles.filter(r => r.name.includes('(GM)')).map(r => r.id));
-       const gmMember = members.find(m => gmRoleIds.has(m.roleId));
-       return gmMember ? [gmMember] : [members[0]];
+    // Add missing root nodes to handle circular dependencies
+    const reachable = new Set<number>();
+    const dfs = (id: number) => {
+      if (reachable.has(id)) return;
+      reachable.add(id);
+      const children = members.filter(m => m.reportsTo === id);
+      children.forEach(c => dfs(c.id));
+    };
+    
+    tops.forEach(t => dfs(t.id));
+    
+    const unreached = members.filter(m => !reachable.has(m.id));
+    const newTops = [...tops];
+    
+    for (const u of unreached) {
+      if (!reachable.has(u.id)) {
+         newTops.push(u);
+         dfs(u.id);
+      }
     }
     
-    return tops;
-  }, [members, roles]);
+    return newTops.length > 0 ? newTops : (members.length > 0 ? [members[0]] : []);
+  }, [members]);
 
 
   if (members.length === 0) {

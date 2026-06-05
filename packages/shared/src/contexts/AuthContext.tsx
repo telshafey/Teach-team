@@ -149,21 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         // Handle case where auth user exists but team_member record doesn't
         console.warn("Auth user has no associated team_member record or auto-create failed.");
         addToast("لا يوجد حساب موظف مرتبط بهذا البريد. تم تسجيل الدخول ولكن يجب إضافة حساب موظف.", "error");
-        
-        // Let's create a temporary fake user so they don't get stuck in a loop forever, 
-        // passing them into the UI with limited access.
-        const fakeUser: TeamMember = {
-            id: -1,
-            name: authEmail?.split('@')[0] || 'Unknown',
-            email: authEmail || '',
-            authUserId: authUserId,
-            roleId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
-            reportsTo: undefined,
-            avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=Ghost`,
-            employmentType: 'full-time',
-            createdAt: new Date().toISOString()
-        };
-        setCurrentUser(fakeUser);
+        setCurrentUser(null);
       }
     } catch (error: any) {
       console.error("Error fetching team member:", error);

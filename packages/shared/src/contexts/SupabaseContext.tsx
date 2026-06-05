@@ -35,39 +35,7 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     if (!globalSupabaseClient) {
-      console.warn("Supabase credentials not found in environment variables. Falling back to mock client.");
-      // Return a completely fake offline client if no credentials
-      const fakeClient = {
-        from: () => {
-          const queryBuilder: any = {
-             select: () => queryBuilder,
-             insert: () => queryBuilder,
-             update: () => queryBuilder,
-             delete: () => queryBuilder,
-             upsert: () => queryBuilder,
-             eq: () => queryBuilder,
-             neq: () => queryBuilder,
-             in: () => queryBuilder,
-             order: () => queryBuilder,
-             limit: () => queryBuilder,
-             range: () => queryBuilder,
-             single: () => Promise.resolve({ data: null, error: null }),
-             maybeSingle: () => Promise.resolve({ data: null, error: null }),
-             then: (resolve: any) => resolve({ data: [], error: null }),
-          };
-          return queryBuilder;
-        },
-        channel: () => ({ on: () => ({ subscribe: () => {} }) }),
-        removeChannel: () => {},
-        auth: {
-          getSession: () => Promise.resolve({ data: { session: null } }),
-          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-          signOut: () => Promise.resolve(),
-        },
-        rpc: () => Promise.resolve({ data: null, error: null })
-      } as unknown as SupabaseClient;
-
-      setSupabaseClient(fakeClient);
+      console.warn("Supabase credentials not found in environment variables. VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be provided.");
     }
     
     setIsLoading(false);

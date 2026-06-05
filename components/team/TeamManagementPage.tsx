@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTeamContext } from '@shared/contexts/TeamContext';
 import { TeamMember, Role, TeamMemberFormData } from '@shared/types';
 import { Card } from '../ui/Card';
@@ -21,9 +21,15 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({ initialM
     return allTeamMembers.filter(m => visibleMemberIds.has(m.id));
   }, [allTeamMembers, visibleMemberIds]);
   
-  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialMemberId || (visibleTeamMembers.length > 0 ? visibleTeamMembers.find(m => !m.reportsTo)?.id ?? visibleTeamMembers[0].id : null));
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(initialMemberId || null);
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+
+  useEffect(() => {
+    if (selectedMemberId === null && visibleTeamMembers.length > 0) {
+      setSelectedMemberId(visibleTeamMembers.find(m => !m.reportsTo)?.id ?? visibleTeamMembers[0].id);
+    }
+  }, [selectedMemberId, visibleTeamMembers]);
 
   const canManageTeam = hasPermission('manage_team');
   const canEditMembers = hasPermission('edit_team_members');

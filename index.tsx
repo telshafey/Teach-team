@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
 // تنظيف Service Workers القديمة لحل مشكلة الكاش
 if ('serviceWorker' in navigator) {
