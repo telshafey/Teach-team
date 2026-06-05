@@ -8,7 +8,7 @@ import { useSupabase } from '@shared/contexts/SupabaseContext';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { ArrowUpTrayIcon } from '../ui/Icons';
 
-type Tab = 'general' | 'system' | 'modules' | 'meetings';
+type Tab = 'general' | 'system' | 'modules' | 'meetings' | 'ai';
 
 export const SiteSettingsPage: React.FC = () => {
     const { siteSettings, handleUpdateSiteSettings } = useSettingsContext();
@@ -117,6 +117,7 @@ export const SiteSettingsPage: React.FC = () => {
         { id: 'system', label: 'النظام' },
         { id: 'modules', label: 'إدارة الأقسام' },
         { id: 'meetings', label: 'الاجتماعات', show: settings.isMeetingsModuleEnabled },
+        { id: 'ai', label: 'الذكاء الاصطناعي' },
     ].filter(tab => tab.show !== false), [settings.isMeetingsModuleEnabled]);
 
     return (
@@ -199,6 +200,24 @@ export const SiteSettingsPage: React.FC = () => {
                                     <label className="flex items-center space-x-2 rtl:space-x-reverse"><input type="checkbox" name="startWithVideoMuted" checked={settings.meetingSettings?.startWithVideoMuted || false} onChange={handleMeetingSettingsChange} className="h-4 w-4 rounded text-sky-600 focus:ring-sky-500" /> <span>بدء الاجتماع مع إيقاف كاميرا المشاركين</span></label>
                                     <label className="flex items-center space-x-2 rtl:space-x-reverse"><input type="checkbox" name="hideChat" checked={settings.meetingSettings?.hideChat || false} onChange={handleMeetingSettingsChange} className="h-4 w-4 rounded text-sky-600 focus:ring-sky-500" /> <span>إخفاء نافذة الدردشة</span></label>
                                     <label className="flex items-center space-x-2 rtl:space-x-reverse"><input type="checkbox" name="hidePeople" checked={settings.meetingSettings?.hidePeople || false} onChange={handleMeetingSettingsChange} className="h-4 w-4 rounded text-sky-600 focus:ring-sky-500" /> <span>إخفاء قائمة المشاركين</span></label>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'ai' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <label htmlFor="geminiApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">مفتاح Gemini API مجاني (للميزات الذكية)</label>
+                                    <input 
+                                        type="password" 
+                                        id="geminiApiKey" 
+                                        name="geminiApiKey" 
+                                        value={settings.geminiApiKey || ''} 
+                                        onChange={handleInputChange} 
+                                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md" 
+                                        placeholder="AIzaSy..." 
+                                    />
+                                    <p className="text-xs text-slate-500 mt-2">قم بوضع مفتاح الذكاء الاصطناعي هنا إذا واجهت مشكلة في إضافته كمتغير بيئة. هذا يسمح باستخدام الذكاء الاصطناعي داخل التطبيق.</p>
                                 </div>
                             </div>
                         )}

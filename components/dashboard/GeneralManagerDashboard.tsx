@@ -12,10 +12,12 @@ import { usePendingApprovals } from '@shared/hooks/usePendingApprovals';
 import { useSettingsContext } from '@shared/contexts/SettingsContext';
 import { StatusBadge } from '../ui/StatusBadge';
 import { StatCard } from './StatCard';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
 import { useAuth } from '@shared/contexts/AuthContext';
+import { useToast } from '@shared/contexts/ToastContext';
+import { ManagerAIInsights } from './ManagerAIInsights';
 
 // Widget Components
 const StatCardsWidget: React.FC<{ data: { activeProjects: number; weeklyHours: number; pendingItems: number; totalBudget: number; }; currency: string; onNavigate: (view: any, props?: any) => void; }> = ({ data, currency, onNavigate }) => (
@@ -96,6 +98,7 @@ export const GeneralManagerDashboard: React.FC = () => {
 
     const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ['meetings'], queryFn: () => api.getAll(supabaseClient!, 'meetings'), enabled: !!supabaseClient });
     const { data: projects = [] } = useQuery<Project[]>({ queryKey: ['projects'], queryFn: () => api.getAll(supabaseClient!, 'projects'), enabled: !!supabaseClient });
+    const { data: tasks = [] } = useQuery<Task[]>({ queryKey: ['tasks'], queryFn: () => api.getAll(supabaseClient!, 'tasks'), enabled: !!supabaseClient });
 
     const dashboardData = useMemo(() => {
         const logsThisWeek = dailyLogs.filter(l => isThisWeek(parseISO(l.date), { weekStartsOn: 0 }));
@@ -141,6 +144,14 @@ export const GeneralManagerDashboard: React.FC = () => {
 
             <div className="mb-6">
                 <StatCardsWidget data={dashboardData.stats} currency={currency} onNavigate={onNavigate} />
+            </div>
+
+            <div className="mb-6 h-[350px]">
+                <ManagerAIInsights
+                    projects={projects}
+                    teamMembers={teamMembers}
+                    tasks={tasks || []}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

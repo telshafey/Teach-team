@@ -9,14 +9,16 @@ import { ConfirmationModal } from '../modals/ConfirmationModal';
 import { ProjectMembers } from './ProjectMembers';
 import { ProjectForm } from './ProjectForm';
 import { GanttChart } from './GanttChart';
-import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon } from '../ui/Icons';
+import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon, SparklesIcon } from '../ui/Icons';
 import { StatusBadge } from '../ui/StatusBadge';
 import { useNavigation } from '@shared/contexts/NavigationContext';
 import { useProjectPermissions } from '@shared/hooks/useProjectPermissions';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSupabase } from '@shared/contexts/SupabaseContext';
 import * as api from '@shared/services/apiService';
+import { AIProjectTaskGenerator } from './AIProjectTaskGenerator';
+import { useToast } from '@shared/contexts/ToastContext';
 
 interface ProjectDetailPageProps {
     projectId: string;
@@ -29,6 +31,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const { handleAddTask, handleUpdateTask, handleDeleteTask, handleUpdateProject, handleDeleteProject } = useProjectContext();
     const { hasPermission } = useTeamContext();
     const { supabaseClient } = useSupabase();
+    const queryClient = useQueryClient();
+    const { addToast } = useToast();
     
     // State hooks
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -36,6 +40,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isAIGeneratorOpen, setIsAIGeneratorOpen] = useState(false);
 
     // Data fetching with react-query
     const { data: project, isLoading: isProjectLoading } = useQuery({
@@ -111,6 +116,37 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
         );
     }
     
+    if (isAIGeneratorOpen && canManageTasks) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto h-full flex flex-col">
+                 <button onClick={() => setIsAIGeneratorOpen(false)} className="flex items-center space-x-2 rtl:space-x-reverse text-sm font-semibold text-slate-500 hover:text-slate-800 mb-4 w-fit">
+                    <ArrowLeftIcon className="w-4 h-4 transform rotate-180" /><span>العودة لبيانات المشروع</span>
+                </button>
+                <AIProjectTaskGenerator
+                    project={project}
+                    onCancel={() => setIsAIGeneratorOpen(false)}
+                    onGenerate={async (generatedTasks) => {
+                        for (const task of generatedTasks) {
+                            await handleAddTask({
+                                title: task.title,
+                                description: task.description,
+                                projectId: project.id,
+                                status: 'todo',
+                                priority: 'medium',
+                                progress: 0,
+                                start_date: new Date().toISOString(),
+                                due_date: new Date(Date.now() + 7*24*60*60*1000).toISOString(),
+                            });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
+                        addToast(`تم إضافة ${generatedTasks.length} مهام مقترحة بنجاح.`, 'success');
+                        setIsAIGeneratorOpen(false);
+                    }}
+                />
+            </div>
+        )
+    }
+
     if (selectedTask || isNewTaskModalOpen) {
         return (
             <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
@@ -141,6 +177,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ projectId,
                     <p className="text-md text-slate-600 dark:text-slate-400 mt-1">{project.description}</p>
                 </div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    {canManageTasks && <button onClick={() => setIsAIGeneratorOpen(true)} className="p-2 text-amber-500 hover:bg-amber-50 bg-amber-500/10 rounded-full" title="توليد مهام بالذكاء الاصطناعي"><SparklesIcon className="w-5 h-5"/></button>}
                     {canManageTasks && <button onClick={() => setIsNewTaskModalOpen(true)} className="p-2 text-white bg-sky-600 hover:bg-sky-700 rounded-full" title="مهمة جديدة"><PlusIcon className="w-5 h-5"/></button>}
                     {canEditProjectSettings && <button onClick={() => setIsProjectFormOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><PencilIcon className="w-5 h-5"/></button>}
                     {hasPermission('manage_projects') && <button onClick={() => setIsDeleteConfirmOpen(true)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="w-5 h-5"/></button>}

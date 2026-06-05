@@ -35,7 +35,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (!data) {
         // setTimeout(() => alert('No site settings found in DB! Falling back to defaults.'), 1000);
       }
-      return data ? api.keysToCamel(data) : initialData.siteSettings;
+      
+      const parsedData = data ? api.keysToCamel(data) as any : initialData.siteSettings as any;
+      
+      // Load geminiApiKey from meetingSettings to avoid schema column missing issues
+      if (parsedData.meetingSettings && parsedData.meetingSettings.geminiApiKey) {
+        parsedData.geminiApiKey = parsedData.meetingSettings.geminiApiKey;
+      }
+      
+      return parsedData as SiteSettings;
     },
     enabled: !!supabaseClient && !!currentUser,
     staleTime: Infinity, // Settings don't change often, rely on realtime for updates
@@ -54,7 +62,20 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const updateMutation = useMutation({
     mutationFn: (settings: Partial<SiteSettings>) => {
       if (!supabaseClient) throw new Error("Supabase client not available");
-      return api.update<SiteSettings>(supabaseClient, 'site_settings', '1', settings);
+      
+      const payloadToSave: any = { ...settings };
+      
+      // Pack geminiApiKey into meetingSettings to bypass missing DB column
+      if ('geminiApiKey' in payloadToSave) {
+         const currentSettings = queryClient.getQueryData<SiteSettings>(['site_settings']);
+         payloadToSave.meetingSettings = {
+           ...(currentSettings?.meetingSettings || {}),
+           geminiApiKey: payloadToSave.geminiApiKey
+         };
+         delete payloadToSave.geminiApiKey;
+      }
+      
+      return api.update<SiteSettings>(supabaseClient, 'site_settings', '1', payloadToSave);
     },
     onMutate: async (newSettings) => {
       await queryClient.cancelQueries({ queryKey: ['site_settings'] });

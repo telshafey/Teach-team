@@ -19,6 +19,7 @@ import * as api from '@shared/services/apiService';
 import { TaskDetailInline } from '../tasks/TaskDetailInline';
 import { useProjectContext } from '@shared/contexts/ProjectContext';
 import { AnalyticsChart } from '../ui/AnalyticsChart';
+import { ManagerAIInsights } from './ManagerAIInsights';
 
 // Widget Components
 const StatCardsWidget: React.FC<{ data: { pending: number; hours: number; overdue: number; unassigned: number; }; onNavigate: (view: any, props?: any) => void; }> = ({ data, onNavigate }) => (
@@ -165,6 +166,14 @@ export const ManagerDashboard: React.FC = () => {
 
             <div className="mb-6">
                 <StatCardsWidget data={dashboardData.stats} onNavigate={onNavigate} />
+            </div>
+
+            <div className="mb-6 h-[350px]">
+                <ManagerAIInsights
+                    projects={projects}
+                    teamMembers={dashboardData.myTeam}
+                    tasks={tasks}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

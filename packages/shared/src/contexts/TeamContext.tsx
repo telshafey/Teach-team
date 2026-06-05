@@ -81,11 +81,13 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [currentUser, roles]);
 
   const hasPermission = useCallback((permission: Permission): boolean => {
+    // If the user is assigned the 'gm' roleId directly, grant all permissions
+    if (currentUser?.roleId === 'gm' || currentUser?.roleId === 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d') return true;
     if (!currentUserRole) return false;
     if (currentUserRole.name.includes('(GM)')) return true;
     if (currentUserRole.name.includes('(Manager)') && permission === 'manage_team') return true; // Allow Managers to manage the team as well
     return currentUserRole.permissions.includes(permission);
-  }, [currentUserRole]);
+  }, [currentUserRole, currentUser]);
 
   const getReportIdsRecursive = useCallback((managerId: number, allMembers: TeamMember[], visited = new Set<number>()): Set<number> => {
     const reportIds = new Set<number>();

@@ -20,6 +20,7 @@ export interface SiteSettings {
     isAnalyticsModuleEnabled: boolean;
     isReportsModuleEnabled: boolean;
     meetingSettings: MeetingSettings;
+    geminiApiKey?: string;
 }
 
 // --- TEAM & ROLES ---
