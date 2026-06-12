@@ -1,5 +1,5 @@
-import React from 'react';
-import { Skeleton } from '../ui/Skeleton';
+import React from "react";
+import { Skeleton } from "../ui/Skeleton";
 
 export const ProjectCardSkeleton: React.FC = () => {
   return (

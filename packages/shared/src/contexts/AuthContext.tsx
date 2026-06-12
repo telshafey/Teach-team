@@ -106,50 +106,63 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           if (!updateError) {
             users = usersByEmail; // Use this user since we just linked it
           } else {
-             console.error("Failed to link account due to RLS or DB error:", updateError);
-             // Bypass strict RLS failure to prevent login loop
-             users = usersByEmail;
+            console.error(
+              "Failed to link account due to RLS or DB error:",
+              updateError,
+            );
+            // Bypass strict RLS failure to prevent login loop
+            users = usersByEmail;
           }
         } else {
           // Auto-create a team member record for new auth users
-          const gmRoleId = 'gm';
+          const gmRoleId = "gm";
           const { data: newUser, error: insertError } = await supabaseClient
             .from("team_members")
-            .insert([{
+            .insert([
+              {
                 email: authEmail,
                 auth_user_id: authUserId,
-                name: authEmail.split('@')[0],
-                employment_type: 'full-time',
-                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split('@')[0]}`,
-                role_id: gmRoleId
-            }])
+                name: authEmail.split("@")[0],
+                employment_type: "full-time",
+                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split("@")[0]}`,
+                role_id: gmRoleId,
+              },
+            ])
             .select();
-            
+
           if (!insertError && newUser && newUser.length > 0) {
-              users = newUser;
+            users = newUser;
           } else {
-              console.error("Failed to auto-create team member:", insertError);
+            console.error("Failed to auto-create team member:", insertError);
           }
         }
       }
 
       if (users && users.length > 0) {
         // Fallback: If the user was auto-created by the SQL trigger without a role, upgrade them to GM
-        if (!users[0].role_id || users[0].role_id === 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d') {
-          const gmRoleId = 'gm';
+        if (
+          !users[0].role_id ||
+          users[0].role_id === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+        ) {
+          const gmRoleId = "gm";
           await supabaseClient
             .from("team_members")
             .update({ role_id: gmRoleId })
             .eq("id", users[0].id);
           users[0].role_id = gmRoleId;
         }
-        
+
         const user = api.keysToCamel(users[0]) as TeamMember;
         setCurrentUser(user);
       } else {
         // Handle case where auth user exists but team_member record doesn't
-        console.warn("Auth user has no associated team_member record or auto-create failed.");
-        addToast("لا يوجد حساب موظف مرتبط بهذا البريد. تم تسجيل الدخول ولكن يجب إضافة حساب موظف.", "error");
+        console.warn(
+          "Auth user has no associated team_member record or auto-create failed.",
+        );
+        addToast(
+          "لا يوجد حساب موظف مرتبط بهذا البريد. تم تسجيل الدخول ولكن يجب إضافة حساب موظف.",
+          "error",
+        );
         setCurrentUser(null);
       }
     } catch (error: any) {
@@ -161,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const handleLogin = async (email: string, password: string) => {
-    if (!supabaseClient) return { error: new Error('Database not connected') };
+    if (!supabaseClient) return { error: new Error("Database not connected") };
 
     try {
       const { data, error } = await supabaseClient.auth.signInWithPassword({
@@ -170,9 +183,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       });
 
       if (error) throw error;
-      
+
       // Wait shortly for auth state change to process the user.
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -183,7 +196,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (!supabaseClient) return;
     try {
       // Force clear local storage just in case GoTrue fails
-      window.localStorage.removeItem('supabase.auth.bokra.v2');
+      window.localStorage.removeItem("supabase.auth.bokra.v2");
       await supabaseClient.auth.signOut();
     } catch (error) {
       console.error("Logout error:", error);

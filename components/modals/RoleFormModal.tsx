@@ -1,22 +1,27 @@
-import React, { useState, useEffect, FormEvent } from 'react';
-import { Role } from '@shared/types';
+import React, { useState, useEffect, FormEvent } from "react";
+import { Role } from "@shared/types";
 
 interface RoleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (roleData: { id?: string, name: string }) => Promise<void>;
+  onSave: (roleData: { id?: string; name: string }) => Promise<void>;
   role: Role | null;
 }
 
-export const RoleFormModal: React.FC<RoleFormModalProps> = ({ isOpen, onClose, onSave, role }) => {
-  const [name, setName] = useState('');
+export const RoleFormModal: React.FC<RoleFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  role,
+}) => {
+  const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (role) {
       setName(role.name);
     } else {
-      setName('');
+      setName("");
     }
   }, [role, isOpen]);
 
@@ -37,14 +42,20 @@ export const RoleFormModal: React.FC<RoleFormModalProps> = ({ isOpen, onClose, o
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" dir="rtl">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center"
+      dir="rtl"
+    >
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">
-          {role ? 'تعديل اسم الدور' : 'إضافة دور جديد'}
+          {role ? "تعديل اسم الدور" : "إضافة دور جديد"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="roleName" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+            <label
+              htmlFor="roleName"
+              className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
+            >
               اسم الدور
             </label>
             <input
@@ -69,7 +80,7 @@ export const RoleFormModal: React.FC<RoleFormModalProps> = ({ isOpen, onClose, o
               disabled={isSaving}
               className="px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400"
             >
-              {isSaving ? 'جارٍ الحفظ...' : 'حفظ'}
+              {isSaving ? "جارٍ الحفظ..." : "حفظ"}
             </button>
           </div>
         </form>

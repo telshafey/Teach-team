@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { PlusIcon } from '../ui/Icons';
+import React, { useState, useRef, useEffect } from "react";
+import { PlusIcon } from "../ui/Icons";
 
 interface QuickAddTaskProps {
   onAdd: (title: string) => void;
@@ -7,7 +7,7 @@ interface QuickAddTaskProps {
 
 export const QuickAddTask: React.FC<QuickAddTaskProps> = ({ onAdd }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -19,19 +19,19 @@ export const QuickAddTask: React.FC<QuickAddTaskProps> = ({ onAdd }) => {
   const handleAdd = () => {
     if (title.trim()) {
       onAdd(title.trim());
-      setTitle('');
+      setTitle("");
       textareaRef.current?.focus(); // allow adding multiple tasks quickly
     }
   };
-  
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleAdd();
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setIsAdding(false);
-      setTitle('');
+      setTitle("");
     }
   };
 

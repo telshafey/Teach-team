@@ -1,11 +1,18 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useCallback,
+  useEffect,
+} from "react";
 
 interface ActivePunchIn {
   startTime: number; // timestamp
 }
 
 interface PunchOutLogData {
-    hours: number;
+  hours: number;
 }
 
 export interface PunchClockContextType {
@@ -16,13 +23,20 @@ export interface PunchClockContextType {
   closePunchOutLogModal: () => void;
 }
 
-const PunchClockContext = createContext<PunchClockContextType | undefined>(undefined);
+const PunchClockContext = createContext<PunchClockContextType | undefined>(
+  undefined,
+);
 
-const PUNCH_IN_KEY = 'activePunchIn';
+const PUNCH_IN_KEY = "activePunchIn";
 
-export const PunchClockProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [activePunchIn, setActivePunchIn] = useState<ActivePunchIn | null>(null);
-  const [showPunchOutLogModal, setShowPunchOutLogModal] = useState<PunchOutLogData | null>(null);
+export const PunchClockProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [activePunchIn, setActivePunchIn] = useState<ActivePunchIn | null>(
+    null,
+  );
+  const [showPunchOutLogModal, setShowPunchOutLogModal] =
+    useState<PunchOutLogData | null>(null);
 
   useEffect(() => {
     try {
@@ -30,10 +44,11 @@ export const PunchClockProvider: React.FC<{ children: ReactNode }> = ({ children
       if (savedPunchIn) {
         const parsed: ActivePunchIn = JSON.parse(savedPunchIn);
         // Prevent restoring very old sessions
-        if (Date.now() - parsed.startTime < 24 * 60 * 60 * 1000) { // 24 hours
-            setActivePunchIn(parsed);
+        if (Date.now() - parsed.startTime < 24 * 60 * 60 * 1000) {
+          // 24 hours
+          setActivePunchIn(parsed);
         } else {
-            localStorage.removeItem(PUNCH_IN_KEY);
+          localStorage.removeItem(PUNCH_IN_KEY);
         }
       }
     } catch (error) {
@@ -52,27 +67,33 @@ export const PunchClockProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const handlePunchOut = useCallback(() => {
     if (!activePunchIn) return;
-    
+
     const endTime = Date.now();
     const durationMs = endTime - activePunchIn.startTime;
     const durationHours = durationMs / (1000 * 60 * 60);
 
     // Only open log modal for sessions longer than a minute
     if (durationMs > 60000) {
-        setShowPunchOutLogModal({
-            hours: durationHours,
-        });
+      setShowPunchOutLogModal({
+        hours: durationHours,
+      });
     }
 
     setActivePunchIn(null);
     localStorage.removeItem(PUNCH_IN_KEY);
   }, [activePunchIn]);
-  
+
   const closePunchOutLogModal = useCallback(() => {
-      setShowPunchOutLogModal(null);
+    setShowPunchOutLogModal(null);
   }, []);
 
-  const value = { activePunchIn, showPunchOutLogModal, handlePunchIn, handlePunchOut, closePunchOutLogModal };
+  const value = {
+    activePunchIn,
+    showPunchOutLogModal,
+    handlePunchIn,
+    handlePunchOut,
+    closePunchOutLogModal,
+  };
 
   return (
     <PunchClockContext.Provider value={value}>
@@ -84,7 +105,7 @@ export const PunchClockProvider: React.FC<{ children: ReactNode }> = ({ children
 export const usePunchClock = () => {
   const context = useContext(PunchClockContext);
   if (context === undefined) {
-    throw new Error('usePunchClock must be used within a PunchClockProvider');
+    throw new Error("usePunchClock must be used within a PunchClockProvider");
   }
   return context;
 };

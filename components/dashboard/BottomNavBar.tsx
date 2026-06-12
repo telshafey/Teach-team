@@ -1,7 +1,6 @@
-import React from 'react';
-import { HomeIcon, FolderIcon, ClockIcon, UsersIcon } from '../ui/Icons';
-import { View } from '@shared/navigation.types';
-
+import React from "react";
+import { HomeIcon, FolderIcon, ClockIcon, UsersIcon } from "../ui/Icons";
+import { View } from "@shared/navigation.types";
 
 interface BottomNavItemProps {
   icon: React.ReactNode;
@@ -10,14 +9,19 @@ interface BottomNavItemProps {
   onClick: () => void;
 }
 
-const BottomNavItem: React.FC<BottomNavItemProps> = ({ icon, label, isActive, onClick }) => {
+const BottomNavItem: React.FC<BottomNavItemProps> = ({
+  icon,
+  label,
+  isActive,
+  onClick,
+}) => {
   return (
     <button
       onClick={onClick}
       className={`flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs font-medium transition-colors ${
         isActive
-          ? 'text-sky-600 dark:text-sky-400'
-          : 'text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400'
+          ? "text-sky-600 dark:text-sky-400"
+          : "text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400"
       }`}
     >
       {icon}
@@ -31,14 +35,29 @@ interface BottomNavBarProps {
   onNavigate: (view: View) => void;
 }
 
-export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, onNavigate }) => {
+export const BottomNavBar: React.FC<BottomNavBarProps> = ({
+  currentView,
+  onNavigate,
+}) => {
   const allNavItems = [
-    { id: 'dashboard', label: 'الرئيسية', icon: <HomeIcon className="w-6 h-6" /> },
-    { id: 'projects', label: 'المشاريع', icon: <FolderIcon className="w-6 h-6" /> },
-    { id: 'timesheet', label: 'أوقاتي', icon: <ClockIcon className="w-6 h-6" /> },
-    { id: 'team', label: 'الفريق', icon: <UsersIcon className="w-6 h-6" /> },
+    {
+      id: "dashboard",
+      label: "الرئيسية",
+      icon: <HomeIcon className="w-6 h-6" />,
+    },
+    {
+      id: "projects",
+      label: "المشاريع",
+      icon: <FolderIcon className="w-6 h-6" />,
+    },
+    {
+      id: "timesheet",
+      label: "أوقاتي",
+      icon: <ClockIcon className="w-6 h-6" />,
+    },
+    { id: "team", label: "الفريق", icon: <UsersIcon className="w-6 h-6" /> },
   ];
-  
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 flex justify-around bg-white border-t border-slate-200 dark:bg-slate-800 dark:border-slate-700 lg:hidden">
       {allNavItems.map((item) => (

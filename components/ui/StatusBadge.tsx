@@ -1,6 +1,15 @@
-import React from 'react';
+import React from "react";
 
-type StatusType = 'project' | 'task' | 'approval' | 'request' | 'penalty' | 'contract' | 'plan' | 'support_ticket_status' | 'support_ticket_priority';
+type StatusType =
+  | "project"
+  | "task"
+  | "approval"
+  | "request"
+  | "penalty"
+  | "contract"
+  | "plan"
+  | "support_ticket_status"
+  | "support_ticket_priority";
 type StatusValue = string;
 
 interface StatusBadgeProps {
@@ -9,66 +18,200 @@ interface StatusBadgeProps {
   inline?: boolean;
 }
 
-const statusMaps: Record<StatusType, Record<StatusValue, { text: string, className: string }>> = {
+const statusMaps: Record<
+  StatusType,
+  Record<StatusValue, { text: string; className: string }>
+> = {
   project: {
-    'نشط': { text: 'نشط', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
-    'مكتمل': { text: 'مكتمل', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' },
-    'معلق': { text: 'معلق', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
+    نشط: {
+      text: "نشط",
+      className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300",
+    },
+    مكتمل: {
+      text: "مكتمل",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+    },
+    معلق: {
+      text: "معلق",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
   },
   task: {
-    todo: { text: 'لم تبدأ', className: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200' },
-    inprogress: { text: 'قيد التنفيذ', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
-    done: { text: 'مكتملة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
+    todo: {
+      text: "لم تبدأ",
+      className:
+        "bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200",
+    },
+    inprogress: {
+      text: "قيد التنفيذ",
+      className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300",
+    },
+    done: {
+      text: "مكتملة",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
   },
   approval: {
-    pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمدة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
-    rejected: { text: 'مرفوضة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
-    'needs-adjustment': { text: 'تحتاج تعديل', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' }
+    pending: {
+      text: "قيد المراجعة",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    approved: {
+      text: "معتمدة",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
+    rejected: {
+      text: "مرفوضة",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
+    "needs-adjustment": {
+      text: "تحتاج تعديل",
+      className:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+    },
   },
-  request: { // Generic for leave, expense, overtime
-    pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمد', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
-    rejected: { text: 'مرفوض', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
+  request: {
+    // Generic for leave, expense, overtime
+    pending: {
+      text: "قيد المراجعة",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    approved: {
+      text: "معتمد",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
+    rejected: {
+      text: "مرفوض",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
   },
   penalty: {
-    pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمدة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
-    appealed: { text: 'تم الاستئناف', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' },
-    rejected: { text: 'مرفوضة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
+    pending: {
+      text: "قيد المراجعة",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    approved: {
+      text: "معتمدة",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
+    appealed: {
+      text: "تم الاستئناف",
+      className:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+    },
+    rejected: {
+      text: "مرفوضة",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
   },
   contract: {
-    pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمد', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
-    rejected: { text: 'مرفوض', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
+    pending: {
+      text: "قيد المراجعة",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    approved: {
+      text: "معتمد",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
+    rejected: {
+      text: "مرفوض",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
   },
   plan: {
-    pending: { text: 'قيد المراجعة', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    approved: { text: 'معتمدة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' },
-    rejected: { text: 'مرفوضة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
-    'needs-adjustment': { text: 'تحتاج تعديل', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' },
+    pending: {
+      text: "قيد المراجعة",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    approved: {
+      text: "معتمدة",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+    },
+    rejected: {
+      text: "مرفوضة",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
+    "needs-adjustment": {
+      text: "تحتاج تعديل",
+      className:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+    },
   },
   support_ticket_status: {
-    open: { text: 'مفتوحة', className: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' },
-    'in-progress': { text: 'قيد المعالجة', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
-    closed: { text: 'مغلقة', className: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200' },
+    open: {
+      text: "مفتوحة",
+      className:
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+    },
+    "in-progress": {
+      text: "قيد المعالجة",
+      className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300",
+    },
+    closed: {
+      text: "مغلقة",
+      className:
+        "bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200",
+    },
   },
   support_ticket_priority: {
-    low: { text: 'منخفضة', className: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200' },
-    medium: { text: 'متوسطة', className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300' },
-    high: { text: 'عالية', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
-    urgent: { text: 'عاجلة', className: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200' },
+    low: {
+      text: "منخفضة",
+      className:
+        "bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200",
+    },
+    medium: {
+      text: "متوسطة",
+      className: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300",
+    },
+    high: {
+      text: "عالية",
+      className:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
+    },
+    urgent: {
+      text: "عاجلة",
+      className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    },
   },
 };
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, inline }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  type,
+  inline,
+}) => {
   const statusInfo = statusMaps[type]?.[status];
 
   if (!statusInfo) {
-    return <span className={inline ? '' : 'px-2 py-1 text-xs font-medium rounded-full bg-slate-200 text-slate-800'}>{status}</span>;
+    return (
+      <span
+        className={
+          inline
+            ? ""
+            : "px-2 py-1 text-xs font-medium rounded-full bg-slate-200 text-slate-800"
+        }
+      >
+        {status}
+      </span>
+    );
   }
 
-  const baseClasses = inline ? 'font-medium' : 'px-2 py-1 text-xs font-medium rounded-full';
+  const baseClasses = inline
+    ? "font-medium"
+    : "px-2 py-1 text-xs font-medium rounded-full";
 
   return (
     <span className={`${baseClasses} ${statusInfo.className}`}>

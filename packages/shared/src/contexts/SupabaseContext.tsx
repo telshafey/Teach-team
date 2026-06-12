@@ -1,12 +1,20 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+} from "react";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 export interface SupabaseContextType {
   supabaseClient: SupabaseClient | null;
   isLoading: boolean;
 }
 
-const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
+const SupabaseContext = createContext<SupabaseContextType | undefined>(
+  undefined,
+);
 
 // @ts-ignore
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -20,24 +28,30 @@ if (supabaseUrl && supabaseAnonKey) {
     auth: {
       persistSession: true,
       storage: window.localStorage,
-      storageKey: 'supabase.auth.bokra.v2', // use custom key to avoid previous locks/bad data
+      storageKey: "supabase.auth.bokra.v2", // use custom key to avoid previous locks/bad data
       autoRefreshToken: true,
       detectSessionInUrl: true,
       // Disable the native navigator.locks which hangs infinitely in cross-origin iframes
       lock: async (name, acquireTimeout, fn) => await fn(),
-    }
+    },
   });
 }
 
-export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(globalSupabaseClient);
+export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(
+    globalSupabaseClient,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!globalSupabaseClient) {
-      console.warn("Supabase credentials not found in environment variables. VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be provided.");
+      console.warn(
+        "Supabase credentials not found in environment variables. VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be provided.",
+      );
     }
-    
+
     setIsLoading(false);
   }, []);
 
@@ -56,7 +70,7 @@ export const SupabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
 export const useSupabase = () => {
   const context = useContext(SupabaseContext);
   if (context === undefined) {
-    throw new Error('useSupabase must be used within a SupabaseProvider');
+    throw new Error("useSupabase must be used within a SupabaseProvider");
   }
   return context;
 };

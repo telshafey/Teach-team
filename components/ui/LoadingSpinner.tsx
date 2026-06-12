@@ -1,6 +1,8 @@
-import React from 'react';
+import React from "react";
 
-export const LoadingSpinner: React.FC<{ className?: string }> = ({ className }) => {
+export const LoadingSpinner: React.FC<{ className?: string }> = ({
+  className,
+}) => {
   return (
     <svg
       className={`animate-spin h-5 w-5 text-white ${className}`}

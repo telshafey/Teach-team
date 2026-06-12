@@ -1,9 +1,6 @@
 {
   "name": "Bokra Team",
   "description": "منصة متكاملة لإدارة فرق العمل، تتيح تخطيط المشاريع، تسجيل المهام وساعات العمل، إدارة الشؤون المالية، وعقد الاجتماعات الافتراضية، معززة بتقارير وملخصات ذكية.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ],
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": []
 }
