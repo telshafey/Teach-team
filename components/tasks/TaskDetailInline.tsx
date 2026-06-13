@@ -24,6 +24,7 @@ import { useSupabase } from "@shared/contexts/SupabaseContext";
 import { useToast } from "@shared/contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
+import { MentionTextarea } from "../shared/MentionTextarea";
 import { useQuery } from "@tanstack/react-query";
 import * as api from "@shared/services/apiService";
 import { Card } from "../ui/Card";
@@ -51,6 +52,7 @@ interface TaskDetailViewProps {
   isUploading: boolean;
   localComments: TaskComment[];
   membersMap: Record<number, TeamMember>;
+  teamMembers: TeamMember[];
   currentUser: TeamMember;
   newComment: string;
   setNewComment: React.Dispatch<React.SetStateAction<string>>;
@@ -67,6 +69,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   isUploading,
   localComments,
   membersMap,
+  teamMembers,
   currentUser,
   newComment,
   setNewComment,
@@ -193,12 +196,19 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
           className="w-8 h-8 rounded-full"
         />
         <div className="flex-1">
-          <textarea
+          <MentionTextarea
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={setNewComment}
+            onSubmit={() => {
+              if (newComment.trim()) {
+                const e = { preventDefault: () => {} } as React.FormEvent;
+                handleAddCommentSubmit(e);
+              }
+            }}
+            members={teamMembers}
             placeholder="أضف تعليقًا... (يمكنك الإشارة إلى عضو باستخدام @)"
             rows={1}
-            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900"
+            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 resize-none min-h-[40px]"
           />
           <button
             type="submit"
@@ -619,6 +629,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
               isUploading={isUploading}
               localComments={localComments}
               membersMap={membersMap}
+              teamMembers={teamMembers}
               currentUser={currentUser}
               newComment={newComment}
               setNewComment={setNewComment}

@@ -47,6 +47,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
       return data ? api.keysToCamel(data) : [];
     },
     enabled: !!supabaseClient && !!currentUser,
+    refetchInterval: 5000,
   });
 
   useEffect(() => {

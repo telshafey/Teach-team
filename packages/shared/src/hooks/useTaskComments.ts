@@ -25,21 +25,22 @@ export const useTaskComments = (
     if (!supabaseClient) return () => {};
 
     const handleCommentChange = (payload: any) => {
+      const camelPayload = api.keysToCamel(payload.new) as TaskComment;
       if (payload.eventType === "INSERT") {
         setTaskComments((prev) => [
-          payload.new,
-          ...prev.filter((c) => c.id !== payload.new.id),
+          camelPayload,
+          ...prev.filter((c) => c.id !== camelPayload.id),
         ]);
       } else if (payload.eventType === "UPDATE") {
         setTaskComments((prev) =>
-          prev.map((c) => (c.id === payload.new.id ? payload.new : c)),
+          prev.map((c) => (c.id === camelPayload.id ? camelPayload : c)),
         );
       } else if (payload.eventType === "DELETE") {
         setTaskComments((prev) => prev.filter((c) => c.id !== payload.old.id));
       }
     };
 
-    const unsubscribe = subscribe("ticket_comments", handleCommentChange);
+    const unsubscribe = subscribe("task_comments", handleCommentChange);
 
     return () => {
       unsubscribe();
@@ -69,25 +70,24 @@ export const useTaskComments = (
       };
 
       try {
-        await api.insert<TaskComment>(
+        const newComment = await api.insert<TaskComment>(
           supabaseClient,
           "task_comments",
           newCommentData,
         );
         addToast("تم إضافة التعليق بنجاح.", "success");
+        setTaskComments((prev) => [newComment, ...prev]);
 
         const mentionedUsers = parseMentions(text, teamMembers);
         for (const user of mentionedUsers) {
-          if (user.id !== currentUser.id) {
-            createNotification(supabaseClient, {
-              recipientId: user.id,
-              type: "comment_mention",
-              taskTitle: task.title,
-              commentAuthorName: currentUser.name,
-              projectId: task.projectId,
-              taskId: task.id,
-            });
-          }
+          await createNotification(supabaseClient, {
+            recipientId: user.id,
+            type: "comment_mention",
+            taskTitle: task.title,
+            commentAuthorName: currentUser.name,
+            projectId: task.projectId,
+            taskId: task.id,
+          });
         }
       } catch (e: any) {
         addToast(`فشل إضافة التعليق: ${e.message}`, "error");
@@ -103,6 +103,7 @@ export const useTaskComments = (
       try {
         await api.deleteById(supabaseClient, "task_comments", commentId);
         addToast("تم حذف التعليق بنجاح.", "success");
+        setTaskComments((prev) => prev.filter((c) => c.id !== commentId));
       } catch (e: any) {
         addToast(`فشل حذف التعليق: ${e.message}`, "error");
         throw e;

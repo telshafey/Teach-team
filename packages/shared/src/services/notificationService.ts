@@ -22,6 +22,6 @@ export const createNotification = async (
     );
   } catch (error: any) {
     console.error("Failed to create notification:", error.message);
-    // Do not re-throw, as notification creation is often non-critical
+    throw error;
   }
 };
