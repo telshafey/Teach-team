@@ -147,7 +147,12 @@ export const update = async <T>(
   );
 
   const { data, error } = await Promise.race([updatePromise, timeoutPromise]);
-  if (error) throw error;
+  if (error) {
+    if (error.code === "PGRST116" && error.message.includes("0 rows")) {
+      throw new Error("لا تملك الصلاحية لتعديل هذه البيانات (مرفوض من قاعدة البيانات).");
+    }
+    throw error;
+  }
   return keysToCamel(data) as T;
 };
 
@@ -167,7 +172,11 @@ export const updateTeamMemberWithPassword = async (
     });
     if (pwdError) {
       console.error("Failed to update password:", pwdError);
-      throw new Error("لم نتمكن من تحديث كلمة المرور: " + pwdError.message);
+      let errorMsg = pwdError.message || "";
+      if (errorMsg.includes("column \"password\" of relation \"users\" does not exist") || errorMsg.includes("return type") || errorMsg.includes("gen_salt") || errorMsg.includes("crypt")) {
+         errorMsg = "رجاءً قم بتنفيذ هذا الـ SQL في Supabase أولاً (SQL Editor):\nCREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions; DROP FUNCTION IF EXISTS public.update_member_password(integer, text); CREATE OR REPLACE FUNCTION public.update_member_password(p_member_id integer, p_new_password text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ DECLARE v_user_uuid uuid; BEGIN SELECT auth_user_id INTO v_user_uuid FROM public.team_members WHERE id = p_member_id; UPDATE auth.users SET encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf')) WHERE id = v_user_uuid; END; $$;";
+      }
+      throw new Error("لم نتمكن من تحديث كلمة المرور: " + errorMsg);
     }
   }
 
