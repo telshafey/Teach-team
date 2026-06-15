@@ -59,7 +59,16 @@ export const getAll = async <T>(
 ): Promise<T[]> => {
   const { data, error } = await client.from(table).select(columns);
   if (error) throw error;
-  return keysToCamel(data || []) as T[];
+  
+  const camelData = keysToCamel(data || []) as T[];
+  if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
+    const uniqueMap = new Map();
+    camelData.forEach((item: any) => {
+      uniqueMap.set(item.id, item);
+    });
+    return Array.from(uniqueMap.values()) as T[];
+  }
+  return camelData;
 };
 
 export const getPaginated = async <T>(
@@ -75,7 +84,16 @@ export const getPaginated = async <T>(
     .select(columns)
     .range(from, to);
   if (error) throw error;
-  return keysToCamel(data || []) as T[];
+  
+  const camelData = keysToCamel(data || []) as T[];
+  if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
+    const uniqueMap = new Map();
+    camelData.forEach((item: any) => {
+      uniqueMap.set(item.id, item);
+    });
+    return Array.from(uniqueMap.values()) as T[];
+  }
+  return camelData;
 };
 
 export const getById = async <T>(

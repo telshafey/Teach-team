@@ -148,13 +148,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
           approvalNotes: notes,
         });
       if (isLeaveRequest(item))
-        await handleUpdateLeaveStatus(item.id, status, notes);
+        await handleUpdateLeaveStatus(item.id, status as any, notes);
       if (isOvertimeRequest(item))
-        await handleUpdateOvertimeStatus(item.id, status, notes);
+        await handleUpdateOvertimeStatus(item.id, status as any, notes);
       if (isExpenseClaim(item))
-        await handleUpdateExpenseClaimStatus(item.id, status);
+        await handleUpdateExpenseClaimStatus(item.id, status as any);
       if (isPenalty(item))
-        await handleUpdatePenaltyStatus(item.id, status, notes);
+        await handleUpdatePenaltyStatus(item.id, status as any, notes);
       if (isWorkContractChangeRequest(item)) {
         const modifications =
           status === "approved"
@@ -162,7 +162,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             : undefined;
         await handleUpdateWorkContractChangeRequestStatus(
           item.id,
-          status,
+          status as any,
           notes,
           modifications,
         );

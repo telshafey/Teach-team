@@ -35,7 +35,14 @@ export const AnalyticsPage: React.FC = () => {
       const logDate = new Date(log.date);
       const isAfterFrom =
         !dateRange.from || logDate >= new Date(dateRange.from);
-      const isBeforeTo = !dateRange.to || logDate <= new Date(dateRange.to);
+        
+      let isBeforeTo = true;
+      if (dateRange.to) {
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        isBeforeTo = logDate <= toDate;
+      }
+      
       return isAfterFrom && isBeforeTo;
     });
   }, [dailyLogs, dateRange]);

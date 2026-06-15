@@ -1,4 +1,5 @@
 import React from "react";
+import { useSettingsContext } from "@shared/contexts/SettingsContext";
 import {
   InformationCircleIcon,
   HomeIcon,
@@ -12,9 +13,13 @@ import {
   BellIcon,
   TicketIcon,
   ExclamationTriangleIcon,
+  ChartBarIcon,
+  DocumentDuplicateIcon
 } from "../ui/Icons";
 
 export const OnboardingPage: React.FC = () => {
+  const { siteSettings } = useSettingsContext();
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto pb-24">
       <div className="mb-10 text-center">
@@ -157,38 +162,80 @@ export const OnboardingPage: React.FC = () => {
         </div>
 
         {/* Finance Section */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6" />
+        {siteSettings?.isFinanceModuleEnabled && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
+                <CurrencyDollarIcon className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                المالية والمصروفات
+              </h2>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              المالية والمصروفات
-            </h2>
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+              إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims)، يمكنك تقديمها
+              عبر النظام لإدارتك و قسم المالية لاعتمادها وصرفها لك بناءً على
+              الدورة المستندية الخاصة بالشركة.
+            </p>
           </div>
-          <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims)، يمكنك تقديمها
-            عبر النظام لإدارتك و قسم المالية لاعتمادها وصرفها لك بناءً على
-            الدورة المستندية الخاصة بالشركة.
-          </p>
-        </div>
+        )}
 
         {/* Meetings Section */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg">
-              <VideoCameraIcon className="w-6 h-6" />
+        {siteSettings?.isMeetingsModuleEnabled && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg">
+                <VideoCameraIcon className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                الاجتماعات المباشرة
+              </h2>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              الاجتماعات المباشرة
-            </h2>
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+              لا داعي لاستخدام برامج خارجية! يمكنك جدولة الاجتماعات والانضمام
+              لغرفة فيديو آمنة ومباشرة مع فريقك، مع ميزات المحادثة النصية
+              والمشاركة الفعالة لضمان أفضل إنتاجية.
+            </p>
           </div>
-          <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            لا داعي لاستخدام برامج خارجية! يمكنك جدولة الاجتماعات والانضمام
-            لغرفة فيديو آمنة ومباشرة مع فريقك، مع ميزات المحادثة النصية
-            والمشاركة الفعالة لضمان أفضل إنتاجية.
-          </p>
-        </div>
+        )}
+
+        {/* Analytics Section */}
+        {siteSettings?.isAnalyticsModuleEnabled && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
+                <ChartBarIcon className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                التحليلات والمقاييس
+              </h2>
+            </div>
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+              تصفح لوحة التحليلات الخاصة بك لمتابعة أداءك العام ولتحليل ساعات
+              عملك وإنتاجيتك بشكل مرئي سريع الفهم. يستطيع المدراء الاطلاع على
+              تحليلات و إحصائيات فرق العمل التابعة لهم.
+            </p>
+          </div>
+        )}
+
+        {/* Reports Section */}
+        {siteSettings?.isReportsModuleEnabled && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg">
+                <DocumentDuplicateIcon className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                التقارير المتقدمة
+              </h2>
+            </div>
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+              يوفر لك قسم التقارير مرونة عالية في تخصيص وبناء تقارير خاصة بساعات
+              العمل، الحضور، وتكاليف المشاريع وحفظها للوصول السريع، مع إمكانية
+              تصديرها للمشاركة مع الإدارة أو أطراف أخرى.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Notifications & Penalties (Full Width) */}

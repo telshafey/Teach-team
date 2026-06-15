@@ -32,7 +32,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
   const { subscribe } = useRealtime();
   const queryClient = useQueryClient();
 
-  const queryKey = ["notifications", currentUser?.id];
+  const queryKey = React.useMemo(() => ["notifications", currentUser?.id], [currentUser?.id]);
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey,
@@ -54,13 +54,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
     if (!currentUser?.id) return () => {};
 
     const handleNotificationChange = (payload: any) => {
-      const newRecipientId =
-        payload.new?.recipient_id || payload.new?.recipientId;
+      const camelPayload = (payload.new ? api.keysToCamel(payload.new) : null) as Notification | null;
+      const newRecipientId = camelPayload?.recipientId;
       const oldRecipientId =
         payload.old?.recipient_id || payload.old?.recipientId;
       if (
-        newRecipientId !== currentUser.id &&
-        oldRecipientId !== currentUser.id
+        (newRecipientId && newRecipientId !== currentUser.id) &&
+        (oldRecipientId && oldRecipientId !== currentUser.id)
       ) {
         return;
       }
@@ -70,17 +70,17 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
         (oldData: Notification[] | undefined) => {
           if (oldData === undefined) return [];
 
-          if (payload.eventType === "INSERT") {
-            if (oldData.some((n) => n.id === payload.new.id)) return oldData;
-            return [payload.new, ...oldData].sort(
+          if (payload.eventType === "INSERT" && camelPayload) {
+            if (oldData.some((n) => n.id === camelPayload.id)) return oldData;
+            return [camelPayload, ...oldData].sort(
               (a, b) =>
                 new Date(b.timestamp).getTime() -
                 new Date(a.timestamp).getTime(),
             );
           }
-          if (payload.eventType === "UPDATE") {
+          if (payload.eventType === "UPDATE" && camelPayload) {
             return oldData.map((n) =>
-              n.id === payload.new.id ? payload.new : n,
+              n.id === camelPayload.id ? camelPayload : n,
             );
           }
           if (payload.eventType === "DELETE") {

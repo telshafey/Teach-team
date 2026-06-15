@@ -153,7 +153,7 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({
         title="تأكيد حذف الموظف"
         message={`هل أنت متأكد من رغبتك في حذف ${member.name}؟ لا يمكن التراجع عن هذا الإجراء.`}
         confirmText="حذف الموظف"
-        confirmStyle="danger"
+        isDestructive={true}
       />
     </Card>
   );
