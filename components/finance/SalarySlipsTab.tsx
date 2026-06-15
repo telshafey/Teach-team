@@ -38,7 +38,7 @@ export const SalarySlipsTab: React.FC = () => {
     setSlipData(data);
   };
 
-  const membersWithSalary = teamMembers.filter((m) => m.salary);
+  const membersWithSalary = teamMembers;
 
   return (
     <>

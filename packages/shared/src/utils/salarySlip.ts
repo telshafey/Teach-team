@@ -9,8 +9,6 @@ export const generateSalarySlipData = (
     allPenalties: Penalty[],
     siteSettings: SiteSettings | null
 ) => {
-    if (!member.salary) return null;
-
     const startOfMonthForView = startOfMonth(month);
     const endOfMonthForView = endOfMonth(month);
 
@@ -30,15 +28,19 @@ export const generateSalarySlipData = (
         .filter(p => p.status === 'approved' && isWithinInterval(new Date(p.date), { start: startOfMonthForView, end: endOfMonthForView }))
         .reduce((sum, p) => sum + p.amount, 0);
         
+    const salary = member.salary || 0;
+        
     // Approximation for hourly rate from salary.
-    const hourlyRate = (member.weeklyHoursRequirement && member.weeklyHoursRequirement > 0) 
-        ? (member.salary / 4.33) / member.weeklyHoursRequirement 
-        : member.salary / (22 * 8); 
+    const hourlyRate = member.hourlyRate || (
+        (member.weeklyHoursRequirement && member.weeklyHoursRequirement > 0) 
+        ? (salary / 4.33) / member.weeklyHoursRequirement 
+        : salary / (22 * 8)
+    ); 
         
     const overtimeMultiplier = siteSettings?.overtimeRateMultiplier || 1.5;
     const overtimePay = approvedOvertimeHours * hourlyRate * overtimeMultiplier;
 
-    const baseSalary = member.salary;
+    const baseSalary = salary;
     const netSalary = baseSalary + overtimePay + expensesReimbursed - penaltiesDeducted;
 
     return {

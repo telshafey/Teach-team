@@ -73,7 +73,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
       if (
         payload.eventType === "UPDATE" &&
         payload.table === "site_settings" &&
-        payload.new.id === "1"
+        String(payload.new.id) === "1"
       ) {
         queryClient.invalidateQueries({ queryKey: ["site_settings"] });
       }
@@ -84,18 +84,27 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [subscribe, queryClient]);
 
-  const updateMutation = useMutation({
-    mutationFn: (settings: Partial<SiteSettings>) => {
+    const updateMutation = useMutation({
+    mutationFn: async (settings: Partial<SiteSettings>) => {
       if (!supabaseClient) throw new Error("Supabase client not available");
 
-      const payloadToSave: any = { ...settings };
+      const payloadToSave: any = { ...settings, id: 1 };
+      const payload = api.camelToSnakeCase(payloadToSave);
 
-      return api.update<SiteSettings>(
-        supabaseClient,
-        "site_settings",
-        "1",
-        payloadToSave,
+      const upsertPromise = supabaseClient
+        .from("site_settings")
+        .upsert(payload)
+        .select()
+        .single();
+        
+      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error("Update Request Timeout")), 15000),
       );
+
+      const { data, error } = await Promise.race([upsertPromise, timeoutPromise]);
+      if (error) throw error;
+      
+      return api.keysToCamel(data);
     },
     onMutate: async (newSettings) => {
       await queryClient.cancelQueries({ queryKey: ["site_settings"] });
