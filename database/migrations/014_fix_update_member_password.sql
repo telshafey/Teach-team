@@ -1,4 +1,8 @@
 -- update_member_password fix
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+DROP FUNCTION IF EXISTS public.update_member_password(integer, text);
+
 CREATE OR REPLACE FUNCTION public.update_member_password(
     p_member_id integer,
     p_new_password text
@@ -25,7 +29,7 @@ BEGIN
     -- Update the auth.users table directly 
     -- Supabase stores it in encrypted_password
     UPDATE auth.users
-    SET encrypted_password = crypt(p_new_password, gen_salt('bf'))
+    SET encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf'))
     WHERE id = v_user_uuid;
     
 END;
