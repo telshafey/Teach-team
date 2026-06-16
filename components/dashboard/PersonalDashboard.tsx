@@ -188,10 +188,7 @@ const WeeklyActivityWidget: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
           ? log.date.startsWith(format(day, "yyyy-MM-dd"))
           : isSameDay(new Date(log.date), day),
       );
-      const hours = dayLogs.reduce(
-        (sum, log) => sum + (log.hours || 0),
-        0,
-      );
+      const hours = dayLogs.reduce((sum, log) => sum + (log.hours || 0), 0);
       return {
         name: format(day, "EEEE", { locale: arSA }).split(" ")[0],
         value: Number(hours.toFixed(1)),

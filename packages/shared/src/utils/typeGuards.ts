@@ -1,4 +1,14 @@
-import { DecisionItem, ExpenseClaim, LeaveRequest, OvertimeRequest, Penalty, Project, Task, TeamMember, WorkContractChangeRequest } from '../types';
+import {
+  DecisionItem,
+  ExpenseClaim,
+  LeaveRequest,
+  OvertimeRequest,
+  Penalty,
+  Project,
+  Task,
+  TeamMember,
+  WorkContractChangeRequest,
+} from "../types";
 
 export function isTeamMember(item: DecisionItem): item is TeamMember {
   return (item as TeamMember).weeklyPlan !== undefined;
@@ -10,7 +20,10 @@ export function isTask(item: DecisionItem): item is Task {
 
 export function isProject(item: DecisionItem): item is Project {
   // Check for a property unique to Project, like the members array.
-  return (item as Project).members !== undefined && (item as Project).description !== undefined;
+  return (
+    (item as Project).members !== undefined &&
+    (item as Project).description !== undefined
+  );
 }
 
 export function isOvertimeRequest(item: DecisionItem): item is OvertimeRequest {
@@ -18,10 +31,15 @@ export function isOvertimeRequest(item: DecisionItem): item is OvertimeRequest {
 }
 
 export function isLeaveRequest(item: DecisionItem): item is LeaveRequest {
-  return (item as LeaveRequest).startDate !== undefined && (item as LeaveRequest).endDate !== undefined;
+  return (
+    (item as LeaveRequest).startDate !== undefined &&
+    (item as LeaveRequest).endDate !== undefined
+  );
 }
 
-export function isWorkContractChangeRequest(item: DecisionItem): item is WorkContractChangeRequest {
+export function isWorkContractChangeRequest(
+  item: DecisionItem,
+): item is WorkContractChangeRequest {
   return (item as WorkContractChangeRequest).requestedWeeklyHours !== undefined;
 }
 
@@ -30,6 +48,6 @@ export function isPenalty(item: DecisionItem): item is Penalty {
 }
 
 export function isExpenseClaim(item: DecisionItem): item is ExpenseClaim {
-    // Check for properties unique to ExpenseClaim to differentiate from other types that might have 'amount'
-    return 'amount' in item && 'description' in item && !('issuerId' in item);
+  // Check for properties unique to ExpenseClaim to differentiate from other types that might have 'amount'
+  return "amount" in item && "description" in item && !("issuerId" in item);
 }

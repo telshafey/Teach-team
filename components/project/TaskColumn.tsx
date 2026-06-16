@@ -53,7 +53,7 @@ export const TaskColumn: React.FC<TaskColumnProps> = ({
   }, [draggingTaskId]);
 
   return (
-    <div className="flex flex-col w-80 flex-shrink-0">
+    <div className="flex flex-col w-80 flex-shrink-0 h-full max-h-full">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -66,9 +66,9 @@ export const TaskColumn: React.FC<TaskColumnProps> = ({
           onDrop(status);
           setIsOver(false);
         }}
-        className={`bg-slate-100 dark:bg-slate-800/50 rounded-lg flex flex-col transition-colors ${isOver ? "bg-sky-100 dark:bg-sky-900/30" : ""}`}
+        className={`bg-slate-100 dark:bg-slate-800/50 rounded-lg flex flex-col h-full border border-slate-200 dark:border-slate-700/50 transition-colors ${isOver ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-400" : ""}`}
       >
-        <div className="p-3 sticky top-0 bg-slate-100 dark:bg-slate-800/50 rounded-t-lg z-10 border-b border-slate-200 dark:border-slate-700/50">
+        <div className="p-3 sticky top-0 rounded-t-lg z-10 border-b border-slate-200 dark:border-slate-700/50">
           <h3 className="font-semibold text-slate-700 dark:text-slate-200 flex justify-between items-center">
             {title}
             <span className="text-sm font-normal bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">
@@ -76,7 +76,7 @@ export const TaskColumn: React.FC<TaskColumnProps> = ({
             </span>
           </h3>
         </div>
-        <div className="p-3 space-y-3">
+        <div className="p-3 flex-1 min-h-0 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -101,7 +101,7 @@ export const TaskColumn: React.FC<TaskColumnProps> = ({
           {isOver && placeholder}
         </div>
         {canManageTasks && (
-          <div className="p-3 mt-auto border-t border-slate-200 dark:border-slate-700/50">
+          <div className="p-3 mt-auto shrink-0 border-t border-slate-200 dark:border-slate-700/50">
             <QuickAddTask onAdd={onAddTask} />
           </div>
         )}

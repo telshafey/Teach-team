@@ -14,7 +14,7 @@ import {
   TicketIcon,
   ExclamationTriangleIcon,
   ChartBarIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
 } from "../ui/Icons";
 
 export const OnboardingPage: React.FC = () => {

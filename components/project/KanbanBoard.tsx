@@ -51,7 +51,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   }, [tasks]);
 
   return (
-    <div className="flex space-x-4 rtl:space-x-reverse overflow-x-auto pb-4">
+    <div className="flex space-x-4 rtl:space-x-reverse overflow-x-auto h-full pb-4 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
       <TaskColumn
         title="المهام المطلوبة"
         tasks={tasksByStatus.todo}

@@ -39,7 +39,8 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedIndex(
-          (prev) => (prev - 1 + filteredMembers.length) % filteredMembers.length,
+          (prev) =>
+            (prev - 1 + filteredMembers.length) % filteredMembers.length,
         );
       } else if (e.key === "Enter") {
         e.preventDefault();
@@ -82,7 +83,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     const beforeMention = val.slice(0, dropdownPos);
     // Find the end of the current mention query
     let endOfMentionQuery = dropdownPos + 1 + mentionQuery.length;
-    
+
     // Safety check just in case cursor moved
     const afterMention = val.slice(endOfMentionQuery);
 

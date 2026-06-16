@@ -84,7 +84,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [subscribe, queryClient]);
 
-    const updateMutation = useMutation({
+  const updateMutation = useMutation({
     mutationFn: async (settings: Partial<SiteSettings>) => {
       if (!supabaseClient) throw new Error("Supabase client not available");
 
@@ -96,14 +96,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
         .upsert(payload)
         .select()
         .single();
-        
-      const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-        setTimeout(() => reject(new Error("Update Request Timeout")), 15000),
+
+      const timeoutPromise = new Promise<{ data: any; error: any }>(
+        (_, reject) =>
+          setTimeout(() => reject(new Error("Update Request Timeout")), 15000),
       );
 
-      const { data, error } = await Promise.race([upsertPromise, timeoutPromise]);
+      const { data, error } = await Promise.race([
+        upsertPromise,
+        timeoutPromise,
+      ]);
       if (error) throw error;
-      
+
       return api.keysToCamel(data);
     },
     onMutate: async (newSettings) => {

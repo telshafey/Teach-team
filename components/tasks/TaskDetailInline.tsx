@@ -569,9 +569,9 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
   };
 
   return (
-    <Card>
-      <div className="flex flex-col">
-        <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 border-b dark:border-slate-700">
+    <Card className="flex flex-col h-full m-0 p-0 overflow-hidden">
+      <div className="flex flex-col h-full">
+        <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 border-b dark:border-slate-700 shrink-0">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <button
               onClick={onClose}
@@ -580,7 +580,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
               <ArrowLeftIcon className="w-5 h-5 transform rotate-180" />
             </button>
             <div>
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
                 {isNew
                   ? "مهمة جديدة"
                   : isEditing
@@ -606,7 +606,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 flex-1 min-h-0 overflow-y-auto w-full">
           {isEditing && onSave ? (
             <TaskDetailEdit
               formData={formData}

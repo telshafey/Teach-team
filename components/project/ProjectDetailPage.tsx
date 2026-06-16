@@ -49,6 +49,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"kanban" | "gantt" | "members">(
+    "kanban",
+  );
 
   // Data fetching with react-query
   const { data: project, isLoading: isProjectLoading } = useQuery({
@@ -151,7 +154,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   if (selectedTask || isNewTaskModalOpen) {
     return (
-      <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+      <div className="p-6 max-w-5xl mx-auto flex-1 h-[max(calc(100vh-80px),800px)] flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         <TaskDetailInline
           onClose={() => {
             setSelectedTask(null);
@@ -169,40 +172,40 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   // --- RENDER ---
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+    <div className="p-6 max-w-[1600px] mx-auto h-[max(calc(100vh-80px),800px)] flex flex-col">
+      <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4 shrink-0">
         <div>
           <button
             onClick={() => onNavigate("projects")}
-            className="flex items-center space-x-2 rtl:space-x-reverse text-sm font-semibold text-slate-500 hover:text-slate-800 mb-2"
+            className="flex items-center space-x-2 rtl:space-x-reverse text-sm font-semibold text-slate-500 hover:text-slate-800 mb-2 transition-colors"
           >
             <ArrowLeftIcon className="w-4 h-4 transform rotate-180" />
             <span>العودة للمشاريع</span>
           </button>
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
               {project.name}
             </h2>
             <StatusBadge status={project.status} type="project" />
           </div>
-          <p className="text-md text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-md text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
             {project.description}
           </p>
         </div>
-        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+        <div className="flex items-center space-x-2 rtl:space-x-reverse pt-6">
           {canManageTasks && (
             <button
               onClick={() => setIsNewTaskModalOpen(true)}
-              className="p-2 text-white bg-sky-600 hover:bg-sky-700 rounded-full"
-              title="مهمة جديدة"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-900 dark:bg-sky-600 rounded-lg hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors shadow-sm"
             >
-              <PlusIcon className="w-5 h-5" />
+              <PlusIcon className="w-4 h-4" />
+              <span>مهمة جديدة</span>
             </button>
           )}
           {canEditProjectSettings && (
             <button
               onClick={() => setIsProjectFormOpen(true)}
-              className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"
+              className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-colors"
             >
               <PencilIcon className="w-5 h-5" />
             </button>
@@ -210,7 +213,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           {hasPermission("manage_projects") && (
             <button
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className="p-2 text-red-500 hover:bg-red-100 rounded-full"
+              className="p-2 text-red-500 hover:text-white hover:bg-red-500 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-colors"
             >
               <TrashIcon className="w-5 h-5" />
             </button>
@@ -218,28 +221,78 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2">
-          <Card title="مخطط جانت للمشروع">
-            <GanttChart project={project} tasks={tasksForProject} />
-          </Card>
-        </div>
-        <div className="lg:col-span-1">
-          <ProjectMembers
-            project={project}
-            canManageMembers={canManageMembers}
-          />
-        </div>
+      <div className="flex space-x-1 rtl:space-x-reverse bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 mb-6 w-max border border-slate-200 dark:border-slate-700">
+        <button
+          onClick={() => setActiveTab("kanban")}
+          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+            activeTab === "kanban"
+              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+          }`}
+        >
+          مهام المشروع
+        </button>
+        <button
+          onClick={() => setActiveTab("gantt")}
+          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+            activeTab === "gantt"
+              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+          }`}
+        >
+          مخطط زمني
+        </button>
+        <button
+          onClick={() => setActiveTab("members")}
+          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+            activeTab === "members"
+              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+          }`}
+        >
+          أعضاء المشروع
+        </button>
       </div>
 
-      <KanbanBoard
-        tasks={tasksForProject}
-        canManageTasks={canManageTasks}
-        onTaskClick={setSelectedTask}
-        onDeleteTask={setTaskToDelete}
-        onUpdateTaskStatus={handleUpdateTaskStatus}
-        onQuickAddTask={handleQuickAddTask}
-      />
+      <div className="flex-1 min-h-0 relative">
+        {activeTab === "kanban" && (
+          <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <KanbanBoard
+              tasks={tasksForProject}
+              canManageTasks={canManageTasks}
+              onTaskClick={setSelectedTask}
+              onDeleteTask={setTaskToDelete}
+              onUpdateTaskStatus={handleUpdateTaskStatus}
+              onQuickAddTask={handleQuickAddTask}
+            />
+          </div>
+        )}
+
+        {activeTab === "gantt" && (
+          <div className="h-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-4 shrink-0">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                المخطط الزمني للمشروع
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                تتبع المهام وفقاً لجدولها الزمني
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto">
+              <GanttChart project={project} tasks={tasksForProject} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "members" && (
+          <div className="h-full max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ProjectMembers
+              project={project}
+              canManageMembers={canManageMembers}
+            />
+          </div>
+        )}
+      </div>
 
       {taskToDelete && (
         <ConfirmationModal

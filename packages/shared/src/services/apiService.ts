@@ -59,7 +59,7 @@ export const getAll = async <T>(
 ): Promise<T[]> => {
   const { data, error } = await client.from(table).select(columns);
   if (error) throw error;
-  
+
   const camelData = keysToCamel(data || []) as T[];
   if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
     const uniqueMap = new Map();
@@ -84,7 +84,7 @@ export const getPaginated = async <T>(
     .select(columns)
     .range(from, to);
   if (error) throw error;
-  
+
   const camelData = keysToCamel(data || []) as T[];
   if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
     const uniqueMap = new Map();
@@ -135,28 +135,31 @@ export const update = async <T>(
 ): Promise<T> => {
   const payload = camelToSnakeCase(updates);
 
-  // Add timeout to prevent hanging forever
   const updatePromise = client
     .from(table)
     .update(payload)
     .eq("id", id)
     .select()
     .single();
+
   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-    setTimeout(() => reject(new Error("Update Request Timeout")), 15000),
+    setTimeout(() => reject(new Error("Update Request Timeout")), 10000),
   );
 
   const { data, error } = await Promise.race([updatePromise, timeoutPromise]);
+
   if (error) {
     if (error.code === "PGRST116" && error.message.includes("0 rows")) {
-      throw new Error("لا تملك الصلاحية لتعديل هذه البيانات (مرفوض من قاعدة البيانات).");
+      throw new Error(
+        "لا تملك الصلاحية لتعديل هذه البيانات (مرفوض من قاعدة البيانات).",
+      );
     }
     throw error;
   }
   return keysToCamel(data) as T;
 };
 
-// Special handler for updating team members which might include a password change (admin operation)
+// Special handler for updating team members
 type TeamMemberUpdateData = Partial<TeamMember & { password?: string }>;
 export const updateTeamMemberWithPassword = async (
   client: SupabaseClient,
@@ -165,30 +168,46 @@ export const updateTeamMemberWithPassword = async (
 ): Promise<TeamMember> => {
   const { password, ...memberData } = updates;
 
-  if (password) {
-    const { error: pwdError } = await client.rpc("update_member_password", {
-      p_member_id: member.id,
-      p_new_password: password,
-    });
-    if (pwdError) {
-      console.error("Failed to update password:", pwdError);
-      let errorMsg = pwdError.message || "";
-      throw new Error("لم نتمكن من تحديث كلمة المرور: " + errorMsg);
-    }
-  }
+  // Utilize the Express admin backend to bypass Frontend RLS locks
+  const response = await fetch("/api/team/admin-update-member", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      memberId: member.id,
+      updates, // Pass ALL updates (including password if provided)
+      email: member.email,
+    }),
+  });
 
-  if (Object.keys(memberData).length > 0) {
-    return await update<TeamMember>(
-      client,
-      "team_members",
-      member.id,
-      memberData,
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      result.error || "Failed to update via backend. Please check network.",
     );
   }
 
-  // If only password was updated, nothing is returned from the 'update' call.
-  // Return the member object merged with the non-password updates to reflect the new state.
-  return { ...member, ...memberData };
+  // If the backend succeeded, return optimistic data
+  return { ...member, ...memberData } as TeamMember;
+};
+
+export const createTeamMemberAdmin = async (
+  client: SupabaseClient,
+  memberData: Record<string, any>,
+): Promise<TeamMember> => {
+  const response = await fetch("/api/team/admin-create-member", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ memberData }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      result.error || "Failed to create via backend. Please check network.",
+    );
+  }
+
+  return keysToCamel(result.member) as TeamMember;
 };
 
 export const deleteById = async (

@@ -199,7 +199,7 @@ export const AllTasksPage: React.FC = () => {
 
   if (isFormOpen || selectedTask) {
     return (
-      <div className="p-6 max-w-4xl mx-auto flex-1 h-full">
+      <div className="p-6 max-w-5xl mx-auto flex flex-col h-[max(calc(100vh-80px),800px)] w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         <TaskDetailInline
           onClose={() => {
             setIsFormOpen(false);
@@ -214,14 +214,14 @@ export const AllTasksPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+    <div className="p-6 max-w-[1600px] mx-auto h-[calc(100vh-80px)] flex flex-col">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             جميع المهام
           </h2>
-          <p className="text-md text-slate-500 dark:text-slate-400">
-            عرض وتصفية جميع المهام المتاحة لك.
+          <p className="text-md text-slate-500 dark:text-slate-400 mt-1">
+            عرض وتصفية جميع المهام الخاصة بك وبفريقك
           </p>
         </div>
         {canCreateTasks && (
@@ -230,124 +230,148 @@ export const AllTasksPage: React.FC = () => {
               setSelectedTask(null);
               setIsFormOpen(true);
             }}
-            className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 w-full md:w-auto"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-900 dark:bg-sky-600 rounded-lg hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors shadow-sm w-full md:w-auto"
           >
-            <PlusIcon className="w-5 h-5" />
+            <PlusIcon className="w-4 h-4" />
             <span>مهمة جديدة</span>
           </button>
         )}
       </div>
 
-      <Card>
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4">
+      <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-500">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
           <input
             type="text"
-            placeholder="ابحث..."
+            placeholder="ابحث في المهام..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-auto flex-grow p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900"
+            className="w-full md:w-auto flex-grow px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
           />
-          <select
-            value={filters.assignee}
-            onChange={(e) =>
-              setFilters({ ...filters, assignee: e.target.value })
-            }
-            className="p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900"
-          >
-            <option value="me">الخاصة بي</option>
-            <option value="all">الكل</option>
-          </select>
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="p-2 border border-slate-300 dark:border-slate-600 rounded-md dark:bg-slate-900"
-          >
-            <option value="open">المفتوحة</option>
-            <option value="all">الكل</option>
-            <option value="todo">لم تبدأ</option>
-            <option value="inprogress">قيد التنفيذ</option>
-            <option value="done">مكتملة</option>
-          </select>
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-md">
+          <div className="flex gap-3">
+            <select
+              value={filters.assignee}
+              onChange={(e) =>
+                setFilters({ ...filters, assignee: e.target.value })
+              }
+              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="me">المهام الخاصة بي</option>
+              <option value="all">الكل</option>
+            </select>
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters({ ...filters, status: e.target.value })
+              }
+              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="open">المفتوحة</option>
+              <option value="all">الكل</option>
+              <option value="todo">لم تبدأ</option>
+              <option value="inprogress">قيد التنفيذ</option>
+              <option value="done">مكتملة</option>
+            </select>
+          </div>
+          <div className="flex bg-slate-200 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
             <button
               onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-md ${viewMode === "list" ? "bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? "bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
             >
-              <ListBulletIcon className="w-5 h-5" />
+              <ListBulletIcon className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("kanban")}
-              className={`p-1.5 rounded-md ${viewMode === "kanban" ? "bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === "kanban" ? "bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
             >
-              <Squares2X2Icon className="w-5 h-5" />
+              <Squares2X2Icon className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {filteredAndSortedTasks.length > 0 ? (
-          <div className="p-4">
-            {viewMode === "kanban" ? (
-              <TaskKanbanBoard
-                tasks={filteredAndSortedTasks}
-                onTaskClick={(task) => setSelectedTask(task)}
-                onUpdateTaskStatus={async (taskId, newStatus) => {
-                  await handleUpdateTask({ id: taskId, status: newStatus });
-                }}
-                membersMap={membersMap}
+        <div className="flex-1 min-h-0 overflow-hidden bg-slate-50/30 dark:bg-slate-900/20">
+          {filteredAndSortedTasks.length > 0 ? (
+            <div className="h-full p-4 overflow-auto">
+              {viewMode === "kanban" ? (
+                <TaskKanbanBoard
+                  tasks={filteredAndSortedTasks}
+                  onTaskClick={(task) => setSelectedTask(task)}
+                  onUpdateTaskStatus={async (taskId, newStatus) => {
+                    await handleUpdateTask({ id: taskId, status: newStatus });
+                  }}
+                  membersMap={membersMap}
+                />
+              ) : (
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <table className="w-full text-sm text-right">
+                    <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                          المهمة
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                          المشروع
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                          المسؤول
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                          تاريخ الاستحقاق
+                        </th>
+                        <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                          الحالة
+                        </th>
+                        {(canEditTasks || canDeleteTasks) && (
+                          <th className="px-6 py-4 font-semibold text-slate-600 dark:text-slate-300">
+                            الإجراءات
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                      {filteredAndSortedTasks.map((task) => (
+                        <TaskTableRow
+                          key={task.id}
+                          task={task}
+                          projectName={
+                            task.projectId
+                              ? projectsMap[task.projectId] || "-"
+                              : "-"
+                          }
+                          assigneeName={
+                            task.assignedTo
+                              ? membersMap[task.assignedTo] || "غير معروف"
+                              : "غير مسندة"
+                          }
+                          onEdit={() => {
+                            setSelectedTask(task);
+                            setIsFormOpen(true);
+                          }}
+                          onDelete={() => setTaskToDelete(task)}
+                          onSelect={() => setSelectedTask(task)}
+                          canEdit={canEditTasks}
+                          canDelete={canDeleteTasks}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center p-8">
+              <EmptyState
+                icon={
+                  <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 mx-auto">
+                    <ClipboardDocumentListIcon className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+                  </div>
+                }
+                title="لا توجد مهام"
+                message="لم يتم العثور على مهام تطابق الفلاتر المطبقة."
               />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-right">
-                  <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50">
-                    <tr>
-                      <th className="px-6 py-3">المهمة</th>
-                      <th className="px-6 py-3">المشروع</th>
-                      <th className="px-6 py-3">المسؤول</th>
-                      <th className="px-6 py-3">تاريخ الاستحقاق</th>
-                      <th className="px-6 py-3">الحالة</th>
-                      {(canEditTasks || canDeleteTasks) && (
-                        <th className="px-6 py-3">الإجراءات</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAndSortedTasks.map((task) => (
-                      <TaskTableRow
-                        key={task.id}
-                        task={task}
-                        projectName={
-                          task.projectId
-                            ? projectsMap[task.projectId] || "-"
-                            : "-"
-                        }
-                        assigneeName={
-                          task.assignedTo
-                            ? membersMap[task.assignedTo] || "غير معروف"
-                            : "غير مسندة"
-                        }
-                        onEdit={() => {
-                          setSelectedTask(task);
-                          setIsFormOpen(true);
-                        }}
-                        onDelete={() => setTaskToDelete(task)}
-                        onSelect={() => setSelectedTask(task)}
-                        canEdit={canEditTasks}
-                        canDelete={canDeleteTasks}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          <EmptyState
-            icon={<ClipboardDocumentListIcon className="w-12 h-12" />}
-            title="لا توجد مهام"
-            message="لم يتم العثور على مهام تطابق الفلاتر المطبقة."
-          />
-        )}
-      </Card>
+            </div>
+          )}
+        </div>
+      </div>
 
       {taskToDelete && (
         <ConfirmationModal

@@ -1,55 +1,89 @@
-import { TeamMember, OvertimeRequest, ExpenseClaim, Penalty, SiteSettings } from '../types';
-import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import {
+  TeamMember,
+  OvertimeRequest,
+  ExpenseClaim,
+  Penalty,
+  SiteSettings,
+} from "../types";
+import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 export const generateSalarySlipData = (
-    member: TeamMember,
-    month: Date,
-    allOvertimeRequests: OvertimeRequest[],
-    allExpenseClaims: ExpenseClaim[],
-    allPenalties: Penalty[],
-    siteSettings: SiteSettings | null
+  member: TeamMember,
+  month: Date,
+  allOvertimeRequests: OvertimeRequest[],
+  allExpenseClaims: ExpenseClaim[],
+  allPenalties: Penalty[],
+  siteSettings: SiteSettings | null,
 ) => {
-    const startOfMonthForView = startOfMonth(month);
-    const endOfMonthForView = endOfMonth(month);
+  const startOfMonthForView = startOfMonth(month);
+  const endOfMonthForView = endOfMonth(month);
 
-    const memberOvertimes = allOvertimeRequests.filter(o => o.teamMemberId === member.id);
-    const memberExpenses = allExpenseClaims.filter(e => e.teamMemberId === member.id);
-    const memberPenalties = allPenalties.filter(p => p.teamMemberId === member.id);
+  const memberOvertimes = allOvertimeRequests.filter(
+    (o) => o.teamMemberId === member.id,
+  );
+  const memberExpenses = allExpenseClaims.filter(
+    (e) => e.teamMemberId === member.id,
+  );
+  const memberPenalties = allPenalties.filter(
+    (p) => p.teamMemberId === member.id,
+  );
 
-    const approvedOvertimeHours = memberOvertimes
-        .filter(r => r.status === 'approved' && isWithinInterval(new Date(r.weekStartDate), { start: startOfMonthForView, end: endOfMonthForView }))
-        .reduce((sum, r) => sum + r.requestedHours, 0);
-        
-    const expensesReimbursed = memberExpenses
-        .filter(e => e.status === 'approved' && isWithinInterval(new Date(e.date), { start: startOfMonthForView, end: endOfMonthForView }))
-        .reduce((sum, e) => sum + e.amount, 0);
+  const approvedOvertimeHours = memberOvertimes
+    .filter(
+      (r) =>
+        r.status === "approved" &&
+        isWithinInterval(new Date(r.weekStartDate), {
+          start: startOfMonthForView,
+          end: endOfMonthForView,
+        }),
+    )
+    .reduce((sum, r) => sum + r.requestedHours, 0);
 
-    const penaltiesDeducted = memberPenalties
-        .filter(p => p.status === 'approved' && isWithinInterval(new Date(p.date), { start: startOfMonthForView, end: endOfMonthForView }))
-        .reduce((sum, p) => sum + p.amount, 0);
-        
-    const salary = member.salary || 0;
-        
-    // Approximation for hourly rate from salary.
-    const hourlyRate = member.hourlyRate || (
-        (member.weeklyHoursRequirement && member.weeklyHoursRequirement > 0) 
-        ? (salary / 4.33) / member.weeklyHoursRequirement 
-        : salary / (22 * 8)
-    ); 
-        
-    const overtimeMultiplier = siteSettings?.overtimeRateMultiplier || 1.5;
-    const overtimePay = approvedOvertimeHours * hourlyRate * overtimeMultiplier;
+  const expensesReimbursed = memberExpenses
+    .filter(
+      (e) =>
+        e.status === "approved" &&
+        isWithinInterval(new Date(e.date), {
+          start: startOfMonthForView,
+          end: endOfMonthForView,
+        }),
+    )
+    .reduce((sum, e) => sum + e.amount, 0);
 
-    const baseSalary = salary;
-    const netSalary = baseSalary + overtimePay + expensesReimbursed - penaltiesDeducted;
+  const penaltiesDeducted = memberPenalties
+    .filter(
+      (p) =>
+        p.status === "approved" &&
+        isWithinInterval(new Date(p.date), {
+          start: startOfMonthForView,
+          end: endOfMonthForView,
+        }),
+    )
+    .reduce((sum, p) => sum + p.amount, 0);
 
-    return {
-        member,
-        month,
-        baseSalary,
-        overtimePay,
-        expensesReimbursed: expensesReimbursed,
-        penaltiesDeducted: penaltiesDeducted,
-        netSalary
-    };
+  const salary = member.salary || 0;
+
+  // Approximation for hourly rate from salary.
+  const hourlyRate =
+    member.hourlyRate ||
+    (member.weeklyHoursRequirement && member.weeklyHoursRequirement > 0
+      ? salary / 4.33 / member.weeklyHoursRequirement
+      : salary / (22 * 8));
+
+  const overtimeMultiplier = siteSettings?.overtimeRateMultiplier || 1.5;
+  const overtimePay = approvedOvertimeHours * hourlyRate * overtimeMultiplier;
+
+  const baseSalary = salary;
+  const netSalary =
+    baseSalary + overtimePay + expensesReimbursed - penaltiesDeducted;
+
+  return {
+    member,
+    month,
+    baseSalary,
+    overtimePay,
+    expensesReimbursed: expensesReimbursed,
+    penaltiesDeducted: penaltiesDeducted,
+    netSalary,
+  };
 };

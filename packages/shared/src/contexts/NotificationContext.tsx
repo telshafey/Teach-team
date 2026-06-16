@@ -32,7 +32,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
   const { subscribe } = useRealtime();
   const queryClient = useQueryClient();
 
-  const queryKey = React.useMemo(() => ["notifications", currentUser?.id], [currentUser?.id]);
+  const queryKey = React.useMemo(
+    () => ["notifications", currentUser?.id],
+    [currentUser?.id],
+  );
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey,
@@ -54,13 +57,17 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
     if (!currentUser?.id) return () => {};
 
     const handleNotificationChange = (payload: any) => {
-      const camelPayload = (payload.new ? api.keysToCamel(payload.new) : null) as Notification | null;
+      const camelPayload = (
+        payload.new ? api.keysToCamel(payload.new) : null
+      ) as Notification | null;
       const newRecipientId = camelPayload?.recipientId;
       const oldRecipientId =
         payload.old?.recipient_id || payload.old?.recipientId;
       if (
-        (newRecipientId && newRecipientId !== currentUser.id) &&
-        (oldRecipientId && oldRecipientId !== currentUser.id)
+        newRecipientId &&
+        newRecipientId !== currentUser.id &&
+        oldRecipientId &&
+        oldRecipientId !== currentUser.id
       ) {
         return;
       }

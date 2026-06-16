@@ -14,11 +14,11 @@ const dateFilter = (dateStr: string, filters: Filters) => {
   const date = parseISO(dateStr);
   const start = filters.dateFrom ? parseISO(filters.dateFrom) : new Date(0);
   const end = filters.dateTo ? parseISO(filters.dateTo) : new Date();
-  
+
   if (filters.dateTo) {
     end.setHours(23, 59, 59, 999);
   }
-  
+
   return isWithinInterval(date, { start, end });
 };
 

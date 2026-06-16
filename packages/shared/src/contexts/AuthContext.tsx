@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           }
         } else {
           // Auto-create a team member record for new auth users
-          const gmRoleId = "gm";
+          const gmRoleId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
           const { data: newUser, error: insertError } = await supabaseClient
             .from("team_members")
             .insert([
@@ -124,6 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 auth_user_id: authUserId,
                 name: authEmail.split("@")[0],
                 employment_type: "full-time",
+// ... existing avatar_url ...
                 avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split("@")[0]}`,
                 role_id: gmRoleId,
               },
@@ -141,10 +142,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (users && users.length > 0) {
         // Fallback: If the user was auto-created by the SQL trigger without a role, upgrade them to GM
         if (
-          !users[0].role_id ||
-          users[0].role_id === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+          !users[0].role_id
         ) {
-          const gmRoleId = "gm";
+          const gmRoleId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
           await supabaseClient
             .from("team_members")
             .update({ role_id: gmRoleId })

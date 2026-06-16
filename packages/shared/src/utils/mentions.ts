@@ -1,4 +1,4 @@
-import { TeamMember } from '../types';
+import { TeamMember } from "../types";
 
 /**
  * Parses comment text to find mentions based on a list of team members.
@@ -7,16 +7,19 @@ import { TeamMember } from '../types';
  * @param users The list of all team members.
  * @returns An array of unique TeamMember objects who were mentioned.
  */
-export const parseMentions = (text: string, users: TeamMember[]): TeamMember[] => {
+export const parseMentions = (
+  text: string,
+  users: TeamMember[],
+): TeamMember[] => {
   const mentionedUsers = new Set<TeamMember>();
 
-  users.forEach(user => {
+  users.forEach((user) => {
     // A simple check to see if "@<full name>" exists in the text.
-    // A more robust solution might use a library or more complex regex 
+    // A more robust solution might use a library or more complex regex
     // to handle variations, but this is effective for exact matches.
     const mentionTag = `@${user.name}`;
     if (text.includes(mentionTag)) {
-        mentionedUsers.add(user);
+      mentionedUsers.add(user);
     }
   });
 

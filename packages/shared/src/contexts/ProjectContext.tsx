@@ -108,21 +108,22 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
       try {
         await api.insert<Task>(supabaseClient, "tasks", fullTaskData);
         addToast("Task added successfully.", "success");
-        
+
         if (taskData.assignedTo && taskData.assignedTo !== currentUser.id) {
           try {
-             const { createNotification } = await import("../services/notificationService");
-             await createNotification(supabaseClient, {
-               recipientId: taskData.assignedTo,
-               type: "task_assigned",
-               taskTitle: taskData.title,
-               assignerName: currentUser.name,
-               projectId: projectId,
-               taskId: undefined,
-             });
-          } catch(e) {}
+            const { createNotification } =
+              await import("../services/notificationService");
+            await createNotification(supabaseClient, {
+              recipientId: taskData.assignedTo,
+              type: "task_assigned",
+              taskTitle: taskData.title,
+              assignerName: currentUser.name,
+              projectId: projectId,
+              taskId: undefined,
+            });
+          } catch (e) {}
         }
-        
+
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       } catch (error: any) {
         addToast(`Failed to add task: ${error.message}`, "error");

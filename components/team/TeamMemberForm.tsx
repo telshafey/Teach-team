@@ -95,7 +95,7 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
       }
       await onSave(dataToSave, member);
       onCancel();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save team member", error);
     } finally {
       setIsSaving(false);

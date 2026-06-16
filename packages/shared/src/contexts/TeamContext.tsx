@@ -168,43 +168,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
           throw new Error("Password is required for new members.");
         }
 
-        const memberData = { ...restOfData, email };
-        // Insert into team_members first
-        await api.insert<TeamMember>(
-          supabaseClient,
-          "team_members",
-          memberData as unknown as Omit<
-            TeamMember,
-            "id" | "weeklyPlan" | "daysOff"
-          >,
-        );
+        const memberData = { ...restOfData, email, password };
 
-        // Secondary client to avoid mutating the current authenticated session
-        const secondaryClient = createClient(
-          // @ts-ignore
-          import.meta.env.VITE_SUPABASE_URL,
-          // @ts-ignore
-          import.meta.env.VITE_SUPABASE_ANON_KEY,
-          {
-            auth: {
-              persistSession: false,
-              lock: async (name, acquireTimeout, fn) => await fn(),
-            },
-          },
-        );
-
-        const { error: signUpError } = await secondaryClient.auth.signUp({
-          email,
-          password,
-        });
-
-        if (signUpError) {
-          console.warn(
-            "Signup error inside handleAddMember, user may already exist or rate limited",
-            signUpError,
-          );
-          // We don't throw here to avoid failing since the team_member record was created
-        }
+        await api.createTeamMemberAdmin(supabaseClient, memberData);
 
         queryClient.invalidateQueries({ queryKey: ["team_members"] });
         addToast("Team member added successfully.", "success");
