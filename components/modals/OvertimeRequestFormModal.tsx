@@ -34,7 +34,7 @@ export const OvertimeRequestFormModal: React.FC<
 
   useEffect(() => {
     if (isOpen) {
-      const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 0 }); // Sunday
+      const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 6 }); // Saturday
       setFormData({
         weekStartDate: format(startOfCurrentWeek, "yyyy-MM-dd"),
         requestedHours: 0,

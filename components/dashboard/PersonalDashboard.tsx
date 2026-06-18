@@ -304,7 +304,7 @@ export const PersonalDashboard: React.FC = () => {
         .filter((l) => isSameDay(new Date(l.date), now))
         .reduce((sum, l) => sum + l.hours, 0),
       thisWeekHours: myLogs
-        .filter((l) => isThisWeek(new Date(l.date), { weekStartsOn: 0 }))
+        .filter((l) => isThisWeek(new Date(l.date), { weekStartsOn: 6 }))
         .reduce((sum, l) => sum + l.hours, 0),
       dueSoonCount: myOpenTasks.filter(
         (t) =>

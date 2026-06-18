@@ -106,7 +106,7 @@ export const TimeSheetPage: React.FC<TimeSheetPageProps> = ({
 
     const thisWeekHours = myLogs
       .filter((log) =>
-        isWithinThisWeek(new Date(log.date), { weekStartsOn: 0 }),
+        isWithinThisWeek(new Date(log.date), { weekStartsOn: 6 }),
       )
       .reduce((sum, log) => sum + log.hours, 0);
 

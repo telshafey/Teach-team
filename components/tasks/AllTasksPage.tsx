@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useProjectContext } from "@shared/contexts/ProjectContext";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { useAuth } from "@shared/contexts/AuthContext";
@@ -19,6 +19,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useSupabase } from "@shared/contexts/SupabaseContext";
 import * as api from "@shared/services/apiService";
+import { Pagination } from "../ui/Pagination";
+
+const ITEMS_PER_PAGE = 30;
 
 type SortKey = "title" | "projectName" | "assigneeName" | "dueDate" | "status";
 
@@ -43,6 +46,7 @@ export const AllTasksPage: React.FC = () => {
     key: SortKey;
     direction: "asc" | "desc";
   } | null>({ key: "dueDate", direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects"],
@@ -176,6 +180,16 @@ export const AllTasksPage: React.FC = () => {
     }
   }
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters, sortConfig, viewMode]);
+
+  const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
+  const currentTasks = filteredAndSortedTasks.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const handleSaveTask = async (taskData: Partial<Task>, isNew: boolean) => {
     if (isNew) {
       await handleAddTask(
@@ -290,18 +304,20 @@ export const AllTasksPage: React.FC = () => {
 
         <div className="flex-1 min-h-0 overflow-hidden bg-slate-50/30 dark:bg-slate-900/20">
           {filteredAndSortedTasks.length > 0 ? (
-            <div className="h-full p-4 overflow-auto">
+            <div className="h-full p-4 flex flex-col">
               {viewMode === "kanban" ? (
-                <TaskKanbanBoard
-                  tasks={filteredAndSortedTasks}
-                  onTaskClick={(task) => setSelectedTask(task)}
-                  onUpdateTaskStatus={async (taskId, newStatus) => {
-                    await handleUpdateTask({ id: taskId, status: newStatus });
-                  }}
-                  membersMap={membersMap}
-                />
+                <div className="flex-1 overflow-auto">
+                  <TaskKanbanBoard
+                    tasks={currentTasks}
+                    onTaskClick={(task) => setSelectedTask(task)}
+                    onUpdateTaskStatus={async (taskId, newStatus) => {
+                      await handleUpdateTask({ id: taskId, status: newStatus });
+                    }}
+                    membersMap={membersMap}
+                  />
+                </div>
               ) : (
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex-1 overflow-auto">
                   <table className="w-full text-sm text-right">
                     <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                       <tr>
@@ -328,7 +344,7 @@ export const AllTasksPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {filteredAndSortedTasks.map((task) => (
+                      {currentTasks.map((task) => (
                         <TaskTableRow
                           key={task.id}
                           task={task}
@@ -356,6 +372,15 @@ export const AllTasksPage: React.FC = () => {
                   </table>
                 </div>
               )}
+              
+              <div className="mt-4 shrink-0">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={filteredAndSortedTasks.length}
+                />
+              </div>
             </div>
           ) : (
             <div className="h-full flex items-center justify-center p-8">

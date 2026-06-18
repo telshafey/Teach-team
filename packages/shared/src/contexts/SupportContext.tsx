@@ -77,14 +77,18 @@ export const SupportProvider: React.FC<{ children: ReactNode }> = ({
       (payload: RealtimePostgresChangesPayload<T>) => {
         queryClient.setQueryData([queryKey], (oldData: T[] | undefined) => {
           if (oldData === undefined) return [];
-          if (payload.eventType === "INSERT") {
-            if (oldData.some((item) => item.id === payload.new.id))
+          const camelPayload = payload.new
+            ? (api.keysToCamel(payload.new) as T)
+            : null;
+
+          if (payload.eventType === "INSERT" && camelPayload) {
+            if (oldData.some((item) => item.id === camelPayload.id))
               return oldData;
-            return [payload.new, ...oldData];
+            return [camelPayload, ...oldData];
           }
-          if (payload.eventType === "UPDATE") {
+          if (payload.eventType === "UPDATE" && camelPayload) {
             return oldData.map((item) =>
-              item.id === payload.new.id ? payload.new : item,
+              item.id === camelPayload.id ? camelPayload : item,
             );
           }
           if (payload.eventType === "DELETE") {

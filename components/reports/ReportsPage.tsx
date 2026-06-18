@@ -21,6 +21,26 @@ import { Project, Task } from "@shared/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2pdf from "html2pdf.js";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  subMonths,
+} from "date-fns";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { Pagination } from "../ui/Pagination";
 
 type ReportType =
   | "projects_summary"
@@ -28,14 +48,16 @@ type ReportType =
   | "employee_performance_general"
   | "employee_performance_project"
   | "expenses_general"
-  | "expenses_project";
+  | "expenses_project"
+  | "leave_requests"
+  | "attendance";
 
 const ROWS_PER_PAGE = 20;
 
 export const ReportsPage: React.FC = () => {
   const { teamMembers, hasPermission } = useTeamContext();
   const { dailyLogs } = useTimeLogContext();
-  const { expenseClaims } = useRequestsContext();
+  const { expenseClaims, leaveRequests } = useRequestsContext();
   const { currency } = useSettingsContext();
   const { currentUser } = useAuth();
   const { supabaseClient } = useSupabase();
@@ -172,6 +194,22 @@ export const ReportsPage: React.FC = () => {
           true,
         );
         break;
+
+      case "leave_requests":
+        reportData = reportService.generateLeaveRequests(
+          leaveRequests,
+          teamMembers,
+          serviceFilters,
+        );
+        break;
+
+      case "attendance":
+        reportData = reportService.generateAttendance(
+          dailyLogs,
+          teamMembers,
+          serviceFilters,
+        );
+        break;
     }
 
     setGeneratedReport(reportData);
@@ -224,6 +262,30 @@ export const ReportsPage: React.FC = () => {
     html2pdf().set(opt).from(element).save();
   };
 
+  const handleDateShortcut = (
+    shortcut: "this_week" | "last_month" | "this_year",
+  ) => {
+    const now = new Date();
+    let start, end;
+
+    if (shortcut === "this_week") {
+      start = startOfWeek(now, { weekStartsOn: 6 });
+      end = endOfWeek(now, { weekStartsOn: 6 });
+    } else if (shortcut === "last_month") {
+      start = startOfMonth(subMonths(now, 1));
+      end = endOfMonth(subMonths(now, 1));
+    } else if (shortcut === "this_year") {
+      start = startOfYear(now);
+      end = endOfYear(now);
+    }
+
+    setFilters({
+      ...filters,
+      dateFrom: format(start!, "yyyy-MM-dd"),
+      dateTo: format(end!, "yyyy-MM-dd"),
+    });
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6">
@@ -240,19 +302,23 @@ export const ReportsPage: React.FC = () => {
               <select
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value as ReportType)}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               >
                 <optgroup label="تقارير عامة">
                   <option value="projects_summary">ملخص المشاريع</option>
                   <option value="tasks_detail">تفاصيل المهام</option>
                   <option value="expenses_general">المصروفات العامة</option>
                 </optgroup>
-                <optgroup label="تقارير مخصصة">
+                <optgroup label="تقارير الموظفين">
+                  <option value="attendance">
+                    الحضور والانصراف (ساعات العمل)
+                  </option>
+                  <option value="leave_requests">سجل الإجازات</option>
                   <option value="employee_performance_general">
-                    أداء موظف (عام)
+                    أداء الموظفين (عام)
                   </option>
                   <option value="employee_performance_project">
-                    أداء موظف (مشروع)
+                    أداء الموظفين (مشروع)
                   </option>
                   <option value="expenses_project">مصروفات مشروع</option>
                 </optgroup>
@@ -269,7 +335,7 @@ export const ReportsPage: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, dateFrom: e.target.value })
                 }
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md dark:bg-slate-800"
               />
             </div>
             <div>
@@ -282,9 +348,48 @@ export const ReportsPage: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, dateTo: e.target.value })
                 }
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md dark:bg-slate-800"
               />
             </div>
+          </div>
+
+          <div className="flex gap-2 text-sm text-sky-600 dark:text-sky-400">
+            <span className="text-slate-500 dark:text-slate-400">
+              تحديد سريع:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDateShortcut("this_week")}
+              className="hover:underline"
+            >
+              هذا الأسبوع
+            </button>
+            <span>|</span>
+            <button
+              type="button"
+              onClick={() => handleDateShortcut("last_month")}
+              className="hover:underline"
+            >
+              الشهر الماضي
+            </button>
+            <span>|</span>
+            <button
+              type="button"
+              onClick={() => handleDateShortcut("this_year")}
+              className="hover:underline"
+            >
+              هذا العام
+            </button>
+            <span>|</span>
+            <button
+              type="button"
+              onClick={() =>
+                setFilters({ ...filters, dateFrom: "", dateTo: "" })
+              }
+              className="hover:underline text-slate-500"
+            >
+              مسح التاريخ
+            </button>
           </div>
           {/* Dynamic Filters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -419,6 +524,50 @@ export const ReportsPage: React.FC = () => {
                   من {generatedReport.rows.length} نتيجة
                 </p>
               </div>
+
+              {/* Chart Implementation based on reportType */}
+              {(reportType === "attendance" ||
+                reportType === "projects_summary") &&
+                generatedReport.rows.length > 0 && (
+                  <div className="p-6 border-b print:hidden">
+                    <div className="h-72 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={generatedReport.rows
+                            .filter((r) => r[0] !== "" && r[2] !== "المجموع") // Remove totals row
+                            .map((r) => ({
+                              name: r[0], // First column usually is Name/Project
+                              value:
+                                reportType === "attendance"
+                                  ? parseFloat(r[1])
+                                  : parseFloat(r[2]),
+                            }))}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="name" tick={{ fill: "#64748b" }} />
+                          <YAxis tick={{ fill: "#64748b" }} />
+                          <RechartsTooltip
+                            cursor={{ fill: "rgba(0,0,0,0.05)" }}
+                            contentStyle={{
+                              borderRadius: "8px",
+                              border: "none",
+                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                            }}
+                          />
+                          <Bar
+                            dataKey="value"
+                            name="إجمالي الساعات"
+                            fill="#0284c7"
+                            radius={[4, 4, 0, 0]}
+                            barSize={40}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-right">
                   <thead className="text-xs uppercase bg-slate-50">
@@ -446,30 +595,12 @@ export const ReportsPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              {totalPages > 1 && (
-                <div className="p-4 flex justify-between items-center text-sm">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center space-x-1 rtl:space-x-reverse px-3 py-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"
-                  >
-                    <ChevronRightIcon className="w-4 h-4" /> <span>السابق</span>
-                  </button>
-                  <span>
-                    صفحة {currentPage} من {totalPages}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="flex items-center space-x-1 rtl:space-x-reverse px-3 py-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50"
-                  >
-                    <span>التالي</span>
-                    <ChevronLeftIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={generatedReport.rows.length}
+              />
             </>
           ) : (
             <EmptyState

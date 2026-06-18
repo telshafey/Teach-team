@@ -18,6 +18,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useSupabase } from "@shared/contexts/SupabaseContext";
 import * as api from "@shared/services/apiService";
 import { useAuth } from "@shared/contexts/AuthContext";
+import { Pagination } from "../ui/Pagination";
+
+const ITEMS_PER_PAGE = 9;
 
 interface ProjectsPageProps {
   isModalOpen?: boolean;
@@ -41,6 +44,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">(
     initialState?.statusFilter || "all",
   );
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects"],
@@ -81,6 +85,17 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       return matchesSearch && matchesStatus;
     });
   }, [projects, searchTerm, statusFilter, currentUser, isGM]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
+  const currentProjects = filteredProjects.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const statusFilters: { label: string; value: ProjectStatus | "all" }[] = [
     { label: "الكل", value: "all" },
@@ -165,16 +180,26 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           ))}
         </div>
       ) : filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onSelect={(id) => onNavigate("projectDetail", { projectId: id })}
-              currency={currency}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onSelect={(id) => onNavigate("projectDetail", { projectId: id })}
+                currency={currency}
+              />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredProjects.length}
             />
-          ))}
-        </div>
+          )}
+        </>
       ) : (
         <EmptyState
           icon={<FolderIcon className="w-12 h-12" />}

@@ -74,8 +74,8 @@ export const Calendar: React.FC<CalendarProps> = ({
   const renderCells = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart, { locale: arSA });
-    const endDate = endOfWeek(monthEnd, { locale: arSA });
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 6 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 6 });
 
     const days = eachDayOfInterval({ start: startDate, end: endDate });
     const rows = [];

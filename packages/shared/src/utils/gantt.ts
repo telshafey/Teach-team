@@ -40,7 +40,13 @@ export const prepareGanttData = (tasks: Task[]): GanttChartData | null => {
   const chartStartDate = startOfMonth(earliest);
   const chartEndDate = endOfMonth(latest);
 
-  const totalDays = differenceInDays(chartEndDate, chartStartDate) + 1;
+  let totalDays = differenceInDays(chartEndDate, chartStartDate) + 1;
+  
+  if (totalDays > 3650) {
+    // Limit to 10 years to prevent layout crash
+    totalDays = 3650;
+    chartEndDate.setFullYear(chartStartDate.getFullYear() + 10);
+  }
 
   const ganttTasks: GanttTask[] = validTasks.map((task) => {
     // A simple approximation for start date and duration

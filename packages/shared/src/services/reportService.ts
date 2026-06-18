@@ -143,3 +143,80 @@ export const generateExpenses = (
   rows.push(["", "", "", `المجموع: ${totalAmount.toFixed(2)} ${currency}`, ""]);
   return { headers, rows };
 };
+
+export const generateLeaveRequests = (
+  leaveRequests: any[],
+  teamMembers: TeamMember[],
+  filters: Filters,
+): { headers: string[]; rows: any[][] } => {
+  const headers = [
+    "الموظف",
+    "نوع الإجازة",
+    "من تاريخ",
+    "إلى تاريخ",
+    "الحالة",
+    "السبب",
+  ];
+  const filtered = leaveRequests.filter((lr) => {
+    if (filters.memberId && lr.teamMemberId !== Number(filters.memberId))
+      return false;
+    return dateFilter(lr.startDate, filters) || dateFilter(lr.endDate, filters);
+  });
+
+  const rows = filtered.map((lr) => {
+    const member = teamMembers.find((m) => m.id === lr.teamMemberId);
+    return [
+      member?.name || "N/A",
+      lr.type,
+      lr.startDate,
+      lr.endDate,
+      lr.status,
+      lr.reason || "",
+    ];
+  });
+  return { headers, rows };
+};
+
+export const generateAttendance = (
+  dailyLogs: DailyLog[],
+  teamMembers: TeamMember[],
+  filters: Filters,
+): { headers: string[]; rows: any[][] } => {
+  const headers = [
+    "الموظف",
+    "إجمالي الساعات المسجلة",
+    "متوسط الساعات اليومي (للأيام المسجلة)",
+  ];
+
+  const filteredLogs = dailyLogs.filter((l) => {
+    if (filters.memberId && l.teamMemberId !== Number(filters.memberId))
+      return false;
+    return dateFilter(l.date, filters);
+  });
+
+  const memberStats: Record<number, { totalHours: number; days: Set<string> }> =
+    {};
+
+  filteredLogs.forEach((log) => {
+    if (!memberStats[log.teamMemberId]) {
+      memberStats[log.teamMemberId] = { totalHours: 0, days: new Set() };
+    }
+    memberStats[log.teamMemberId].totalHours += log.hours;
+    memberStats[log.teamMemberId].days.add(log.date);
+  });
+
+  const rows: any[][] = [];
+  teamMembers.forEach((m) => {
+    if (filters.memberId && m.id !== Number(filters.memberId)) return;
+
+    const stats = memberStats[m.id];
+    if (!stats && filters.memberId) {
+      rows.push([m.name, "0.00", "0.00"]);
+    } else if (stats) {
+      const avg = stats.days.size > 0 ? stats.totalHours / stats.days.size : 0;
+      rows.push([m.name, stats.totalHours.toFixed(2), avg.toFixed(2)]);
+    }
+  });
+
+  return { headers, rows };
+};

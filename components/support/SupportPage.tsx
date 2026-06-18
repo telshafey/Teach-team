@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSupportContext } from "@shared/contexts/SupportContext";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { useAuth } from "@shared/contexts/AuthContext";
@@ -12,6 +12,9 @@ import { SupportTicketDetailModal } from "../modals/SupportTicketDetailModal";
 import { StatusBadge } from "../ui/StatusBadge";
 import { format, parseISO } from "date-fns";
 import { arSA } from "date-fns/locale";
+import { Pagination } from "../ui/Pagination";
+
+const ITEMS_PER_PAGE = 20;
 
 export const SupportPage: React.FC = () => {
   const { tickets, isLoading } = useSupportContext();
@@ -27,6 +30,7 @@ export const SupportPage: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<"all" | TicketPriority>(
     "all",
   );
+  const [currentPage, setCurrentPage] = useState(1);
 
   const canManage = hasPermission("manage_support_tickets");
   const membersMap = useMemo(
@@ -54,6 +58,16 @@ export const SupportPage: React.FC = () => {
 
     return displayTickets;
   }, [tickets, currentUser, canManage, statusFilter, priorityFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, priorityFilter]);
+
+  const totalPages = Math.ceil(filteredTickets.length / ITEMS_PER_PAGE);
+  const currentTickets = filteredTickets.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <>
@@ -122,7 +136,7 @@ export const SupportPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTickets.map((ticket) => (
+                  {currentTickets.map((ticket) => (
                     <tr
                       key={ticket.id}
                       onClick={() => setSelectedTicket(ticket)}
@@ -157,6 +171,12 @@ export const SupportPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredTickets.length}
+              />
             </div>
           ) : (
             <EmptyState

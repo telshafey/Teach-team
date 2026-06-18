@@ -49,11 +49,11 @@ export const WeeklyHoursTracker: React.FC<WeeklyHoursTrackerProps> = ({
 
     const weeksInMonth = eachWeekOfInterval(
       { start: startOfCurrentMonth, end: endOfCurrentMonth },
-      { weekStartsOn: 0 }, // Sunday
+      { weekStartsOn: 6 }, // Saturday
     ).filter((weekStart) => isSameMonth(weekStart, now)); // Ensure week starts within the month
 
     const weeklyBreakdown = weeksInMonth.map((weekStart) => {
-      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 6 });
       const weekNumber = getWeek(weekStart);
 
       const hoursLogged = logs
@@ -90,8 +90,8 @@ export const WeeklyHoursTracker: React.FC<WeeklyHoursTrackerProps> = ({
 
   const currentWeekData = useMemo(() => {
     const now = new Date();
-    const startOfCurrentWeek = startOfWeek(now, { weekStartsOn: 0 });
-    const endOfCurrentWeek = endOfWeek(now, { weekStartsOn: 0 });
+    const startOfCurrentWeek = startOfWeek(now, { weekStartsOn: 6 });
+    const endOfCurrentWeek = endOfWeek(now, { weekStartsOn: 6 });
 
     const hoursLogged = logs
       .filter((log) =>

@@ -17,7 +17,15 @@ import { RealtimeProvider } from "@shared/contexts/RealtimeContext";
 import { SupportProvider } from "@shared/contexts/SupportContext";
 import { TimeManagementProvider } from "@shared/contexts/TimeManagementContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 /**
  * A component that groups all data-related providers for cleaner code structure.

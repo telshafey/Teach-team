@@ -42,13 +42,17 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({
         ["meetings"],
         (oldData: Meeting[] | undefined) => {
           if (oldData === undefined) return [];
-          if (payload.eventType === "INSERT") {
-            if (oldData.some((m) => m.id === payload.new.id)) return oldData;
-            return [payload.new, ...oldData];
+          const camelPayload = payload.new
+            ? (api.keysToCamel(payload.new) as Meeting)
+            : null;
+
+          if (payload.eventType === "INSERT" && camelPayload) {
+            if (oldData.some((m) => m.id === camelPayload.id)) return oldData;
+            return [camelPayload, ...oldData];
           }
-          if (payload.eventType === "UPDATE") {
+          if (payload.eventType === "UPDATE" && camelPayload) {
             return oldData.map((m) =>
-              m.id === payload.new.id ? payload.new : m,
+              m.id === camelPayload.id ? camelPayload : m,
             );
           }
           if (payload.eventType === "DELETE") {

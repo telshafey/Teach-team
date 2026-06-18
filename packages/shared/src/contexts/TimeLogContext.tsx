@@ -47,14 +47,18 @@ export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({
         ["daily_logs"],
         (oldData: DailyLog[] | undefined) => {
           if (oldData === undefined) return [];
-          if (payload.eventType === "INSERT") {
-            if (oldData.some((log) => log.id === payload.new.id))
+          const camelPayload = payload.new
+            ? (api.keysToCamel(payload.new) as DailyLog)
+            : null;
+
+          if (payload.eventType === "INSERT" && camelPayload) {
+            if (oldData.some((log) => log.id === camelPayload.id))
               return oldData;
-            return [payload.new, ...oldData];
+            return [camelPayload, ...oldData];
           }
-          if (payload.eventType === "UPDATE") {
+          if (payload.eventType === "UPDATE" && camelPayload) {
             return oldData.map((log) =>
-              log.id === payload.new.id ? payload.new : log,
+              log.id === camelPayload.id ? camelPayload : log,
             );
           }
           if (payload.eventType === "DELETE") {

@@ -192,7 +192,7 @@ export const GeneralManagerDashboard: React.FC = () => {
 
   const dashboardData = useMemo(() => {
     const logsThisWeek = dailyLogs.filter((l) =>
-      isThisWeek(parseISO(l.date), { weekStartsOn: 0 }),
+      isThisWeek(parseISO(l.date), { weekStartsOn: 6 }),
     );
     const endDate = new Date();
     const startDate = subDays(endDate, 29);

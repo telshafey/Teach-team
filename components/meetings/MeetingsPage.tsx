@@ -21,6 +21,9 @@ import { arSA } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { useSupabase } from "@shared/contexts/SupabaseContext";
 import * as api from "@shared/services/apiService";
+import { Pagination } from "../ui/Pagination";
+
+const ITEMS_PER_PAGE = 20;
 
 type SortableKeys = "title" | "project" | "startTime" | "attendees";
 
@@ -160,6 +163,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
     key: SortableKeys;
     direction: "ascending" | "descending";
   }>({ key: "startTime", direction: "descending" });
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (openMeetingModal) {
@@ -258,6 +262,16 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
     });
     return sortableMeetings;
   }, [pastMeetings, sortConfig, projectsMap]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortConfig]);
+
+  const totalPages = Math.ceil(sortedPastMeetings.length / ITEMS_PER_PAGE);
+  const currentPastMeetings = sortedPastMeetings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const requestSort = (key: SortableKeys) => {
     let direction: "ascending" | "descending" = "ascending";
@@ -374,7 +388,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedPastMeetings.map((meeting) => (
+                  {currentPastMeetings.map((meeting) => (
                     <tr
                       key={meeting.id}
                       className="border-b dark:border-slate-700"
@@ -413,6 +427,12 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
                   ))}
                 </tbody>
               </table>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={sortedPastMeetings.length}
+              />
             </div>
           ) : (
             <div className="p-4">
