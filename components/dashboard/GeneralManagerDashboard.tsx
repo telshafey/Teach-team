@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { useTimeLogContext } from "@shared/contexts/TimeLogContext";
 import { Card } from "../ui/Card";
-import { BarChart, LineChart } from "../ui/Charts";
+import { BarChart, LineChart, PieChart } from "../ui/Charts";
 import {
   FolderIcon,
   ClockIcon,
@@ -75,12 +75,26 @@ const StatCardsWidget: React.FC<{
   </div>
 );
 
-const CompanyProductivityWidget: React.FC<{
+const RecordedWorkHoursWidget: React.FC<{
   data: { label: string; value: number }[];
 }> = ({ data }) => (
-  <Card title="إنتاجية الشركة (آخر 30 يوم)">
+  <Card title="إجمالي ساعات العمل المسجلة (آخر 30 يوم)">
     <div className="h-full min-h-[200px] flex items-center justify-center">
       <LineChart data={data} height={200} />
+    </div>
+  </Card>
+);
+
+const TasksStatusWidget: React.FC<{
+  data: { label: string; value: number; color: string }[];
+}> = ({ data }) => (
+  <Card title="حالة جميع المهام النشطة">
+    <div className="h-full min-h-[200px] flex items-center justify-center">
+      {data.length > 0 ? (
+        <PieChart data={data} />
+      ) : (
+        <span className="text-slate-500">لا توجد مهام نشطة</span>
+      )}
     </div>
   </Card>
 );
@@ -206,6 +220,19 @@ export const GeneralManagerDashboard: React.FC = () => {
         productivityMap[log.date] += log.hours;
     });
 
+    const tasksStatusCount = {
+      todo: 0,
+      in_progress: 0,
+      review: 0,
+      done: 0,
+    };
+    tasks.forEach((t) => {
+      // @ts-ignore
+      if (tasksStatusCount.hasOwnProperty(t.status)) {
+        tasksStatusCount[t.status as keyof typeof tasksStatusCount]++;
+      }
+    });
+
     return {
       stats: {
         activeProjects: projects.filter((p) => p.status === "نشط").length,
@@ -231,8 +258,14 @@ export const GeneralManagerDashboard: React.FC = () => {
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 10),
+      tasksStatus: [
+        { label: "قيد الانتظار", value: tasksStatusCount.todo, color: "#cbd5e1" },
+        { label: "قيد التنفيذ", value: tasksStatusCount.in_progress, color: "#fbbf24" },
+        { label: "مراجعة", value: tasksStatusCount.review, color: "#38bdf8" },
+        { label: "مكتملة", value: tasksStatusCount.done, color: "#34d399" },
+      ].filter((d) => d.value > 0),
     };
-  }, [projects, dailyLogs, teamMembers, pendingItems]);
+  }, [projects, dailyLogs, teamMembers, pendingItems, tasks]);
 
   const handleJoinMeeting = (meeting: Meeting) =>
     onNavigate("meetingRoom", { meeting });
@@ -267,9 +300,12 @@ export const GeneralManagerDashboard: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="lg:col-span-2 h-[400px]">
-          <CompanyProductivityWidget data={dashboardData.dailyProductivity} />
+          <RecordedWorkHoursWidget data={dashboardData.dailyProductivity} />
+        </div>
+        <div className="lg:col-span-1 h-[400px]">
+          <TasksStatusWidget data={dashboardData.tasksStatus} />
         </div>
         <div className="lg:col-span-1 h-[400px]">
           <TeamProductivityWidget data={dashboardData.teamProductivity} />

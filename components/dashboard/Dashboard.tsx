@@ -2,6 +2,7 @@ import React, { useState, lazy, Suspense, useEffect } from "react";
 import { Sidebar } from "../shared/Sidebar";
 import { Header } from "../shared/Header";
 import { useAuth } from "@shared/contexts/AuthContext";
+import { useTeamContext } from "@shared/contexts/TeamContext";
 import { ActiveTimerBar } from "../shared/ActiveTimerBar";
 import { PunchClockBar } from "../shared/PunchClockBar";
 import { LogFormModal } from "../modals/LogFormModal";
@@ -101,8 +102,19 @@ const OnboardingPage = lazy(() =>
 
 const DashboardContentComponent = () => {
   const { currentUser } = useAuth();
-  if (currentUser?.roleId === "gm") return <GeneralManagerDashboard />;
-  if (currentUser?.roleId === "manager") return <ManagerDashboard />;
+  const { currentUserRole } = useTeamContext();
+
+  const isGM =
+    currentUser?.roleId === "gm" ||
+    currentUser?.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
+    currentUserRole?.name?.includes("GM");
+    
+  const isManager =
+    currentUser?.roleId === "manager" ||
+    currentUserRole?.name?.includes("Manager");
+
+  if (isGM) return <GeneralManagerDashboard />;
+  if (isManager) return <ManagerDashboard />;
   return <PersonalDashboard />;
 };
 

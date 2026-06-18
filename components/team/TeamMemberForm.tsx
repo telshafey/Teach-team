@@ -7,6 +7,7 @@ import {
 } from "@shared/types";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { useSettingsContext } from "@shared/contexts/SettingsContext";
+import { useAuth } from "@shared/contexts/AuthContext";
 import { Card } from "../ui/Card";
 
 interface TeamMemberFormProps {
@@ -23,8 +24,13 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
   onSave,
   member,
 }) => {
-  const { roles, teamMembers } = useTeamContext();
+  const { roles, teamMembers, hasPermission } = useTeamContext();
   const { currency } = useSettingsContext();
+  const { currentUser } = useAuth();
+  
+  const canViewSalary =
+    currentUser?.id === member?.id || hasPermission("view_all_salaries") || currentUser?.roleId === "admin";
+    
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<TeamMemberFormData>({
     name: "",
@@ -215,27 +221,27 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
               <option value="freelancer">مستقل</option>
             </select>
           </div>
-          {isFreelancer ? (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                سعر الساعة ({currency})
-              </label>
-              <input
-                type="number"
-                value={formData.hourlyRate || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    hourlyRate: e.target.value
-                      ? Number(e.target.value)
-                      : undefined,
-                  })
-                }
-                className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
-              />
-            </div>
-          ) : (
-            <>
+          {canViewSalary && (
+            isFreelancer ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  سعر الساعة ({currency})
+                </label>
+                <input
+                  type="number"
+                  value={formData.hourlyRate || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      hourlyRate: e.target.value
+                        ? Number(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
+                />
+              </div>
+            ) : (
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   الراتب الشهري ({currency})
@@ -254,25 +260,27 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
                   className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  ساعات العمل الأسبوعية
-                </label>
-                <input
-                  type="number"
-                  value={formData.weeklyHoursRequirement || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      weeklyHoursRequirement: e.target.value
-                        ? Number(e.target.value)
-                        : undefined,
-                    })
-                  }
-                  className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
-                />
-              </div>
-            </>
+            )
+          )}
+          {!isFreelancer && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                ساعات العمل الأسبوعية
+              </label>
+              <input
+                type="number"
+                value={formData.weeklyHoursRequirement || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    weeklyHoursRequirement: e.target.value
+                      ? Number(e.target.value)
+                      : undefined,
+                  })
+                }
+                className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
+              />
+            </div>
           )}
 
           {!isEditing && (

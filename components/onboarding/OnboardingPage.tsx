@@ -1,5 +1,7 @@
 import React from "react";
 import { useSettingsContext } from "@shared/contexts/SettingsContext";
+import { useAuth } from "@shared/contexts/AuthContext";
+import { useTeamContext } from "@shared/contexts/TeamContext";
 import {
   InformationCircleIcon,
   HomeIcon,
@@ -19,16 +21,38 @@ import {
 
 export const OnboardingPage: React.FC = () => {
   const { siteSettings } = useSettingsContext();
+  const { currentUser } = useAuth();
+  const { hasPermission } = useTeamContext();
+
+  const role = currentUser?.roleId;
+  const isGM = role === "gm" || role === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+  const isManager = role === "manager";
+  const isFreelancer = role === "freelancer";
+  const isEmployee = !isGM && !isManager && !isFreelancer;
+  const isManagerOrAbove = isGM || isManager;
+
+  const canApprove =
+    hasPermission("approve_task_submissions") ||
+    hasPermission("approve_weekly_plans") ||
+    hasPermission("approve_leave_requests") ||
+    hasPermission("approve_overtime") ||
+    hasPermission("approve_freelancer_contracts") ||
+    hasPermission("approve_expense_claims") ||
+    hasPermission("approve_work_contract_changes") ||
+    hasPermission("approve_penalties");
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto pb-24">
       <div className="mb-10 text-center">
         <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-          الدليل التعريفي للمنصة
+          الدليل التعريفي الخاص بك
         </h1>
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg">
-          مرحباً بك في فريقنا! يوفر لك هذا الدليل نظرة شاملة على كيفية استخدام
-          ميزات المنصة الأساسية لتسهيل عملك اليومي والبقاء على تواصل مع زملائك.
+          مرحباً {currentUser?.name}! هذا الدليل مصمم خصيصاً ليناسب دورك كـ{" "}
+          <strong className="text-slate-800 dark:text-slate-200">
+            {isGM ? "المدير العام للإدارة" : isManager ? "مدير فريق" : isFreelancer ? "مستقل (Freelancer)" : "موظف"}
+          </strong>
+          . تعرف على ميزات المنصة وكيف تؤدي مهام عملك اليومية بكفاءة عالية.
         </p>
       </div>
 
@@ -44,9 +68,10 @@ export const OnboardingPage: React.FC = () => {
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            تأكد من إعداد ملفك الشخصي عبر القائمة الجانبية. يمكنك تحديث صورتك
-            الشخصية، معلومات الاتصال، ومتابعة سجل نشاطك. ملفك الشخصي يساعد
-            زملائك في التعرف عليك والتواصل معك بسهولة.
+            يمكنك إعداد ملفك الشخصي عبر القائمة الجانبية لتحديث صورتك الشخصية ومعلومات الاتصال. 
+            {isFreelancer 
+              ? " سيساعد هذا الإدارة في متابعة بيانات التواصل معك وتقييم أدائك كمستقل."
+              : " ملفك الشخصي يساعد زملائك في التعرف عليك وسهولة التواصل معك."}
           </p>
         </div>
 
@@ -57,13 +82,14 @@ export const OnboardingPage: React.FC = () => {
               <HomeIcon className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              لوحة التحكم (الرئيسية)
+              اللوحة الرئيسية
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            لوحة التحكم هي واجهتك الأساسية والأولى. من خلالها تستطيع الاطلاع على
-            ملخص أدائك، مهامك السريعة، وإحصائيات الحضور. تختلف محتويات اللوحة
-            بناءً على صلاحياتك، حيث يرى المدراء إحصائيات فرقهم أيضاً.
+            {isGM && "اللوحة الرئيسية توفر لك نظرة شاملة على أداء الشركة ككل (المالية، حضور وانصراف الموظفين، مهام المشاريع الكبرى، والتقارير الإجمالية)."}
+            {isManager && "صممت اللوحة الرئيسية لتُظهر لك ملخص أداء فريقك، حضور موظفيك، المهام المعلقة للفريق، والطلبات التي تنتظر موافقتك كمدير للحفاظ على سير العمل والتسليم."}
+            {isEmployee && "اللوحة الرئيسية تُظهر ملخص أدائك الشخصي السريع لمتابعة مهامك المتبقية ومستوى إنجازك خلال الشهر."}
+            {isFreelancer && "لوحتك مخصصة لتُظهر لك المهام ومسارك كمستقل للعمل على إنجازها في الوقت المحدد لك وتتبع إنجازك المادي."}
           </p>
         </div>
 
@@ -74,21 +100,20 @@ export const OnboardingPage: React.FC = () => {
               <ClockIcon className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              الحضور وسجل العمل
+              سجل الحضور ووقت العمل
             </h2>
           </div>
           <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-2">
+            {!isFreelancer && (
+              <li>
+                <strong>تسجيل الحضور:</strong> لا تنسَ تسجيل حضورك عند بدء يومك عبر الزر في القائمة العلوية.
+              </li>
+            )}
             <li>
-              <strong>تسجيل الحضور:</strong> لا تنسَ تسجيل الحضور من الشريط
-              العلوي عند بدء يومك.
+              <strong>تتبع المهام:</strong> استخدم زر (البدء / الإيقاف) لتسجيل الوقت المستغرق في كل مهمة على حدة بدقة.
             </li>
             <li>
-              <strong>تتبع وقت المهام:</strong> استخدم زر البدء والايقاف لتتبع
-              الوقت المباشر المستغرق في كل مهمة.
-            </li>
-            <li>
-              <strong>سجل الدوام (Timesheet):</strong> راجع ساعات عملك وقم
-              بتقديم السجل اليومي لمشاريعك بشكل دوري.
+              <strong>سجل الدوام (Timesheet):</strong> راجع عدد ساعات عملك وقدّم السجل الدوري عبر صفحة (أوقاتي).
             </li>
           </ul>
         </div>
@@ -104,18 +129,25 @@ export const OnboardingPage: React.FC = () => {
             </h2>
           </div>
           <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-2">
-            <li>
-              <strong>المشاريع:</strong> تعرض المشاريع التي تعمل عليها أنت أو
-              فريقك المباشر.
-            </li>
-            <li>
-              <strong>مهامي:</strong> قائمة مركزة بالمهام المُسندة إليك شخصياً
-              لسهولة المتابعة والإنجاز.
-            </li>
-            <li>
-              <strong>لوحة المهام (Kanban):</strong> استخدم السحب والإفلات
-              لتغيير حالات مهامك.
-            </li>
+            {isManagerOrAbove ? (
+              <>
+                <li>
+                  <strong>المشاريع:</strong> يمكنك إنشاء المشاريع ومتابعتها، وتعيين أعضاء الفريق للمهام.
+                </li>
+                <li>
+                  <strong>لوحة متابعة الأعمال (Kanban):</strong> ستمكنك من تحريك المهام بمراحل الإنجاز المختلفة.
+                </li>
+              </>
+            ) : (
+              <>
+                <li>
+                  <strong>المشاريع:</strong> تعرض المشاريع والمهام التي تم إدراجك فيها.
+                </li>
+                <li>
+                  <strong>مهامي:</strong> قائمة مركزة لمهامك الشخصية التي يجب إنهائها وتتبعها.
+                </li>
+              </>
+            )}
           </ul>
         </div>
 
@@ -126,40 +158,39 @@ export const OnboardingPage: React.FC = () => {
               <UsersIcon className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              فريق العمل والمدراء
+              {isManagerOrAbove ? "إدارة الفريق والأعضاء" : "فريق العمل والهيكل"}
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            المنصة تدعم الهيكل الإداري بالكامل. سترى الزملاء الذين تعمل معهم
-            بشكل منتظم فقط. إذا كنت مديراً، ستتمكن من رؤية فريقك، تقييم أدائهم،
-            متابعة تقدمهم، واعتماد طلباتهم بكل سهولة من خلال شاشات الإدارة.
+            {isManagerOrAbove 
+              ? "من خلال صفحة الفريق، تستطيع استعراض جميع أعضاء فريقك، مهام المفتوحة لديهم، وتقييم أدائهم المكتمل كما تستطيع تعديل بياناتهم الوظيفية والرواتب (للمدير العام)."
+              : "ستتمكن من رؤية الهيكل التنظيمي لشركتك والتواصل بشكل مباشر مع مديرك المباشر أو رؤية زملاء القسم الذي تعمل به."}
           </p>
         </div>
 
         {/* Approvals & Requests Section */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg">
-              <DocumentTextIcon className="w-6 h-6" />
+        {(!isFreelancer || canApprove) && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg">
+                <DocumentTextIcon className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                {canApprove ? "إدارة الطلبات والموافقات" : "الطلبات والموافقات"}
+              </h2>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              الطلبات والموافقات
-            </h2>
+            {canApprove ? (
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+                كصاحب قرار، ستتلقى من فريقك في هذا القسم جميع طلبات (الإجازات، العمل الإضافي، عروض المستقلين، وادعاءات المصاريف) لمراجعتها واعتمادها أو رفضها مع كتابة المبررات اللازمة.
+              </p>
+            ) : (
+              <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-1">
+                <li><strong>الإجازات:</strong> التقدم بطلب إجازة دورية/مرضية للموافقة عليها.</li>
+                <li><strong>العمل الإضافي:</strong> طلب توثيق واعتماد الساعات الإضافية التي عملتها.</li>
+              </ul>
+            )}
           </div>
-          <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm mb-2">
-            من خلال تبويب "الموافقات"، يمكنك تقديم ومتابعة:
-          </p>
-          <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-1">
-            <li>
-              <strong>الإجازات:</strong> التقدم بطلب إجازة دورية أو مرضية
-              للموافقة عليها.
-            </li>
-            <li>
-              <strong>العمل الإضافي:</strong> طلب توثيق واعتماد ساعات العمل خارج
-              الدوام الرسمي.
-            </li>
-          </ul>
-        </div>
+        )}
 
         {/* Finance Section */}
         {siteSettings?.isFinanceModuleEnabled && (
@@ -173,34 +204,16 @@ export const OnboardingPage: React.FC = () => {
               </h2>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims)، يمكنك تقديمها
-              عبر النظام لإدارتك و قسم المالية لاعتمادها وصرفها لك بناءً على
-              الدورة المستندية الخاصة بالشركة.
-            </p>
-          </div>
-        )}
-
-        {/* Meetings Section */}
-        {siteSettings?.isMeetingsModuleEnabled && (
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg">
-                <VideoCameraIcon className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                الاجتماعات المباشرة
-              </h2>
-            </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              لا داعي لاستخدام برامج خارجية! يمكنك جدولة الاجتماعات والانضمام
-              لغرفة فيديو آمنة ومباشرة مع فريقك، مع ميزات المحادثة النصية
-              والمشاركة الفعالة لضمان أفضل إنتاجية.
+              {isGM && "الوصول الكامل إلى سجل المصروفات، رواتب الموظفين الشهرية، والميزانيات التفصيلية للمشاريع وتكاليف عقود المستقلين وإصدار الجزاءات المادية."}
+              {isManager && "تتيح لك الاطلاع على مصروفات المشاريع الخاصة بقسمك كالمصروفات و الجزاءات ضمن الحدود المسموحة لك."}
+              {(!isManagerOrAbove && !isFreelancer) && "إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims) قمت بصرفها من جيبك الشخصي، يمكنك طلب استردادها واعتمادها من الإدارة."}
+              {isFreelancer && "منطقة المالية تتيح لك رؤية عقودك السابقة والمستحقات المعتمدة (عقودي المستقلة)."}
             </p>
           </div>
         )}
 
         {/* Analytics Section */}
-        {siteSettings?.isAnalyticsModuleEnabled && (
+        {siteSettings?.isAnalyticsModuleEnabled && hasPermission("view_analytics") && (
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
@@ -211,15 +224,15 @@ export const OnboardingPage: React.FC = () => {
               </h2>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              تصفح لوحة التحليلات الخاصة بك لمتابعة أداءك العام ولتحليل ساعات
-              عملك وإنتاجيتك بشكل مرئي سريع الفهم. يستطيع المدراء الاطلاع على
-              تحليلات و إحصائيات فرق العمل التابعة لهم.
+              {isManagerOrAbove 
+                ? "تابع معدلات إنتاجية الشركة بشكل أعمق، مثل حجم الإيرادات المتوقعة بالنسبة للمصروفات، وجودة تسليم المشاريع، مع إحصائيات متقدمة مدعومة برسوم بيانية توفر لك رؤية واضحة."
+                : "تصفح لوحة التحليلات لتوفير رؤى كمية لتاريخ مشاركتك، إنجازاتك وساعات عملك اليومية والشهرية."}
             </p>
           </div>
         )}
 
         {/* Reports Section */}
-        {siteSettings?.isReportsModuleEnabled && (
+        {siteSettings?.isReportsModuleEnabled && hasPermission("view_reports") && (
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg">
@@ -230,15 +243,14 @@ export const OnboardingPage: React.FC = () => {
               </h2>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              يوفر لك قسم التقارير مرونة عالية في تخصيص وبناء تقارير خاصة بساعات
-              العمل، الحضور، وتكاليف المشاريع وحفظها للوصول السريع، مع إمكانية
-              تصديرها للمشاركة مع الإدارة أو أطراف أخرى.
+              يوفر لك قسم التقارير مرونة عالية في توليد تقارير مالية، إحصائية وتقارير موارد بشرية، مع القدرة على تصفيتها عبر نطاقات زمنية لتصديرها.
             </p>
           </div>
         )}
+
       </div>
 
-      {/* Notifications & Penalties (Full Width) */}
+      {/* Notifications & System Updates */}
       <div className="mt-6 bg-amber-50 dark:bg-amber-900/10 p-6 rounded-xl border border-amber-200 dark:border-amber-900/50">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
@@ -249,10 +261,7 @@ export const OnboardingPage: React.FC = () => {
           </h2>
         </div>
         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-          تابع زر الإشعارات الموجود أعلى يمين الشاشة. ستقوم المنصة بتنبيهك بكل
-          تحديث مهم مثل: المهام الجديدة الموكلة لك، حالة الموافقة على رصيد
-          إجازتك، والاجتماعات المقتربة للبدء، وحتى الإنذارات أو الجزاءات إن
-          وجدت.
+          أبقِ عينك على زر الإشعارات لمتابعة التحديثات الهامة وطلبات الموافقة. النظام سيرسل التنبيهات في حال تغيير حالات المشاريع، إسناد المهام إليك، بدء الاجتماعات أو إشعارٍ إداري.
         </p>
       </div>
 
@@ -263,21 +272,19 @@ export const OnboardingPage: React.FC = () => {
             <TicketIcon className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-            كيف أحصل على الدعم؟
+            الدعم الفني والشكاوى
           </h2>
         </div>
         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-          نعلم أن الأنظمة الجديدة قد تأخذ بعض الوقت للتعود عليها. إذا واجهتك أي
-          مشكلة تقنية، خطأ برمجي، أو احتجت لاستفسار، توجه لقسم{" "}
-          <strong>الدعم الفني</strong> وافتح تذكرة جديدة وسيقوم فريق الدعم
-          بمساعدتك فوراً.
+          واجهت مشكلة تقنية ضمن المنصة؟ افتح تذكرة عبر مبوبة (الدعم الفني) وصف المشكلة ليلقى فريق التطوير المعني الدعم الخاص بك والمساعدة بأسرع وقت.
         </p>
       </div>
 
       <div className="mt-12 text-center text-slate-500 text-sm">
-        <p>تم إعداد هذا الدليل لمساعدتك على بيئة العمل بشكل أكثر فاعلية.</p>
-        <p>نتمنى لك إنجازات مستمرة!</p>
+        <p>قمنا بتصميم هذه المنصة لجعل التعامل اليومي وإدارة العمل أكثر سهولة في الشركة.</p>
+        <p>أتمنى لك رحلة موفقة، ويسعدنا كونك جزءاً من الفريق!</p>
       </div>
     </div>
   );
 };
+

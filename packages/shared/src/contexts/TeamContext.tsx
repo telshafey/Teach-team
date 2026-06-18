@@ -114,11 +114,6 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         return true;
       if (!currentUserRole) return false;
       if (currentUserRole.name.includes("(GM)")) return true;
-      if (
-        currentUserRole.name.includes("(Manager)") &&
-        permission === "manage_team"
-      )
-        return true; // Allow Managers to manage the team as well
       return currentUserRole.permissions.includes(permission);
     },
     [currentUserRole, currentUser],

@@ -94,10 +94,14 @@ export const ReportsPage: React.FC = () => {
   const { visibleMembers, visibleProjects } = useMemo(() => {
     if (!currentUser) return { visibleMembers: [], visibleProjects: [] };
 
+    const isGM =
+      currentUser.roleId === "gm" ||
+      currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+    const isManager = currentUser.roleId === "manager";
+
     // GM and Managers can see all projects in the filter dropdown.
     // The data within the reports will still be scoped correctly for managers.
-    const canSeeAllProjects =
-      currentUser.roleId === "gm" || currentUser.roleId === "manager";
+    const canSeeAllProjects = isGM || isManager;
 
     // Regular employee sees only themself
     if (!canSeeAllProjects) {
@@ -116,10 +120,9 @@ export const ReportsPage: React.FC = () => {
       return team;
     };
 
-    const myTeamIds =
-      currentUser.roleId === "gm"
-        ? teamMembers.map((m) => m.id)
-        : Array.from(new Set(getTeamIds(currentUser.id)));
+    const myTeamIds = isGM
+      ? teamMembers.map((m) => m.id)
+      : Array.from(new Set(getTeamIds(currentUser.id)));
 
     const teamMembersVisible = teamMembers.filter((m) =>
       myTeamIds.includes(m.id),

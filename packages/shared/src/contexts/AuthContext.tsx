@@ -193,16 +193,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const handleLogout = async () => {
-    if (!supabaseClient) return;
+    // Force immediate UI update
+    setCurrentUser(null);
+    window.localStorage.removeItem("supabase.auth.bokra.v2");
+
+    if (!supabaseClient) {
+      window.location.href = "/";
+      return;
+    }
+
     try {
-      // Force clear local storage just in case GoTrue fails
-      window.localStorage.removeItem("supabase.auth.bokra.v2");
       await supabaseClient.auth.signOut();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      setCurrentUser(null);
-      window.location.reload();
+      window.location.href = "/";
     }
   };
 
