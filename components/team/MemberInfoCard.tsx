@@ -132,14 +132,16 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({
             </div>
           )}
         {canViewSalary && member.employmentType === "freelancer"
-          ? member.hourlyRate != null && (
+          ? (
               <div className="flex items-center">
                 <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-3 rtl:ml-0 rtl:mr-3" />
                 <span className="text-slate-600 dark:text-slate-300">
-                  سعر الساعة:
+                  طريقة المحاسبة:
                 </span>
                 <span className="font-semibold mr-auto rtl:mr-0 rtl:ml-auto">
-                  {member.hourlyRate.toLocaleString()} {currency}
+                  {(member.hourlyRate != null && member.hourlyRate > 0)
+                    ? `${member.hourlyRate.toLocaleString()} ${currency} / ساعة`
+                    : "حسب المشاريع (عقد ثابت)"}
                 </span>
               </div>
             )

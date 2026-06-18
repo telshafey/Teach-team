@@ -224,23 +224,60 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({
               </select>
             </div>
             {isFreelancer ? (
-              <div>
-                <label className="block text-sm font-medium">
-                  سعر الساعة ({currency})
-                </label>
-                <input
-                  type="number"
-                  value={formData.hourlyRate || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      hourlyRate: e.target.value
-                        ? Number(e.target.value)
-                        : undefined,
-                    })
-                  }
-                  className="w-full p-2 border rounded-md"
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    طريقة المحاسبة للمستقل
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                      <input
+                        type="radio"
+                        name="freelancerRateType"
+                        checked={formData.hourlyRate !== undefined && formData.hourlyRate !== null && formData.hourlyRate > 0}
+                        onChange={() => setFormData({ ...formData, hourlyRate: 10 })}
+                        className="h-4 w-4 text-sky-600 focus:ring-sky-500"
+                      />
+                      <span>حسب عدد ساعات العمل (بالساعة)</span>
+                    </label>
+                    <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                      <input
+                        type="radio"
+                        name="freelancerRateType"
+                        checked={!formData.hourlyRate || formData.hourlyRate <= 0}
+                        onChange={() => setFormData({ ...formData, hourlyRate: undefined })}
+                        className="h-4 w-4 text-sky-600 focus:ring-sky-500"
+                      />
+                      <span>وفقاً للمشروع / المهام (عقد ثابت)</span>
+                    </label>
+                  </div>
+                </div>
+                
+                {(formData.hourlyRate !== undefined && formData.hourlyRate !== null && formData.hourlyRate > 0) && (
+                  <div>
+                    <label className="block text-sm font-medium">
+                      سعر الساعة ({currency})
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.hourlyRate || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          hourlyRate: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      className="w-full p-2 border rounded-md"
+                    />
+                  </div>
+                )}
+                {(!formData.hourlyRate || formData.hourlyRate <= 0) && (
+                  <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded text-sm text-slate-600 dark:text-slate-300">
+                    يتم تحديد قيمة مخصصات المستقل عند تعيينه في مشاريع محددة من خلال (المالية &gt; عقود المستقلين).
+                  </div>
+                )}
               </div>
             ) : (
               <>

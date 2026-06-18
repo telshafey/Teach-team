@@ -3,6 +3,7 @@ import { DailyLog, DailyLogFormData, Task, Project } from "@shared/types";
 import { useToast } from "@shared/contexts/ToastContext";
 import { useQuery } from "@tanstack/react-query";
 import { useSupabase } from "@shared/contexts/SupabaseContext";
+import { useTeamContext } from "@shared/contexts/TeamContext";
 import * as api from "@shared/services/apiService";
 
 interface LogFormModalProps {
@@ -30,18 +31,26 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
 }) => {
   const { addToast } = useToast();
   const { supabaseClient } = useSupabase();
+  const { teamMembers } = useTeamContext();
+
+  const targetMember = useMemo(() => {
+    return teamMembers.find((m) => m.id === memberId);
+  }, [teamMembers, memberId]);
+
+  const isFreelancer =
+    targetMember?.roleId === "freelancer" ||
+    targetMember?.employmentType === "freelancer";
 
   const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ["projects_list"],
-    queryFn: () => api.getAll(supabaseClient!, "projects", "id, name"),
+    queryKey: ["projects"],
+    queryFn: () => api.getAll(supabaseClient!, "projects"),
     enabled: !!supabaseClient && isOpen,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: tasks = [] } = useQuery<Task[]>({
-    queryKey: ["tasks_list_for_log"],
-    queryFn: () =>
-      api.getAll(supabaseClient!, "tasks", "id, title, project_id"),
+    queryKey: ["tasks"],
+    queryFn: () => api.getAll(supabaseClient!, "tasks"),
     enabled: !!supabaseClient && isOpen,
     staleTime: 5 * 60 * 1000,
   });
@@ -55,8 +64,28 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
   });
 
   const groupedTasks = useMemo(() => {
+    let allowedProjects = projects;
+    let allowedTasks = tasks;
+
+    if (isFreelancer && memberId) {
+      // Freelancers only see tasks they are assigned to, or all tasks in projects they are assigned to (via contract)
+      allowedProjects = projects.filter(
+        (p) =>
+          p.freelancerContract?.status === "approved" &&
+          p.freelancerContract.freelancerId === memberId
+      );
+      
+      const allowedProjectIds = new Set(allowedProjects.map((p) => p.id));
+      
+      allowedTasks = tasks.filter(
+        (t) =>
+          t.assignedTo === memberId ||
+          (t.projectId && allowedProjectIds.has(t.projectId))
+      );
+    }
+
     const projectGroups: Record<string, { name: string; tasks: Task[] }> =
-      projects.reduce(
+      allowedProjects.reduce(
         (acc, p) => {
           acc[p.id] = { name: p.name, tasks: [] };
           return acc;
@@ -66,10 +95,10 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
 
     const generalTasks: Task[] = [];
 
-    for (const task of tasks) {
+    for (const task of allowedTasks) {
       if (task.projectId && projectGroups[task.projectId]) {
         projectGroups[task.projectId].tasks.push(task);
-      } else if (!task.projectId) {
+      } else if (!task.projectId && !isFreelancer) {
         generalTasks.push(task);
       }
     }
@@ -80,7 +109,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
       ),
       generalTasks,
     };
-  }, [projects, tasks]);
+  }, [projects, tasks, isFreelancer, memberId]);
 
   useEffect(() => {
     if (initialData) {
@@ -187,7 +216,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
               htmlFor="task"
               className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
             >
-              المهمة (اختياري)
+              {isFreelancer ? "المهمة المُسندة إليك (مطلوب)" : "المهمة (اختياري)"}
             </label>
             <select
               id="task"
@@ -195,9 +224,15 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
               onChange={handleTaskSelectionChange}
               className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isFromTimer}
+              required={isFreelancer}
             >
-              <option value="">-- عمل آخر / بدون مهمة --</option>
-              {groupedTasks.generalTasks.length > 0 && (
+              {!isFreelancer && (
+                <option value="">-- عمل آخر / بدون مهمة --</option>
+              )}
+              {isFreelancer && (
+                 <option value="" disabled>-- اختر مهمة مرتبطة بمشروع --</option>
+              )}
+              {!isFreelancer && groupedTasks.generalTasks.length > 0 && (
                 <optgroup label="مهام عامة">
                   {groupedTasks.generalTasks.map((task) => (
                     <option key={task.id} value={task.id}>
