@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { TeamMember, Role } from "@shared/types";
 import { Card } from "../ui/Card";
 import { useSettingsContext } from "@shared/contexts/SettingsContext";
+import { useAuth } from "@shared/contexts/AuthContext";
+import { useTeamContext } from "@shared/contexts/TeamContext";
 import {
   BriefcaseIcon,
   ClockIcon,
@@ -30,7 +32,15 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({
   canEdit,
 }) => {
   const { currency } = useSettingsContext();
+  const { currentUser } = useAuth();
+  const { hasPermission } = useTeamContext();
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Salary visibility logic:
+  // Show if: user is looking at their own profile OR user has 'view_all_salaries' permission
+  const canViewSalary =
+    currentUser?.id === member.id || hasPermission("view_all_salaries") || currentUser?.roleId === "admin";
 
   const employmentTypeMap: Record<TeamMember["employmentType"], string> = {
     "full-time": "دوام كامل",
@@ -121,7 +131,7 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({
               </span>
             </div>
           )}
-        {member.employmentType === "freelancer"
+        {canViewSalary && member.employmentType === "freelancer"
           ? member.hourlyRate != null && (
               <div className="flex items-center">
                 <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-3 rtl:ml-0 rtl:mr-3" />
@@ -133,7 +143,7 @@ export const MemberInfoCard: React.FC<MemberInfoCardProps> = ({
                 </span>
               </div>
             )
-          : member.salary != null && (
+          : canViewSalary && member.salary != null && (
               <div className="flex items-center">
                 <CurrencyDollarIcon className="w-5 h-5 text-slate-400 ml-3 rtl:ml-0 rtl:mr-3" />
                 <span className="text-slate-600 dark:text-slate-300">
