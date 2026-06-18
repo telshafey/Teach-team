@@ -160,7 +160,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const { email, password, ...restOfData } = formData;
         if (!password) {
-          throw new Error("Password is required for new members.");
+          throw new Error("كلمة المرور مطلوبة للموظفين الجدد.");
         }
 
         const memberData = { ...restOfData, email, password };
@@ -168,9 +168,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         await api.createTeamMemberAdmin(supabaseClient, memberData);
 
         queryClient.invalidateQueries({ queryKey: ["team_members"] });
-        addToast("Team member added successfully.", "success");
+        addToast("تمت إضافة الموظف بنجاح.", "success");
       } catch (error: any) {
-        addToast(`Failed to add team member: ${error.message}`, "error");
+        addToast(`${error.message}`, "error");
         console.error(error);
         throw error;
       }
@@ -186,9 +186,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         if (!member) throw new Error("Member not found");
         await api.updateTeamMemberWithPassword(supabaseClient, member, updates);
         queryClient.invalidateQueries({ queryKey: ["team_members"] });
-        addToast("Team member updated successfully.", "success");
+        addToast("تم تحديث بيانات الموظف بنجاح.", "success");
       } catch (error: any) {
-        addToast(`Failed to update team member: ${error.message}`, "error");
+        addToast(`${error.message}`, "error");
         console.error(error);
         throw error;
       }
@@ -204,9 +204,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
         if (!member) throw new Error("Member not found");
         await api.deleteById(supabaseClient, "team_members", memberId);
         queryClient.invalidateQueries({ queryKey: ["team_members"] });
-        addToast("Team member deleted successfully.", "success");
+        addToast("تم حذف الموظف بنجاح.", "success");
       } catch (error: any) {
-        addToast(`Failed to delete team member: ${error.message}`, "error");
+        addToast(`فشل الحذف: ${error.message}`, "error");
         console.error(error);
         throw error;
       }

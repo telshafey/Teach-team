@@ -4,6 +4,7 @@ import { useSupabase } from "@shared/contexts/SupabaseContext";
 import { useToast } from "@shared/contexts/ToastContext";
 import { Card } from "../ui/Card";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { updateTeamMemberWithPassword } from "@shared/services/apiService";
 
 export const ProfileSettings: React.FC = () => {
   const { currentUser } = useAuth();
@@ -29,15 +30,11 @@ export const ProfileSettings: React.FC = () => {
 
     setIsChangingPassword(true);
     try {
-      const { error: updateError } = await supabaseClient.auth.updateUser({
+      await updateTeamMemberWithPassword(supabaseClient, currentUser, {
         password: newPassword,
       });
-      if (updateError) throw updateError;
 
-      addToast(
-        "تم إرسال طلب تغيير كلمة المرور. يرجى مراجعة بريدك الإلكتروني للتأكيد.",
-        "success",
-      );
+      addToast("تم تغيير كلمة المرور بنجاح.", "success");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
@@ -88,7 +85,14 @@ export const ProfileSettings: React.FC = () => {
             disabled={isChangingPassword}
             className="px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400"
           >
-            {isChangingPassword ? <LoadingSpinner /> : "تغيير كلمة المرور"}
+            {isChangingPassword ? (
+              <span className="flex items-center space-x-2 rtl:space-x-reverse">
+                <LoadingSpinner />
+                <span>جاري التغيير...</span>
+              </span>
+            ) : (
+              "تغيير كلمة المرور"
+            )}
           </button>
         </div>
       </form>

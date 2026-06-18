@@ -89,7 +89,7 @@ export const TeamMemberFormModal: React.FC<TeamMemberFormModalProps> = ({
       };
 
       if (!isEditing && !dataToSave.password) {
-        alert("Password is required for new members.");
+        alert("كلمة المرور مطلوبة للموظفين الجدد.");
         setIsSaving(false);
         return;
       }

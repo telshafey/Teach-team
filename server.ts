@@ -101,7 +101,26 @@ async function startServer() {
             });
 
           if (passwordUpdateError) {
-            return res.status(500).json({ error: passwordUpdateError.message });
+            if (passwordUpdateError.message.includes("User not found")) {
+              const targetEmail = memberData.email || email;
+              const { data: newUser, error: createError } =
+                await supabaseAdmin.auth.admin.createUser({
+                  email: targetEmail,
+                  password,
+                  email_confirm: true,
+                });
+              if (createError) {
+                return res.status(500).json({
+                  error: "تعذر إنشاء حساب تسجيل الدخول: " + createError.message,
+                });
+              }
+              await supabaseAdmin
+                .from("team_members")
+                .update({ auth_user_id: newUser.user.id })
+                .eq("id", memberId);
+            } else {
+              return res.status(500).json({ error: passwordUpdateError.message });
+            }
           }
         }
       }
@@ -159,8 +178,12 @@ async function startServer() {
         });
 
       if (createError) {
+        let errorMsg = "تعذر إنشاء حساب تسجيل الدخول: " + createError.message;
+        if (createError.message.includes("already registered") || createError.message.includes("already exists")) {
+          errorMsg = "البريد الإلكتروني مسجل بالفعل لموظف آخر.";
+        }
         return res.status(500).json({
-          error: "تعذر إنشاء حساب تسجيل الدخول: " + createError.message,
+          error: errorMsg,
         });
       }
 
@@ -188,8 +211,12 @@ async function startServer() {
       if (dbInsertError) {
         // Cleanup auth user if team_member insert fails
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
+        let errorMsg = "تعذر إضافة العضو للقاعدة: " + dbInsertError.message;
+        if (dbInsertError.code === "23505" && dbInsertError.message.includes("team_members_email_key")) {
+          errorMsg = "البريد الإلكتروني مسجل بالفعل لموظف آخر.";
+        }
         return res.status(500).json({
-          error: "تعذر إضافة العضو للقاعدة: " + dbInsertError.message,
+          error: errorMsg,
         });
       }
 

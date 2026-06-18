@@ -182,7 +182,7 @@ export const updateTeamMemberWithPassword = async (
   const result = await response.json();
   if (!response.ok) {
     throw new Error(
-      result.error || "Failed to update via backend. Please check network.",
+      result.error || "فشل التحديث. يرجى التحقق من اتصالك بالإنترنت.",
     );
   }
 
@@ -203,7 +203,7 @@ export const createTeamMemberAdmin = async (
   const result = await response.json();
   if (!response.ok) {
     throw new Error(
-      result.error || "Failed to create via backend. Please check network.",
+      result.error || "فشل الإنشاء. يرجى التحقق من اتصالك بالإنترنت.",
     );
   }
 
