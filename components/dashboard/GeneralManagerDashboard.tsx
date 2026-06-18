@@ -99,6 +99,20 @@ const TasksStatusWidget: React.FC<{
   </Card>
 );
 
+const HoursDistributionWidget: React.FC<{
+  data: { label: string; value: number; color: string }[];
+}> = ({ data }) => (
+  <Card title="توزيع الساعات حسب المشاريع (الكل)">
+    <div className="h-full min-h-[200px] flex items-center justify-center">
+      {data.length > 0 ? (
+        <PieChart data={data} />
+      ) : (
+        <span className="text-slate-500">لا توجد ساعات مسجلة</span>
+      )}
+    </div>
+  </Card>
+);
+
 const ProjectOverviewWidget: React.FC<{
   projects: Project[];
   dailyLogs: any[];
@@ -233,6 +247,48 @@ export const GeneralManagerDashboard: React.FC = () => {
       }
     });
 
+    const hoursByProject: Record<string, { label: string; value: number }> = {};
+    let nonProjectHours = 0;
+
+    dailyLogs.forEach((log) => {
+      if (log.projectId) {
+        if (!hoursByProject[log.projectId]) {
+          const proj = projects.find((p) => p.id === log.projectId);
+          hoursByProject[log.projectId] = {
+            label: proj ? proj.name : "مشروع غير معروف",
+            value: 0,
+          };
+        }
+        hoursByProject[log.projectId].value += log.hours;
+      } else {
+        nonProjectHours += log.hours;
+      }
+    });
+
+    const hoursDistribution = Object.values(hoursByProject)
+      .filter((h) => h.value > 0)
+      .map((h, i) => {
+        const colors = [
+          "#38bdf8",
+          "#818cf8",
+          "#c084fc",
+          "#f472b6",
+          "#fb7185",
+          "#fcd34d",
+          "#34d399",
+          "#2dd4bf",
+        ];
+        return { ...h, color: colors[i % colors.length] };
+      });
+      
+    if (nonProjectHours > 0) {
+      hoursDistribution.push({
+        label: "مهام إدارية / أخرى",
+        value: nonProjectHours,
+        color: "#94a3b8",
+      });
+    }
+
     return {
       stats: {
         activeProjects: projects.filter((p) => p.status === "نشط").length,
@@ -264,6 +320,7 @@ export const GeneralManagerDashboard: React.FC = () => {
         { label: "مراجعة", value: tasksStatusCount.review, color: "#38bdf8" },
         { label: "مكتملة", value: tasksStatusCount.done, color: "#34d399" },
       ].filter((d) => d.value > 0),
+      hoursDistribution,
     };
   }, [projects, dailyLogs, teamMembers, pendingItems, tasks]);
 
@@ -312,13 +369,16 @@ export const GeneralManagerDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-2 h-[400px]">
           <ProjectOverviewWidget
             projects={projects}
             dailyLogs={dailyLogs}
             currency={currency}
           />
+        </div>
+        <div className="lg:col-span-1 h-[400px]">
+          <HoursDistributionWidget data={dashboardData.hoursDistribution} />
         </div>
         <div className="lg:col-span-1 h-[400px]">
           <UpcomingMeetingsWidget

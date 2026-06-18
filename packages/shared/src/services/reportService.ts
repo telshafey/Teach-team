@@ -28,11 +28,12 @@ export const generateProjectsSummary = (
   filters: Filters,
 ): { headers: string[]; rows: any[][] } => {
   const headers = [
-    "المشروع",
+    "المشروع / النشاط",
     "الحالة",
     "إجمالي الساعات المسجلة",
     "التكلفة التقديرية",
   ];
+  
   const rows = projects.map((p) => {
     const projectLogs = dailyLogs.filter(
       (l) => l.projectId === p.id && dateFilter(l.date, filters),
@@ -40,6 +41,15 @@ export const generateProjectsSummary = (
     const totalHours = projectLogs.reduce((sum, l) => sum + l.hours, 0);
     return [p.name, p.status, totalHours.toFixed(2), "N/A"];
   });
+
+  const nonProjectLogs = dailyLogs.filter(
+    (l) => !l.projectId && dateFilter(l.date, filters),
+  );
+  if (nonProjectLogs.length > 0) {
+    const totalHours = nonProjectLogs.reduce((sum, l) => sum + l.hours, 0);
+    rows.push(["مهام إدارية / أخرى (بدون مشروع)", "-", totalHours.toFixed(2), "N/A"]);
+  }
+
   return { headers, rows };
 };
 
@@ -97,7 +107,7 @@ export const generateEmployeePerformance = (
 
   const rows: any[][] = logsToReport.map((l) => [
     l.date,
-    projects.find((p) => p.id === l.projectId)?.name || "N/A",
+    projects.find((p) => p.id === l.projectId)?.name || "مهام أخرى",
     l.description,
     l.hours,
   ]);
