@@ -100,7 +100,7 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({
   const filteredMembers = useMemo(() => {
     return visibleTeamMembers.filter(
       (m) =>
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.email?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [visibleTeamMembers, searchQuery]);

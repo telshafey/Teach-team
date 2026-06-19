@@ -27,10 +27,12 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
   const { roles, teamMembers, hasPermission } = useTeamContext();
   const { currency } = useSettingsContext();
   const { currentUser } = useAuth();
-  
+
   const canViewSalary =
-    currentUser?.id === member?.id || hasPermission("view_all_salaries") || currentUser?.roleId === "admin";
-    
+    currentUser?.id === member?.id ||
+    hasPermission("view_all_salaries") ||
+    currentUser?.roleId === "admin";
+
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<TeamMemberFormData>({
     name: "",
@@ -221,8 +223,8 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
               <option value="freelancer">مستقل</option>
             </select>
           </div>
-          {canViewSalary && (
-            isFreelancer ? (
+          {canViewSalary &&
+            (isFreelancer ? (
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   سعر الساعة ({currency})
@@ -260,8 +262,7 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
                   className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
                 />
               </div>
-            )
-          )}
+            ))}
           {!isFreelancer && (
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

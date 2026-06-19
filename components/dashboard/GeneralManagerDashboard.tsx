@@ -220,7 +220,11 @@ export const GeneralManagerDashboard: React.FC = () => {
 
   const dashboardData = useMemo(() => {
     const logsThisWeek = dailyLogs.filter((l) => {
-      try { return isThisWeek(parseISO(l.date), { weekStartsOn: 6 }); } catch { return false; }
+      try {
+        return isThisWeek(parseISO(l.date), { weekStartsOn: 6 });
+      } catch {
+        return false;
+      }
     });
     const endDate = new Date();
     const startDate = subDays(endDate, 29);
@@ -280,7 +284,7 @@ export const GeneralManagerDashboard: React.FC = () => {
         ];
         return { ...h, color: colors[i % colors.length] };
       });
-      
+
     if (nonProjectHours > 0) {
       hoursDistribution.push({
         label: "مهام إدارية / أخرى",
@@ -315,8 +319,16 @@ export const GeneralManagerDashboard: React.FC = () => {
         .sort((a, b) => b.value - a.value)
         .slice(0, 10),
       tasksStatus: [
-        { label: "قيد الانتظار", value: tasksStatusCount.todo, color: "#cbd5e1" },
-        { label: "قيد التنفيذ", value: tasksStatusCount.in_progress, color: "#fbbf24" },
+        {
+          label: "قيد الانتظار",
+          value: tasksStatusCount.todo,
+          color: "#cbd5e1",
+        },
+        {
+          label: "قيد التنفيذ",
+          value: tasksStatusCount.in_progress,
+          color: "#fbbf24",
+        },
         { label: "مراجعة", value: tasksStatusCount.review, color: "#38bdf8" },
         { label: "مكتملة", value: tasksStatusCount.done, color: "#34d399" },
       ].filter((d) => d.value > 0),

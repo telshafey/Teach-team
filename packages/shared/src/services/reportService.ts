@@ -33,7 +33,7 @@ export const generateProjectsSummary = (
     "إجمالي الساعات المسجلة",
     "التكلفة التقديرية",
   ];
-  
+
   const rows = projects.map((p) => {
     const projectLogs = dailyLogs.filter(
       (l) => l.projectId === p.id && dateFilter(l.date, filters),
@@ -47,7 +47,12 @@ export const generateProjectsSummary = (
   );
   if (nonProjectLogs.length > 0) {
     const totalHours = nonProjectLogs.reduce((sum, l) => sum + l.hours, 0);
-    rows.push(["مهام إدارية / أخرى (بدون مشروع)", "-", totalHours.toFixed(2), "N/A"]);
+    rows.push([
+      "مهام إدارية / أخرى (بدون مشروع)",
+      "-",
+      totalHours.toFixed(2),
+      "N/A",
+    ]);
   }
 
   return { headers, rows };

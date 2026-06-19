@@ -22,7 +22,9 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
 }) => {
   const { currency } = useSettingsContext();
   const [rate, setRate] = useState("");
-  const [freelancerRateType, setFreelancerRateType] = useState<"hourly" | "fixed">("hourly");
+  const [freelancerRateType, setFreelancerRateType] = useState<
+    "hourly" | "fixed"
+  >("hourly");
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -32,11 +34,11 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
     if (member) {
       if (isFreelancer) {
         if (member.hourlyRate && member.hourlyRate > 0) {
-           setFreelancerRateType("hourly");
-           setRate(member.hourlyRate.toString());
+          setFreelancerRateType("hourly");
+          setRate(member.hourlyRate.toString());
         } else {
-           setFreelancerRateType("fixed");
-           setRate(""); // It's fixed, so no hourly rate
+          setFreelancerRateType("fixed");
+          setRate(""); // It's fixed, so no hourly rate
         }
       } else {
         setRate(member.salary?.toString() || "");
@@ -66,7 +68,7 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
       } else {
         data = { salary: rateValue };
       }
-      
+
       await onSave(member.id, data);
       onClose();
     } catch (error) {
@@ -93,70 +95,72 @@ export const SalaryEditModal: React.FC<SalaryEditModalProps> = ({
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             {isFreelancer ? (
-               <div className="space-y-4">
-                 <div>
-                   <label className="block text-sm font-medium mb-2">
-                     طريقة المحاسبة
-                   </label>
-                   <div className="flex flex-col space-y-2">
-                     <label className="flex items-center space-x-2 rtl:space-x-reverse">
-                       <input
-                         type="radio"
-                         name="modalFreelancerRateType"
-                         checked={freelancerRateType === "hourly"}
-                         onChange={() => setFreelancerRateType("hourly")}
-                         className="h-4 w-4 text-sky-600 focus:ring-sky-500"
-                       />
-                       <span>حسب عدد ساعات العمل (بالساعة)</span>
-                     </label>
-                     <label className="flex items-center space-x-2 rtl:space-x-reverse">
-                       <input
-                         type="radio"
-                         name="modalFreelancerRateType"
-                         checked={freelancerRateType === "fixed"}
-                         onChange={() => setFreelancerRateType("fixed")}
-                         className="h-4 w-4 text-sky-600 focus:ring-sky-500"
-                       />
-                       <span>وفقاً للمشروع / المهام (عقد أساسي دون راتب أو معدل ساعة)</span>
-                     </label>
-                   </div>
-                 </div>
-                 {freelancerRateType === "hourly" && (
-                    <div>
-                      <label
-                        htmlFor="rate"
-                        className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
-                      >
-                        {label}
-                      </label>
-                      <input
-                        type="number"
-                        id="rate"
-                        value={rate}
-                        onChange={(e) => setRate(e.target.value)}
-                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
-                        required
-                      />
-                    </div>
-                 )}
-               </div>
-            ) : (
+              <div className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="rate"
-                    className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
-                  >
-                    {label}
+                  <label className="block text-sm font-medium mb-2">
+                    طريقة المحاسبة
                   </label>
-                  <input
-                    type="number"
-                    id="rate"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
-                    required
-                  />
+                  <div className="flex flex-col space-y-2">
+                    <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                      <input
+                        type="radio"
+                        name="modalFreelancerRateType"
+                        checked={freelancerRateType === "hourly"}
+                        onChange={() => setFreelancerRateType("hourly")}
+                        className="h-4 w-4 text-sky-600 focus:ring-sky-500"
+                      />
+                      <span>حسب عدد ساعات العمل (بالساعة)</span>
+                    </label>
+                    <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                      <input
+                        type="radio"
+                        name="modalFreelancerRateType"
+                        checked={freelancerRateType === "fixed"}
+                        onChange={() => setFreelancerRateType("fixed")}
+                        className="h-4 w-4 text-sky-600 focus:ring-sky-500"
+                      />
+                      <span>
+                        وفقاً للمشروع / المهام (عقد أساسي دون راتب أو معدل ساعة)
+                      </span>
+                    </label>
+                  </div>
                 </div>
+                {freelancerRateType === "hourly" && (
+                  <div>
+                    <label
+                      htmlFor="rate"
+                      className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type="number"
+                      id="rate"
+                      value={rate}
+                      onChange={(e) => setRate(e.target.value)}
+                      className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label
+                  htmlFor="rate"
+                  className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
+                >
+                  {label}
+                </label>
+                <input
+                  type="number"
+                  id="rate"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+                  required
+                />
+              </div>
             )}
             <div className="flex justify-end space-x-2 rtl:space-x-reverse pt-4">
               <button

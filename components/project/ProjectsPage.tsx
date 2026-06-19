@@ -66,7 +66,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const isGM =
     currentUser?.roleId === "gm" ||
     currentUser?.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
-    currentUserRole?.name.includes("(GM)");
+    currentUserRole?.name?.includes("(GM)");
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -78,9 +78,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         return false;
       }
 
-      const matchesSearch = p.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
       const matchesStatus = statusFilter === "all" || p.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -94,7 +93,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
   const currentProjects = filteredProjects.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
 
   const statusFilters: { label: string; value: ProjectStatus | "all" }[] = [
@@ -186,7 +185,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
               <ProjectCard
                 key={project.id}
                 project={project}
-                onSelect={(id) => onNavigate("projectDetail", { projectId: id })}
+                onSelect={(id) =>
+                  onNavigate("projectDetail", { projectId: id })
+                }
                 currency={currency}
               />
             ))}

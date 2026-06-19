@@ -131,7 +131,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       setIsBulkSaving(true);
       try {
         for (const t of tasksToCreate) {
-          await handleAddTask({ title: t.title, description: t.description, status: "todo" }, project.id);
+          await handleAddTask(
+            { title: t.title, description: t.description, status: "todo" },
+            project.id,
+          );
         }
         addToast(`تمت إضافة ${tasksToCreate.length} مهمة بنجاح.`, "success");
         setIsBulkAddModalOpen(false);

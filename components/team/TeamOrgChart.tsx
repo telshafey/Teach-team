@@ -27,7 +27,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     () => new Set([...visitedIds, member.id]),
     [visitedIds, member.id],
   );
-  
+
   const reports = allMembers.filter(
     (m) => m.reportsTo === member.id && !currentVisited.has(m.id),
   );
@@ -105,7 +105,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           <img
             src={member.avatarUrl}
             alt={member.name}
-            className={`w-10 h-10 rounded-full mx-auto mb-2 object-cover ${isSelected ? 'ring-2 ring-sky-500' : 'ring-1 ring-slate-200 dark:ring-slate-700'}`}
+            className={`w-10 h-10 rounded-full mx-auto mb-2 object-cover ${isSelected ? "ring-2 ring-sky-500" : "ring-1 ring-slate-200 dark:ring-slate-700"}`}
           />
           <p className="font-semibold text-xs text-slate-800 dark:text-slate-100 truncate">
             {member.name}
@@ -124,7 +124,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
           <div className="relative flex flex-row justify-center">
             {reports.map((report, i) => (
-              <div key={report.id} className="relative flex flex-col items-center flex-1 min-w-[150px]">
+              <div
+                key={report.id}
+                className="relative flex flex-col items-center flex-1 min-w-[150px]"
+              >
                 {/* Horizontal branchline */}
                 {reports.length > 1 && (
                   <div
@@ -181,7 +184,7 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({
     // 1. Identify "true" requested roots (people who have reportsTo == null, or reportsTo an ID not in chart)
     const memberIdsInChart = new Set(members.map((m) => m.id));
     let roots = members.filter(
-      (m) => !m.reportsTo || !memberIdsInChart.has(m.reportsTo)
+      (m) => !m.reportsTo || !memberIdsInChart.has(m.reportsTo),
     );
 
     // 2. Resolve circular references for missed nodes
@@ -206,11 +209,13 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({
     // --- UX Fixes ---
     // If there is more than 1 root, find if one of them is the GM (المدير العام)
     // To prevent freelancers from popping up at the very top forming dual roots
-    const gmRole = roles.find(r => r.name.includes("GM") || r.name.includes("المدير العام"));
+    const gmRole = roles.find(
+      (r) => r.name?.includes("GM") || r.name?.includes("المدير العام"),
+    );
     if (gmRole && roots.length > 1) {
-      const actualGM = roots.find(r => r.roleId === gmRole.id);
+      const actualGM = roots.find((r) => r.roleId === gmRole.id);
       if (actualGM) {
-        // We will only render actualGM as the top root. 
+        // We will only render actualGM as the top root.
         // Everyone else who thinks they are a root will implicitly "report" to GM visually.
         // We can do this by tricking the allMembers list.
       }
@@ -222,44 +227,57 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({
   // Transform members so that loose roots visually attach to the GM if present.
   const visualMembers = useMemo(() => {
     if (renderedTops.length <= 1) return members;
-    
+
     // Find the primary GM
-    const gmRole = roles.find(r => r.permissions.includes("manage_roles") || r.name.includes("GM") || r.name.includes("المدير العام"));
+    const gmRole = roles.find(
+      (r) =>
+        r.permissions?.includes("manage_roles") ||
+        r.name?.includes("GM") ||
+        r.name?.includes("المدير العام"),
+    );
     let gmId: number | null = null;
-    
+
     if (gmRole) {
-       const gmNode = renderedTops.find(t => t.roleId === gmRole.id);
-       if (gmNode) gmId = gmNode.id;
+      const gmNode = renderedTops.find((t) => t.roleId === gmRole.id);
+      if (gmNode) gmId = gmNode.id;
     }
 
     // If no explicit GM found in roots, just pick the first root as the main visual root
     if (!gmId) {
-       gmId = renderedTops[0].id;
+      gmId = renderedTops[0].id;
     }
 
-    return members.map(m => {
-       // If this member is one of the roots but NOT the main GM, force their visual reportsTo to be GM
-       if (m.id !== gmId && (!m.reportsTo || renderedTops.some(t => t.id === m.id))) {
-           return { ...m, reportsTo: gmId };
-       }
-       return m;
+    return members.map((m) => {
+      // If this member is one of the roots but NOT the main GM, force their visual reportsTo to be GM
+      if (
+        m.id !== gmId &&
+        (!m.reportsTo || renderedTops.some((t) => t.id === m.id))
+      ) {
+        return { ...m, reportsTo: gmId };
+      }
+      return m;
     });
   }, [members, renderedTops, roles]);
 
   const finalRoots = useMemo(() => {
-     const gmRole = roles.find(r => r.permissions.includes("manage_roles") || r.name.includes("GM") || r.name.includes("المدير العام"));
-     const gmNode = members.find(m => m.roleId === gmRole?.id);
-     
-     if (gmNode) {
-       return [visualMembers.find(m => m.id === gmNode.id)!];
-     }
-     
-     if (visualMembers.length > 0) {
-       // Find people with reportsTo null
-       const realRoots = visualMembers.filter(m => !m.reportsTo);
-       return realRoots.length > 0 ? realRoots : [visualMembers[0]];
-     }
-     return [];
+    const gmRole = roles.find(
+      (r) =>
+        r.permissions?.includes("manage_roles") ||
+        r.name?.includes("GM") ||
+        r.name?.includes("المدير العام"),
+    );
+    const gmNode = members.find((m) => m.roleId === gmRole?.id);
+
+    if (gmNode) {
+      return [visualMembers.find((m) => m.id === gmNode.id)!];
+    }
+
+    if (visualMembers.length > 0) {
+      // Find people with reportsTo null
+      const realRoots = visualMembers.filter((m) => !m.reportsTo);
+      return realRoots.length > 0 ? realRoots : [visualMembers[0]];
+    }
+    return [];
   }, [visualMembers, members, roles]);
 
   if (members.length === 0) {
@@ -292,20 +310,19 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({
       <div className="min-w-fit flex justify-center pb-12">
         <div className="flex flex-row items-start justify-center gap-12">
           {finalRoots.map((member) => (
-             <TreeNode
-                key={`root-${member.id}`}
-                member={member}
-                allMembers={visualMembers}
-                onMemberClick={onMemberClick}
-                selectedMemberId={selectedMemberId}
-                onMoveMember={onMoveMember}
-                canManage={canManage}
-                roles={roles}
-             />
+            <TreeNode
+              key={`root-${member.id}`}
+              member={member}
+              allMembers={visualMembers}
+              onMemberClick={onMemberClick}
+              selectedMemberId={selectedMemberId}
+              onMoveMember={onMoveMember}
+              canManage={canManage}
+              roles={roles}
+            />
           ))}
         </div>
       </div>
     </div>
   );
 };
-

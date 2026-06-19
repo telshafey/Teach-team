@@ -72,15 +72,15 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
       allowedProjects = projects.filter(
         (p) =>
           p.freelancerContract?.status === "approved" &&
-          p.freelancerContract.freelancerId === memberId
+          p.freelancerContract.freelancerId === memberId,
       );
-      
+
       const allowedProjectIds = new Set(allowedProjects.map((p) => p.id));
-      
+
       allowedTasks = tasks.filter(
         (t) =>
           t.assignedTo === memberId ||
-          (t.projectId && allowedProjectIds.has(t.projectId))
+          (t.projectId && allowedProjectIds.has(t.projectId)),
       );
     }
 
@@ -216,7 +216,9 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
               htmlFor="task"
               className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1"
             >
-              {isFreelancer ? "المهمة المُسندة إليك (مطلوب)" : "المهمة (اختياري)"}
+              {isFreelancer
+                ? "المهمة المُسندة إليك (مطلوب)"
+                : "المهمة (اختياري)"}
             </label>
             <select
               id="task"
@@ -230,7 +232,9 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
                 <option value="">-- عمل آخر / بدون مهمة --</option>
               )}
               {isFreelancer && (
-                 <option value="" disabled>-- اختر مهمة مرتبطة بمشروع --</option>
+                <option value="" disabled>
+                  -- اختر مهمة مرتبطة بمشروع --
+                </option>
               )}
               {!isFreelancer && groupedTasks.generalTasks.length > 0 && (
                 <optgroup label="مهام عامة">

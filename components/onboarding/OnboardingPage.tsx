@@ -50,7 +50,13 @@ export const OnboardingPage: React.FC = () => {
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg">
           مرحباً {currentUser?.name}! هذا الدليل مصمم خصيصاً ليناسب دورك كـ{" "}
           <strong className="text-slate-800 dark:text-slate-200">
-            {isGM ? "المدير العام للإدارة" : isManager ? "مدير فريق" : isFreelancer ? "مستقل (Freelancer)" : "موظف"}
+            {isGM
+              ? "المدير العام للإدارة"
+              : isManager
+                ? "مدير فريق"
+                : isFreelancer
+                  ? "مستقل (Freelancer)"
+                  : "موظف"}
           </strong>
           . تعرف على ميزات المنصة وكيف تؤدي مهام عملك اليومية بكفاءة عالية.
         </p>
@@ -68,8 +74,9 @@ export const OnboardingPage: React.FC = () => {
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            يمكنك إعداد ملفك الشخصي عبر القائمة الجانبية لتحديث صورتك الشخصية ومعلومات الاتصال. 
-            {isFreelancer 
+            يمكنك إعداد ملفك الشخصي عبر القائمة الجانبية لتحديث صورتك الشخصية
+            ومعلومات الاتصال.
+            {isFreelancer
               ? " سيساعد هذا الإدارة في متابعة بيانات التواصل معك وتقييم أدائك كمستقل."
               : " ملفك الشخصي يساعد زملائك في التعرف عليك وسهولة التواصل معك."}
           </p>
@@ -86,10 +93,14 @@ export const OnboardingPage: React.FC = () => {
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            {isGM && "اللوحة الرئيسية توفر لك نظرة شاملة على أداء الشركة ككل (المالية، حضور وانصراف الموظفين، مهام المشاريع الكبرى، والتقارير الإجمالية)."}
-            {isManager && "صممت اللوحة الرئيسية لتُظهر لك ملخص أداء فريقك، حضور موظفيك، المهام المعلقة للفريق، والطلبات التي تنتظر موافقتك كمدير للحفاظ على سير العمل والتسليم."}
-            {isEmployee && "اللوحة الرئيسية تُظهر ملخص أدائك الشخصي السريع لمتابعة مهامك المتبقية ومستوى إنجازك خلال الشهر."}
-            {isFreelancer && "لوحتك مخصصة لتُظهر لك المهام ومسارك كمستقل للعمل على إنجازها في الوقت المحدد لك وتتبع إنجازك المادي."}
+            {isGM &&
+              "اللوحة الرئيسية توفر لك نظرة شاملة على أداء الشركة ككل (المالية، حضور وانصراف الموظفين، مهام المشاريع الكبرى، والتقارير الإجمالية)."}
+            {isManager &&
+              "صممت اللوحة الرئيسية لتُظهر لك ملخص أداء فريقك، حضور موظفيك، المهام المعلقة للفريق، والطلبات التي تنتظر موافقتك كمدير للحفاظ على سير العمل والتسليم."}
+            {isEmployee &&
+              "اللوحة الرئيسية تُظهر ملخص أدائك الشخصي السريع لمتابعة مهامك المتبقية ومستوى إنجازك خلال الشهر."}
+            {isFreelancer &&
+              "لوحتك مخصصة لتُظهر لك المهام ومسارك كمستقل للعمل على إنجازها في الوقت المحدد لك وتتبع إنجازك المادي."}
           </p>
         </div>
 
@@ -106,14 +117,18 @@ export const OnboardingPage: React.FC = () => {
           <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-2">
             {!isFreelancer && (
               <li>
-                <strong>تسجيل الحضور:</strong> تسجيل الحضور لا يقتصر على التواجد فقط، بل يجب ربط ساعات العمل بالمهام والمشاريع المحددة في النظام.
+                <strong>تسجيل الحضور:</strong> تسجيل الحضور لا يقتصر على التواجد
+                فقط، بل يجب ربط ساعات العمل بالمهام والمشاريع المحددة في النظام.
               </li>
             )}
             <li>
-              <strong>تتبع المهام:</strong> استخدم زر (البدء / الإيقاف) لتسجيل الوقت المستغرق في كل مهمة. ساعات العمل إما أن تُسجل على مشاريع معينة أو تُدرج كـ "مهام إدارية/أخرى".
+              <strong>تتبع المهام:</strong> استخدم زر (البدء / الإيقاف) لتسجيل
+              الوقت المستغرق في كل مهمة. ساعات العمل إما أن تُسجل على مشاريع
+              معينة أو تُدرج كـ "مهام إدارية/أخرى".
             </li>
             <li>
-              <strong>المتابعة والتقارير:</strong> يتم عرض توزيع ساعات عملك بدقة في لوحة التحكم والتقارير (لك وللإدارة) لمعرفة تكلفة ووقت كل مشروع.
+              <strong>المتابعة والتقارير:</strong> يتم عرض توزيع ساعات عملك بدقة
+              في لوحة التحكم والتقارير (لك وللإدارة) لمعرفة تكلفة ووقت كل مشروع.
             </li>
           </ul>
         </div>
@@ -132,19 +147,23 @@ export const OnboardingPage: React.FC = () => {
             {isManagerOrAbove ? (
               <>
                 <li>
-                  <strong>المشاريع:</strong> يمكنك إنشاء المشاريع ومتابعتها، وتعيين أعضاء الفريق للمهام.
+                  <strong>المشاريع:</strong> يمكنك إنشاء المشاريع ومتابعتها،
+                  وتعيين أعضاء الفريق للمهام.
                 </li>
                 <li>
-                  <strong>لوحة متابعة الأعمال (Kanban):</strong> ستمكنك من تحريك المهام بمراحل الإنجاز المختلفة.
+                  <strong>لوحة متابعة الأعمال (Kanban):</strong> ستمكنك من تحريك
+                  المهام بمراحل الإنجاز المختلفة.
                 </li>
               </>
             ) : (
               <>
                 <li>
-                  <strong>المشاريع:</strong> تعرض المشاريع والمهام التي تم إدراجك فيها.
+                  <strong>المشاريع:</strong> تعرض المشاريع والمهام التي تم
+                  إدراجك فيها.
                 </li>
                 <li>
-                  <strong>مهامي:</strong> قائمة مركزة لمهامك الشخصية التي يجب إنهائها وتتبعها.
+                  <strong>مهامي:</strong> قائمة مركزة لمهامك الشخصية التي يجب
+                  إنهائها وتتبعها.
                 </li>
               </>
             )}
@@ -158,11 +177,13 @@ export const OnboardingPage: React.FC = () => {
               <UsersIcon className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              {isManagerOrAbove ? "إدارة الفريق والأعضاء" : "فريق العمل والهيكل"}
+              {isManagerOrAbove
+                ? "إدارة الفريق والأعضاء"
+                : "فريق العمل والهيكل"}
             </h2>
           </div>
           <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-            {isManagerOrAbove 
+            {isManagerOrAbove
               ? "من خلال صفحة الفريق، تستطيع استعراض جميع أعضاء فريقك، مهام المفتوحة لديهم، وتقييم أدائهم المكتمل كما تستطيع تعديل بياناتهم الوظيفية والرواتب (للمدير العام)."
               : "ستتمكن من رؤية الهيكل التنظيمي لشركتك والتواصل بشكل مباشر مع مديرك المباشر أو رؤية زملاء القسم الذي تعمل به."}
           </p>
@@ -181,12 +202,20 @@ export const OnboardingPage: React.FC = () => {
             </div>
             {canApprove ? (
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-                كصاحب قرار، ستتلقى من فريقك في هذا القسم جميع طلبات (الإجازات، العمل الإضافي، عروض المستقلين، وادعاءات المصاريف) لمراجعتها واعتمادها أو رفضها مع كتابة المبررات اللازمة.
+                كصاحب قرار، ستتلقى من فريقك في هذا القسم جميع طلبات (الإجازات،
+                العمل الإضافي، عروض المستقلين، وادعاءات المصاريف) لمراجعتها
+                واعتمادها أو رفضها مع كتابة المبررات اللازمة.
               </p>
             ) : (
               <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 leading-relaxed text-sm space-y-1">
-                <li><strong>الإجازات:</strong> التقدم بطلب إجازة دورية/مرضية للموافقة عليها.</li>
-                <li><strong>العمل الإضافي:</strong> طلب توثيق واعتماد الساعات الإضافية التي عملتها.</li>
+                <li>
+                  <strong>الإجازات:</strong> التقدم بطلب إجازة دورية/مرضية
+                  للموافقة عليها.
+                </li>
+                <li>
+                  <strong>العمل الإضافي:</strong> طلب توثيق واعتماد الساعات
+                  الإضافية التي عملتها.
+                </li>
               </ul>
             )}
           </div>
@@ -204,50 +233,59 @@ export const OnboardingPage: React.FC = () => {
               </h2>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              {isGM && "الوصول الكامل إلى سجل المصروفات، رواتب الموظفين الشهرية، والميزانيات التفصيلية للمشاريع وتكاليف عقود المستقلين وإصدار الجزاءات المادية."}
-              {isManager && "تتيح لك الاطلاع على مصروفات المشاريع الخاصة بقسمك كالمصروفات و الجزاءات ضمن الحدود المسموحة لك."}
-              {(!isManagerOrAbove && !isFreelancer) && "إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims) قمت بصرفها من جيبك الشخصي، يمكنك طلب استردادها واعتمادها من الإدارة."}
-              {isFreelancer && "منطقة المالية تتيح لك رؤية عقودك السابقة والمستحقات المعتمدة (عقودي المستقلة)."}
+              {isGM &&
+                "الوصول الكامل إلى سجل المصروفات، رواتب الموظفين الشهرية، والميزانيات التفصيلية للمشاريع وتكاليف عقود المستقلين وإصدار الجزاءات المادية."}
+              {isManager &&
+                "تتيح لك الاطلاع على مصروفات المشاريع الخاصة بقسمك كالمصروفات و الجزاءات ضمن الحدود المسموحة لك."}
+              {!isManagerOrAbove &&
+                !isFreelancer &&
+                "إذا كان لديك مصاريف متعلقة بالعمل (Expense Claims) قمت بصرفها من جيبك الشخصي، يمكنك طلب استردادها واعتمادها من الإدارة."}
+              {isFreelancer &&
+                "منطقة المالية تتيح لك رؤية عقودك السابقة والمستحقات المعتمدة (عقودي المستقلة)."}
             </p>
           </div>
         )}
 
         {/* Analytics Section */}
-        {siteSettings?.isAnalyticsModuleEnabled && hasPermission("view_analytics") && (
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
-                <ChartBarIcon className="w-6 h-6" />
+        {siteSettings?.isAnalyticsModuleEnabled &&
+          hasPermission("view_analytics") && (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg">
+                  <ChartBarIcon className="w-6 h-6" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  التحليلات والمقاييس
+                </h2>
               </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                التحليلات والمقاييس
-              </h2>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+                {isManagerOrAbove
+                  ? "تابع معدلات إنتاجية الشركة والفرق، وتعرف على توزيع المجهود (الساعات) على مختلف المشاريع والمهام الإدارية لضمان الاستقطاب الأمثل للموارد، بالإضافة لنسب المهام المكتملة والجاري العمل عليها."
+                  : "تصفح لوحة التحليلات لتوفير رؤى كمية لتاريخ مشاركتك، إنجازاتك وساعات عملك اليومية والشهرية."}
+              </p>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              {isManagerOrAbove 
-                ? "تابع معدلات إنتاجية الشركة والفرق، وتعرف على توزيع المجهود (الساعات) على مختلف المشاريع والمهام الإدارية لضمان الاستقطاب الأمثل للموارد، بالإضافة لنسب المهام المكتملة والجاري العمل عليها."
-                : "تصفح لوحة التحليلات لتوفير رؤى كمية لتاريخ مشاركتك، إنجازاتك وساعات عملك اليومية والشهرية."}
-            </p>
-          </div>
-        )}
+          )}
 
         {/* Reports Section */}
-        {siteSettings?.isReportsModuleEnabled && hasPermission("view_reports") && (
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg">
-                <DocumentDuplicateIcon className="w-6 h-6" />
+        {siteSettings?.isReportsModuleEnabled &&
+          hasPermission("view_reports") && (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-lg">
+                  <DocumentDuplicateIcon className="w-6 h-6" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  التقارير المتقدمة
+                </h2>
               </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                التقارير المتقدمة
-              </h2>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+                يوفر لك قسم التقارير مرونة عالية في استخراج الساعات المبذولة
+                وتقسيمها حسب المشاريع أو المهام الإدارية غير المرتبطة بمشروع
+                (المهام الأخرى)، مع القدرة على تصفيتها عبر نطاقات زمنية
+                وتصديرها.
+              </p>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-              يوفر لك قسم التقارير مرونة عالية في استخراج الساعات المبذولة وتقسيمها حسب المشاريع أو المهام الإدارية غير المرتبطة بمشروع (المهام الأخرى)، مع القدرة على تصفيتها عبر نطاقات زمنية وتصديرها.
-            </p>
-          </div>
-        )}
-
+          )}
       </div>
 
       {/* Notifications & System Updates */}
@@ -261,7 +299,9 @@ export const OnboardingPage: React.FC = () => {
           </h2>
         </div>
         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-          أبقِ عينك على زر الإشعارات لمتابعة التحديثات الهامة وطلبات الموافقة. النظام سيرسل التنبيهات في حال تغيير حالات المشاريع، إسناد المهام إليك، بدء الاجتماعات أو إشعارٍ إداري.
+          أبقِ عينك على زر الإشعارات لمتابعة التحديثات الهامة وطلبات الموافقة.
+          النظام سيرسل التنبيهات في حال تغيير حالات المشاريع، إسناد المهام إليك،
+          بدء الاجتماعات أو إشعارٍ إداري.
         </p>
       </div>
 
@@ -276,15 +316,18 @@ export const OnboardingPage: React.FC = () => {
           </h2>
         </div>
         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-          واجهت مشكلة تقنية ضمن المنصة؟ افتح تذكرة عبر مبوبة (الدعم الفني) وصف المشكلة ليلقى فريق التطوير المعني الدعم الخاص بك والمساعدة بأسرع وقت.
+          واجهت مشكلة تقنية ضمن المنصة؟ افتح تذكرة عبر مبوبة (الدعم الفني) وصف
+          المشكلة ليلقى فريق التطوير المعني الدعم الخاص بك والمساعدة بأسرع وقت.
         </p>
       </div>
 
       <div className="mt-12 text-center text-slate-500 text-sm">
-        <p>قمنا بتصميم هذه المنصة لجعل التعامل اليومي وإدارة العمل أكثر سهولة في الشركة.</p>
+        <p>
+          قمنا بتصميم هذه المنصة لجعل التعامل اليومي وإدارة العمل أكثر سهولة في
+          الشركة.
+        </p>
         <p>أتمنى لك رحلة موفقة، ويسعدنا كونك جزءاً من الفريق!</p>
       </div>
     </div>
   );
 };
-

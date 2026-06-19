@@ -86,7 +86,7 @@ export const AllTasksPage: React.FC = () => {
   const isGM =
     currentUser?.roleId === "gm" ||
     currentUser?.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
-    currentUserRole?.name.includes("(GM)");
+    currentUserRole?.name?.includes("(GM)");
 
   const filteredAndSortedTasks = useMemo(() => {
     if (!currentUser) return [];
@@ -116,9 +116,8 @@ export const AllTasksPage: React.FC = () => {
         }
       }
 
-      const matchesSearch = task.title
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
 
       let matchesAssignee = false;
       if (filters.assignee === "me") {
@@ -164,7 +163,7 @@ export const AllTasksPage: React.FC = () => {
   function getSortValue(task: Task, key: SortKey): string | number {
     switch (key) {
       case "title":
-        return task.title.toLowerCase();
+        return task.title?.toLowerCase() || "";
       case "projectName":
         return task.projectId
           ? projectsMap[task.projectId]?.toLowerCase() || "zzzz"
@@ -187,7 +186,7 @@ export const AllTasksPage: React.FC = () => {
   const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
   const currentTasks = filteredAndSortedTasks.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
 
   const handleSaveTask = async (taskData: Partial<Task>, isNew: boolean) => {
@@ -372,7 +371,7 @@ export const AllTasksPage: React.FC = () => {
                   </table>
                 </div>
               )}
-              
+
               <div className="mt-4 shrink-0">
                 <Pagination
                   currentPage={currentPage}

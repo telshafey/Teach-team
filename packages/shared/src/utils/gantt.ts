@@ -41,7 +41,7 @@ export const prepareGanttData = (tasks: Task[]): GanttChartData | null => {
   const chartEndDate = endOfMonth(latest);
 
   let totalDays = differenceInDays(chartEndDate, chartStartDate) + 1;
-  
+
   if (totalDays > 3650) {
     // Limit to 10 years to prevent layout crash
     totalDays = 3650;

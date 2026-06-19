@@ -306,20 +306,32 @@ export const PersonalDashboard: React.FC = () => {
     return {
       todayHours: myLogs
         .filter((l) => {
-          try { return isSameDay(new Date(l.date), now); } catch { return false; }
+          try {
+            return isSameDay(new Date(l.date), now);
+          } catch {
+            return false;
+          }
         })
         .reduce((sum, l) => sum + l.hours, 0),
       thisWeekHours: myLogs
         .filter((l) => {
-          try { return isThisWeek(new Date(l.date), { weekStartsOn: 6 }); } catch { return false; }
+          try {
+            return isThisWeek(new Date(l.date), { weekStartsOn: 6 });
+          } catch {
+            return false;
+          }
         })
         .reduce((sum, l) => sum + l.hours, 0),
       dueSoonCount: myOpenTasks.filter((t) => {
-          if (!t.dueDate) return false;
-          try {
-            return differenceInCalendarDays(parseISO(t.dueDate), now) >= 0 &&
-                   differenceInCalendarDays(parseISO(t.dueDate), now) <= 3;
-          } catch { return false; }
+        if (!t.dueDate) return false;
+        try {
+          return (
+            differenceInCalendarDays(parseISO(t.dueDate), now) >= 0 &&
+            differenceInCalendarDays(parseISO(t.dueDate), now) <= 3
+          );
+        } catch {
+          return false;
+        }
       }).length,
     };
   }, [myLogs, myOpenTasks]);
@@ -346,26 +358,29 @@ export const PersonalDashboard: React.FC = () => {
     myLogs.forEach((log) => {
       try {
         if (log.date) {
-            (dateMap[format(new Date(log.date), "yyyy-MM-dd")] ||= {}).hasLog = true;
+          (dateMap[format(new Date(log.date), "yyyy-MM-dd")] ||= {}).hasLog =
+            true;
         }
       } catch (e) {}
     });
     myTasks.forEach((task) => {
       try {
         if (task.dueDate)
-            (dateMap[format(new Date(task.dueDate), "yyyy-MM-dd")] ||=
+          (dateMap[format(new Date(task.dueDate), "yyyy-MM-dd")] ||=
             {}).isDueDate = true;
       } catch (e) {}
     });
     myMeetings.forEach((meeting) => {
       try {
         if (meeting.startTime)
-            (dateMap[format(new Date(meeting.startTime), "yyyy-MM-dd")] ||=
+          (dateMap[format(new Date(meeting.startTime), "yyyy-MM-dd")] ||=
             {}).isMeeting = true;
       } catch (e) {}
     });
     for (const dateStr in dateMap) {
-      try { events.push({ date: new Date(dateStr), ...dateMap[dateStr] }); } catch (e) {}
+      try {
+        events.push({ date: new Date(dateStr), ...dateMap[dateStr] });
+      } catch (e) {}
     }
     return events;
   }, [myLogs, myTasks, myMeetings]);

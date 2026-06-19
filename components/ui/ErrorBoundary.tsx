@@ -32,13 +32,26 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex w-full h-full p-8 flex-col items-center justify-center text-center bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-red-100 dark:border-red-900">
           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-8 h-8"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2">عذراً، حدث خطأ ما</h2>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2">
+            عذراً، حدث خطأ ما
+          </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-4">
-            واجه التطبيق مشكلة في تحميل هذه الصفحة. يرجى تحديث الصفحة أو المحاولة مرة أخرى لاحقاً.
+            واجه التطبيق مشكلة في تحميل هذه الصفحة. يرجى تحديث الصفحة أو
+            المحاولة مرة أخرى لاحقاً.
           </p>
           <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded text-left text-xs text-red-500 overflow-auto max-w-full max-h-32 mb-4 whitespace-pre-wrap">
             {this.state.error?.message || "Unknown error"}

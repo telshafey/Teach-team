@@ -24,6 +24,7 @@ export interface TeamContextType {
   isLoading: boolean;
   hasPermission: (permission: Permission) => boolean;
   visibleMemberIds: Set<number>;
+  currentUserRole?: Role | null;
   handleAddMember: (formData: TeamMemberFormData) => Promise<void>;
   handleUpdateMember: (
     memberId: number,
@@ -113,8 +114,8 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
       )
         return true;
       if (!currentUserRole) return false;
-      if (currentUserRole.name.includes("(GM)")) return true;
-      return currentUserRole.permissions.includes(permission);
+      if (currentUserRole.name?.includes("(GM)")) return true;
+      return currentUserRole.permissions?.includes(permission) || false;
     },
     [currentUserRole, currentUser],
   );
@@ -271,6 +272,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     isLoading,
     hasPermission,
     visibleMemberIds,
+    currentUserRole,
     handleAddMember,
     handleUpdateMember,
     handleDeleteMember,

@@ -206,14 +206,14 @@ export const ManagerDashboard: React.FC = () => {
     const myProjectIds = new Set(myProjects.map((p) => p.id));
 
     const now = new Date();
-    const teamLogsToday = dailyLogs.filter(
-      (l) => {
-        if (!visibleMemberIds.has(l.teamMemberId)) return false;
-        try {
-          return isSameDay(parseISO(l.date), now);
-        } catch { return false; }
+    const teamLogsToday = dailyLogs.filter((l) => {
+      if (!visibleMemberIds.has(l.teamMemberId)) return false;
+      try {
+        return isSameDay(parseISO(l.date), now);
+      } catch {
+        return false;
       }
-    );
+    });
     const teamTasks = tasks.filter(
       (t) => t.assignedTo && visibleMemberIds.has(t.assignedTo),
     );
@@ -224,15 +224,15 @@ export const ManagerDashboard: React.FC = () => {
       stats: {
         pending: pendingItems.length,
         hours: teamLogsToday.reduce((sum, l) => sum + l.hours, 0),
-        overdue: teamTasks.filter(
-          (t) => {
-            if (t.status === "done" || !t.dueDate) return false;
-            try {
-              const d = parseISO(t.dueDate);
-              return isPast(d) && !isToday(d);
-            } catch { return false; }
+        overdue: teamTasks.filter((t) => {
+          if (t.status === "done" || !t.dueDate) return false;
+          try {
+            const d = parseISO(t.dueDate);
+            return isPast(d) && !isToday(d);
+          } catch {
+            return false;
           }
-        ).length,
+        }).length,
         unassigned: tasks.filter(
           (t) => !t.assignedTo && t.projectId && myProjectIds.has(t.projectId),
         ).length,

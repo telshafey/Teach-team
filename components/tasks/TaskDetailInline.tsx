@@ -95,11 +95,15 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             : "غير محدد"}
         </div>
       </div>
-      
+
       {task?.description && (
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700 font-sans text-sm">
-          <h4 className="font-semibold mb-2 text-slate-700 dark:text-slate-300">وصف المهمة</h4>
-          <p className="text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{task.description}</p>
+          <h4 className="font-semibold mb-2 text-slate-700 dark:text-slate-300">
+            وصف المهمة
+          </h4>
+          <p className="text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
+            {task.description}
+          </p>
         </div>
       )}
 
@@ -272,7 +276,9 @@ const TaskDetailEdit: React.FC<TaskDetailEditProps> = ({
       </label>
       <textarea
         value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+        onChange={(e) =>
+          setFormData({ ...formData, description: e.target.value })
+        }
         className="w-full p-2 min-h-[100px] border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 resize-y"
         placeholder="أضف تفاصيل أكثر عن المهمة..."
       />
@@ -541,7 +547,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
     if (!task) return;
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
+
       // Constraints
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
@@ -549,12 +555,15 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
         e.target.value = "";
         return;
       }
-      
+
       const allowedTypes = [
-        "image/png", "image/jpeg", "image/jpg", 
-        "application/pdf", 
-        "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain"
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
       ];
       if (!allowedTypes.includes(file.type)) {
         addToast("نوع الملف غير مسموح به.", "error");
@@ -571,9 +580,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
         if (error) throw error;
         const {
           data: { publicUrl },
-        } = supabaseClient.storage
-          .from("site_assets")
-          .getPublicUrl(filePath);
+        } = supabaseClient.storage.from("site_assets").getPublicUrl(filePath);
         await handleAddTaskAttachment({
           taskId: task.id,
           fileName: file.name,

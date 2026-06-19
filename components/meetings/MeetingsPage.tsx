@@ -205,7 +205,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
     const isGM =
       currentUser.roleId === "gm" ||
       currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
-      
+
     return isGM
       ? meetings
       : meetings.filter((m) => m.members?.includes(currentUser.id));
@@ -274,7 +274,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
   const totalPages = Math.ceil(sortedPastMeetings.length / ITEMS_PER_PAGE);
   const currentPastMeetings = sortedPastMeetings.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
 
   const requestSort = (key: SortableKeys) => {

@@ -62,7 +62,9 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({
   const filteredMembers = useMemo(() => {
     if (!participantSearch) return teamMembers;
     return teamMembers.filter((member) =>
-      member.name.toLowerCase().includes(participantSearch.toLowerCase()),
+      member.name
+        ?.toLowerCase()
+        .includes(participantSearch?.toLowerCase() || ""),
     );
   }, [teamMembers, participantSearch]);
 

@@ -22,7 +22,10 @@ export const BulkAddTasksModal: React.FC<BulkAddTasksModalProps> = ({
     const rawBlocks = tasksText.split(/\n\s*\n/);
     const tasksToCreate = rawBlocks
       .map((block) => {
-        const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+        const lines = block
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
         if (lines.length === 0) return null;
         return {
           title: lines[0],
@@ -52,8 +55,8 @@ export const BulkAddTasksModal: React.FC<BulkAddTasksModalProps> = ({
         </div>
         <div className="p-6 flex-1 overflow-y-auto">
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            يرجى إدخال المهام. افصل بين كل مهمة والتي تليها بسطر فارغ. 
-            السطر الأول سيكون عنوان المهمة، وباقي الأسطر ستكون الوصف التفصيلي.
+            يرجى إدخال المهام. افصل بين كل مهمة والتي تليها بسطر فارغ. السطر
+            الأول سيكون عنوان المهمة، وباقي الأسطر ستكون الوصف التفصيلي.
           </p>
           <textarea
             value={tasksText}

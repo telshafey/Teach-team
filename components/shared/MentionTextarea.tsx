@@ -28,7 +28,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const filteredMembers = members.filter((m) =>
-    m.name.toLowerCase().includes(mentionQuery.toLowerCase()),
+    m.name?.toLowerCase().includes(mentionQuery.toLowerCase()),
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
