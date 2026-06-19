@@ -227,6 +227,29 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/run-sql", async (req, res) => {
+    try {
+      const { sql } = req.body;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabaseAdmin.rpc('exec_sql', { sql });
+      
+      if (error) {
+         return res.status(500).json({ error });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
