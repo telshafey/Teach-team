@@ -219,9 +219,9 @@ export const GeneralManagerDashboard: React.FC = () => {
   });
 
   const dashboardData = useMemo(() => {
-    const logsThisWeek = dailyLogs.filter((l) =>
-      isThisWeek(parseISO(l.date), { weekStartsOn: 6 }),
-    );
+    const logsThisWeek = dailyLogs.filter((l) => {
+      try { return isThisWeek(parseISO(l.date), { weekStartsOn: 6 }); } catch { return false; }
+    });
     const endDate = new Date();
     const startDate = subDays(endDate, 29);
     const rangeDays = eachDayOfInterval({ start: startDate, end: endDate });

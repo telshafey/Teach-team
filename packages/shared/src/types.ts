@@ -162,6 +162,7 @@ export type ApprovalStatus =
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   projectId?: string;
   creatorId: number;
   assignedTo?: number;
@@ -173,6 +174,7 @@ export interface Task {
 
 export interface TaskFormData {
   title: string;
+  description?: string;
   projectId?: string;
   assignedTo?: number;
   status: TaskStatus;

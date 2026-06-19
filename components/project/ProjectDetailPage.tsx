@@ -8,6 +8,7 @@ import { TaskDetailInline } from "../tasks/TaskDetailInline";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { ProjectMembers } from "./ProjectMembers";
 import { ProjectForm } from "./ProjectForm";
+import { BulkAddTasksModal } from "../tasks/BulkAddTasksModal";
 import { GanttChart } from "./GanttChart";
 import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon } from "../ui/Icons";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -46,6 +47,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   // State hooks
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -122,6 +125,25 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     [project, handleAddTask],
   );
 
+  const handleSaveBulkTasks = useCallback(
+    async (tasksToCreate: { title: string; description?: string }[]) => {
+      if (!project) return;
+      setIsBulkSaving(true);
+      try {
+        for (const t of tasksToCreate) {
+          await handleAddTask({ title: t.title, description: t.description, status: "todo" }, project.id);
+        }
+        addToast(`تمت إضافة ${tasksToCreate.length} مهمة بنجاح.`, "success");
+        setIsBulkAddModalOpen(false);
+      } catch (error: any) {
+        addToast(`فشل إضافة المهام: ${error.message}`, "error");
+      } finally {
+        setIsBulkSaving(false);
+      }
+    },
+    [project, handleAddTask, addToast],
+  );
+
   const isLoading = isProjectLoading || areTasksLoading;
 
   // --- CONDITIONAL RENDERING (AFTER ALL HOOKS) ---
@@ -194,13 +216,22 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
         <div className="flex items-center space-x-2 rtl:space-x-reverse pt-6">
           {canManageTasks && (
-            <button
-              onClick={() => setIsNewTaskModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-900 dark:bg-sky-600 rounded-lg hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors shadow-sm"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>مهمة جديدة</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsBulkAddModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span>إضافة مهام متعددة</span>
+              </button>
+              <button
+                onClick={() => setIsNewTaskModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-slate-900 dark:bg-sky-600 rounded-lg hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors shadow-sm"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span>مهمة جديدة</span>
+              </button>
+            </>
           )}
           {canEditProjectSettings && (
             <button
@@ -320,6 +351,13 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           title="تأكيد حذف المشروع"
           message={`هل أنت متأكد من حذف مشروع "${project.name}"؟ سيتم حذف جميع المهام والسجلات المتعلقة به.`}
           isDestructive
+        />
+      )}
+      {isBulkAddModalOpen && (
+        <BulkAddTasksModal
+          onClose={() => setIsBulkAddModalOpen(false)}
+          onSave={handleSaveBulkTasks}
+          isSaving={isBulkSaving}
         />
       )}
     </div>

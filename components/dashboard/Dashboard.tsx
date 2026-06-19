@@ -13,6 +13,8 @@ import { View } from "@shared/navigation.types";
 import { useNavigation } from "@shared/contexts/NavigationContext";
 import { useTimeManagement } from "@shared/contexts/TimeManagementContext";
 
+import { ErrorBoundary } from "../ui/ErrorBoundary";
+
 // Lazy load page components for code splitting
 const GeneralManagerDashboard = lazy(() =>
   import("./GeneralManagerDashboard").then((module) => ({
@@ -242,10 +244,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
           <PunchClockBar />
           <ActiveTimerBar />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 lg:pb-0">
-            <Suspense fallback={suspenseFallback}>
-              <ComponentToRender {...viewProps} />
-            </Suspense>
+          <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 lg:pb-0 h-full relative">
+            <ErrorBoundary>
+              <Suspense fallback={suspenseFallback}>
+                <ComponentToRender {...viewProps} />
+              </Suspense>
+            </ErrorBoundary>
           </main>
           <BottomNavBar currentView={currentView} onNavigate={onNavigate} />
         </div>

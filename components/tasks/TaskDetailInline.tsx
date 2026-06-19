@@ -95,6 +95,13 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             : "غير محدد"}
         </div>
       </div>
+      
+      {task?.description && (
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700 font-sans text-sm">
+          <h4 className="font-semibold mb-2 text-slate-700 dark:text-slate-300">وصف المهمة</h4>
+          <p className="text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{task.description}</p>
+        </div>
+      )}
 
       <div>
         <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center">
@@ -134,6 +141,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             <input
               type="file"
               className="hidden"
+              accept=".png,.jpeg,.jpg,.pdf,.doc,.docx,.txt"
               onChange={handleFileUpload}
               disabled={isUploading}
             />
@@ -163,17 +171,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
                     <span className="font-semibold text-sm">
                       {author?.name}
                     </span>
-                    {(currentUser.id === comment.authorId ||
-                      canDeleteTasks) && (
-                      <button
-                        onClick={() =>
-                          onDeleteItem({ type: "comment", data: comment })
-                        }
-                        className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                   <p className="text-sm bg-slate-100 dark:bg-slate-700 p-2 rounded-md mt-1">
                     {comment.text}
@@ -225,6 +222,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
 interface TaskDetailEditProps {
   formData: {
     title: string;
+    description: string;
     projectId: string;
     assignedTo: string;
     dueDate: string;
@@ -266,6 +264,17 @@ const TaskDetailEdit: React.FC<TaskDetailEditProps> = ({
         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
         className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900"
         required
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-slate-300">
+        الوصف التفصيلي
+      </label>
+      <textarea
+        value={formData.description}
+        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+        className="w-full p-2 min-h-[100px] border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 resize-y"
+        placeholder="أضف تفاصيل أكثر عن المهمة..."
       />
     </div>
     <div>
@@ -392,6 +401,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
   const [isEditing, setIsEditing] = useState(isNew || initialMode === "edit");
   const [formData, setFormData] = useState({
     title: task?.title || "",
+    description: task?.description || "",
     projectId: task?.projectId || projectId || "",
     assignedTo: task?.assignedTo?.toString() || "",
     dueDate: task?.dueDate ? format(parseISO(task.dueDate), "yyyy-MM-dd") : "",
@@ -446,6 +456,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
       const initialAssignee = currentUser ? currentUser.id.toString() : "";
       setFormData({
         title: "",
+        description: "",
         projectId: projectId || "",
         assignedTo: initialAssignee,
         dueDate: "",
@@ -454,6 +465,7 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
     } else if (task) {
       setFormData({
         title: task.title,
+        description: task.description || "",
         projectId: task.projectId || "",
         assignedTo: task.assignedTo?.toString() || "",
         dueDate: task.dueDate
@@ -528,18 +540,39 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!task) return;
     if (e.target.files && e.target.files[0]) {
-      setIsUploading(true);
       const file = e.target.files[0];
+      
+      // Constraints
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        addToast("حجم الملف يتجاوز الحد المسموح به (5 ميجابايت).", "error");
+        e.target.value = "";
+        return;
+      }
+      
+      const allowedTypes = [
+        "image/png", "image/jpeg", "image/jpg", 
+        "application/pdf", 
+        "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain"
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        addToast("نوع الملف غير مسموح به.", "error");
+        e.target.value = "";
+        return;
+      }
+
+      setIsUploading(true);
       try {
-        const filePath = `${currentUser.id}/${task.id}/${Date.now()}_${file.name}`;
+        const filePath = `tasks/${currentUser.id}/${task.id}/${Date.now()}_${file.name}`;
         const { error } = await supabaseClient.storage
-          .from("task_attachments")
+          .from("site_assets")
           .upload(filePath, file);
         if (error) throw error;
         const {
           data: { publicUrl },
         } = supabaseClient.storage
-          .from("task_attachments")
+          .from("site_assets")
           .getPublicUrl(filePath);
         await handleAddTaskAttachment({
           taskId: task.id,
@@ -562,8 +595,6 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
     if (!itemToDelete) return;
     if (itemToDelete.type === "attachment") {
       await handleDeleteTaskAttachment(itemToDelete.data);
-    } else {
-      await handleDeleteTaskComment(itemToDelete.data.id);
     }
     setItemToDelete(null);
   };

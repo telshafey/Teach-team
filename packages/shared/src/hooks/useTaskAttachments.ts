@@ -71,11 +71,11 @@ export const useTaskAttachments = (
         addToast("تم حذف المرفق بنجاح.", "success");
         try {
           const filePath = new URL(attachment.fileUrl).pathname.split(
-            `/public/task_attachments/`,
+            `/public/site_assets/`,
           )[1];
           if (filePath) {
             const { error: storageError } = await supabaseClient.storage
-              .from("task_attachments")
+              .from("site_assets")
               .remove([decodeURIComponent(filePath)]);
             if (
               storageError &&

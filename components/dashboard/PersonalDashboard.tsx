@@ -183,11 +183,15 @@ const WeeklyActivityWidget: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
     });
 
     return days.map((day) => {
-      const dayLogs = logs.filter((log) =>
-        typeof log.date === "string"
-          ? log.date.startsWith(format(day, "yyyy-MM-dd"))
-          : isSameDay(new Date(log.date), day),
-      );
+      const dayLogs = logs.filter((log) => {
+        try {
+          return typeof log.date === "string"
+            ? log.date.startsWith(format(day, "yyyy-MM-dd"))
+            : isSameDay(new Date(log.date), day);
+        } catch (e) {
+          return false;
+        }
+      });
       const hours = dayLogs.reduce((sum, log) => sum + (log.hours || 0), 0);
       return {
         name: format(day, "EEEE", { locale: arSA }).split(" ")[0],
@@ -231,7 +235,7 @@ export const PersonalDashboard: React.FC = () => {
   const isGM =
     currentUser?.roleId === "gm" ||
     currentUser?.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
-    currentUserRole?.name.includes("(GM)");
+    currentUserRole?.name?.includes("(GM)");
 
   const { data: meetings = [] } = useQuery({
     queryKey: ["meetings"],
@@ -301,17 +305,22 @@ export const PersonalDashboard: React.FC = () => {
     const now = new Date();
     return {
       todayHours: myLogs
-        .filter((l) => isSameDay(new Date(l.date), now))
+        .filter((l) => {
+          try { return isSameDay(new Date(l.date), now); } catch { return false; }
+        })
         .reduce((sum, l) => sum + l.hours, 0),
       thisWeekHours: myLogs
-        .filter((l) => isThisWeek(new Date(l.date), { weekStartsOn: 6 }))
+        .filter((l) => {
+          try { return isThisWeek(new Date(l.date), { weekStartsOn: 6 }); } catch { return false; }
+        })
         .reduce((sum, l) => sum + l.hours, 0),
-      dueSoonCount: myOpenTasks.filter(
-        (t) =>
-          t.dueDate &&
-          differenceInCalendarDays(parseISO(t.dueDate), now) >= 0 &&
-          differenceInCalendarDays(parseISO(t.dueDate), now) <= 3,
-      ).length,
+      dueSoonCount: myOpenTasks.filter((t) => {
+          if (!t.dueDate) return false;
+          try {
+            return differenceInCalendarDays(parseISO(t.dueDate), now) >= 0 &&
+                   differenceInCalendarDays(parseISO(t.dueDate), now) <= 3;
+          } catch { return false; }
+      }).length,
     };
   }, [myLogs, myOpenTasks]);
 
@@ -335,20 +344,29 @@ export const PersonalDashboard: React.FC = () => {
       };
     } = {};
     myLogs.forEach((log) => {
-      (dateMap[format(new Date(log.date), "yyyy-MM-dd")] ||= {}).hasLog = true;
+      try {
+        if (log.date) {
+            (dateMap[format(new Date(log.date), "yyyy-MM-dd")] ||= {}).hasLog = true;
+        }
+      } catch (e) {}
     });
     myTasks.forEach((task) => {
-      if (task.dueDate)
-        (dateMap[format(new Date(task.dueDate), "yyyy-MM-dd")] ||=
-          {}).isDueDate = true;
+      try {
+        if (task.dueDate)
+            (dateMap[format(new Date(task.dueDate), "yyyy-MM-dd")] ||=
+            {}).isDueDate = true;
+      } catch (e) {}
     });
     myMeetings.forEach((meeting) => {
-      if (meeting.startTime)
-        (dateMap[format(new Date(meeting.startTime), "yyyy-MM-dd")] ||=
-          {}).isMeeting = true;
+      try {
+        if (meeting.startTime)
+            (dateMap[format(new Date(meeting.startTime), "yyyy-MM-dd")] ||=
+            {}).isMeeting = true;
+      } catch (e) {}
     });
-    for (const dateStr in dateMap)
-      events.push({ date: new Date(dateStr), ...dateMap[dateStr] });
+    for (const dateStr in dateMap) {
+      try { events.push({ date: new Date(dateStr), ...dateMap[dateStr] }); } catch (e) {}
+    }
     return events;
   }, [myLogs, myTasks, myMeetings]);
 
