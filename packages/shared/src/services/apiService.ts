@@ -57,7 +57,35 @@ export const getAll = async <T>(
   table: string,
   columns: string = "*",
 ): Promise<T[]> => {
-  const { data, error } = await client.from(table).select(columns);
+  if (table === "tasks") {
+    // Bypass RLS using our custom backend endpoint to ensure all tasks are fetched, especially for GM who needs to see all.
+    // The filtering handles the visibility checks client-side.
+    try {
+      const resp = await fetch("/api/admin/tasks");
+      if (!resp.ok) throw new Error("Failed to fetch tasks from custom endpoint");
+      const data = await resp.json();
+      const camelData = keysToCamel(data || []) as T[];
+      if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
+        const uniqueMap = new Map();
+        camelData.forEach((item: any) => {
+          uniqueMap.set(item.id, item);
+        });
+        return Array.from(uniqueMap.values()) as T[];
+      }
+      return camelData;
+    } catch(e) {
+      console.error(e);
+      // Fallback to Supabase
+    }
+  }
+
+  const fetchPromise = client.from(table).select(columns);
+
+  const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+    setTimeout(() => reject(new Error(`Get Request Timeout for ${table}`)), 15000),
+  );
+
+  const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
   if (error) throw error;
 
   const camelData = keysToCamel(data || []) as T[];

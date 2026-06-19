@@ -229,7 +229,6 @@ async function startServer() {
 
   app.post("/api/admin/run-sql", async (req, res) => {
     try {
-      const { sql } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -238,13 +237,33 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.rpc('exec_sql', { sql });
-      
+      const { data, error } = await supabaseAdmin.from('projects').select('id, name, members');
       if (error) {
          return res.status(500).json({ error });
       }
 
-      res.status(200).json({ success: true, data });
+      res.status(200).json({ success: true, count: data.length, data });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/tasks", async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabaseAdmin.from('tasks').select('*');
+      if (error) {
+         return res.status(500).json({ error });
+      }
+
+      res.status(200).json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

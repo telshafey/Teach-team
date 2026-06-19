@@ -32,7 +32,7 @@ if (supabaseUrl && supabaseAnonKey) {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       // Disable the native navigator.locks which hangs infinitely in cross-origin iframes
-      lock: async (name, acquireTimeout, fn) => await fn(),
+      lock: (name, acquireTimeout, fn) => fn(),
     },
   });
 }

@@ -21,7 +21,7 @@ import { useSupabase } from "@shared/contexts/SupabaseContext";
 import * as api from "@shared/services/apiService";
 import { Pagination } from "../ui/Pagination";
 
-const ITEMS_PER_PAGE = 30;
+const ITEMS_PER_PAGE = 10;
 
 type SortKey = "title" | "projectName" | "assigneeName" | "dueDate" | "status";
 
@@ -50,7 +50,7 @@ export const AllTasksPage: React.FC = () => {
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects"],
-    queryFn: () => api.getAll<Project>(supabaseClient!, "projects"),
+    queryFn: () => api.getAll<Project>(supabaseClient!, "projects", "*, members:project_members(*)"),
     enabled: !!supabaseClient,
   });
   const { data: tasks = [], isLoading: areTasksLoading } = useQuery({
@@ -100,10 +100,16 @@ export const AllTasksPage: React.FC = () => {
             const isMember = project.members?.some(
               (m) => m.teamMemberId === currentUser.id,
             );
-            if (!isMember) return false;
+            const isAssignedOrCreator = task.assignedTo === currentUser.id || task.creatorId === currentUser.id;
+            if (!isMember && !isAssignedOrCreator) return false;
           } else {
-            // If project is not found for some reason, we could hide it or show it. Let's hide it to be safe.
-            return false;
+            // Task has a project but project not found, restrict checking to assigned or creator to be safe.
+            if (
+              task.assignedTo !== currentUser.id &&
+              task.creatorId !== currentUser.id
+            ) {
+              return false;
+            }
           }
         } else {
           // Task without project: only visible if assigned to me or created by me
@@ -124,6 +130,8 @@ export const AllTasksPage: React.FC = () => {
         matchesAssignee = task.assignedTo === currentUser.id;
       } else if (filters.assignee === "all") {
         matchesAssignee = true;
+      } else if (filters.assignee === "unassigned") {
+        matchesAssignee = !task.assignedTo;
       } else {
         matchesAssignee = task.assignedTo === parseInt(filters.assignee, 10);
       }
@@ -227,7 +235,7 @@ export const AllTasksPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto h-[calc(100vh-80px)] flex flex-col">
+    <div className="p-6 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)] flex flex-col">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 shrink-0">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -251,7 +259,7 @@ export const AllTasksPage: React.FC = () => {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-500">
+      <div className="flex flex-col flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-in fade-in duration-500">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
           <input
             type="text"
@@ -270,6 +278,12 @@ export const AllTasksPage: React.FC = () => {
             >
               <option value="me">المهام الخاصة بي</option>
               <option value="all">الكل</option>
+              {teamMembers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+              <option value="unassigned">غير مسندة</option>
             </select>
             <select
               value={filters.status}
@@ -301,11 +315,11 @@ export const AllTasksPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden bg-slate-50/30 dark:bg-slate-900/20">
+        <div className="flex-1 bg-slate-50/30 dark:bg-slate-900/20 p-4">
           {filteredAndSortedTasks.length > 0 ? (
-            <div className="h-full p-4 flex flex-col">
+            <div className="flex flex-col gap-4 h-full">
               {viewMode === "kanban" ? (
-                <div className="flex-1 overflow-auto">
+                <div className="overflow-x-auto pb-4 h-full">
                   <TaskKanbanBoard
                     tasks={currentTasks}
                     onTaskClick={(task) => setSelectedTask(task)}
@@ -316,7 +330,7 @@ export const AllTasksPage: React.FC = () => {
                   />
                 </div>
               ) : (
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex-1 overflow-auto">
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
                   <table className="w-full text-sm text-right">
                     <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                       <tr>
