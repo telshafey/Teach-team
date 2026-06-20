@@ -11,6 +11,7 @@ import {
   PlusIcon,
   CheckIcon,
   WrenchScrewdriverIcon,
+  ClipboardDocumentListIcon,
 } from "../ui/Icons";
 import { Project, Meeting, Task } from "@shared/types";
 import {
@@ -350,10 +351,17 @@ export const GeneralManagerDashboard: React.FC = () => {
             نظرة عامة على أداء المنظومة.
           </p>
         </div>
-        <div className="flex items-center space-x-2 rtl:space-x-reverse w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => onNavigate("workSummary")}
+            className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
+          >
+            <ClipboardDocumentListIcon className="w-5 h-5" />
+            <span>سجل الأنشطة والعمل</span>
+          </button>
           <button
             onClick={() => onNavigate("projects", { isModalOpen: true })}
-            className="w-full flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700"
+            className="flex items-center justify-center space-x-2 rtl:space-x-reverse px-4 py-2 text-sm font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 shadow-sm"
           >
             <PlusIcon className="w-5 h-5" />
             <span>مشروع جديد</span>

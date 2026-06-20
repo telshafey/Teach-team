@@ -1,5 +1,7 @@
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { AuthProvider } from "@shared/contexts/AuthContext";
 import { ThemeProvider } from "@shared/contexts/ThemeContext";
 import { ToastProvider } from "@shared/contexts/ToastContext";
@@ -20,11 +22,16 @@ import { TimeManagementProvider } from "@shared/contexts/TimeManagementContext";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 24 * 60 * 60 * 1000, // 24 hours
       refetchOnWindowFocus: false,
       retry: 1,
     },
   },
+});
+
+const persister = createSyncStoragePersister({
+  storage: window.localStorage,
 });
 
 /**
@@ -62,7 +69,7 @@ const DataProviders: React.FC<{ children: React.ReactNode }> = ({
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
       <ThemeProvider>
         <ToastProvider>
           <DataProviders>
@@ -71,7 +78,7 @@ const App: React.FC = () => {
           <ToastContainer />
         </ToastProvider>
       </ThemeProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 };
 

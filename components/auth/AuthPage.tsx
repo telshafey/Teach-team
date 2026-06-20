@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from "react";
+import React, { useState, FormEvent, useEffect } from "react";
 import { useAuth } from "@shared/contexts/AuthContext";
 import { Card } from "../ui/Card";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
@@ -10,6 +10,17 @@ export const AuthPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [isTakingLong, setIsTakingLong] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isLoggingIn) {
+      timer = setTimeout(() => setIsTakingLong(true), 5000);
+    } else {
+      setIsTakingLong(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoggingIn]);
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -95,6 +106,12 @@ export const AuthPage: React.FC = () => {
 
               {loginError && (
                 <p className="text-sm text-red-500 text-center">{loginError}</p>
+              )}
+
+              {isTakingLong && (
+                <p className="text-xs text-sky-600 dark:text-sky-400 text-center animate-pulse">
+                  قد يستغرق هذا بضع ثوانٍ إذا كانت قاعدة البيانات في وضع السكون...
+                </p>
               )}
 
               <div className="flex items-center justify-between">

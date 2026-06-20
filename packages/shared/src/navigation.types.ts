@@ -10,6 +10,7 @@ export type View =
   | "analytics"
   | "reports"
   | "finance"
+  | "workSummary"
   | "meetings"
   | "meetingRoom"
   | "settings"

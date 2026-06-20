@@ -53,6 +53,19 @@ export const AppContent: React.FC = () => {
 
   const [pathname, setPathname] = useState(() => window.location.pathname);
 
+  // Ping the keep-alive endpoint every 15 minutes if the app is open
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const interval = setInterval(() => {
+      fetch("/api/keep-alive")
+        .then((res) => res.json())
+        .catch((err) => console.error("Keep-alive ping failed:", err));
+    }, 15 * 60 * 1000); // 15 minutes
+    
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   useEffect(() => {
     if (!currentUser) return;
     const unsubTasks = subscribe("tasks", (payload) => {

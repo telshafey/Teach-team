@@ -269,6 +269,30 @@ async function startServer() {
     }
   });
 
+  // Keep-alive endpoint to prevent Supabase from pausing
+  app.get("/api/keep-alive", async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ status: "config_missing" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      // Perform a lightweight query to keep DB active
+      const { data, error } = await supabaseAdmin.from('team_members').select('id').limit(1);
+      
+      if (error) {
+        return res.status(500).json({ status: "error", message: error.message });
+      }
+      
+      res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+    } catch (err: any) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

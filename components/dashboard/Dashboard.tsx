@@ -96,6 +96,11 @@ const SupportPage = lazy(() =>
     default: module.SupportPage,
   })),
 );
+const WorkSummaryPage = lazy(() =>
+  import("./WorkSummaryPage").then((module) => ({
+    default: module.WorkSummaryPage,
+  })),
+);
 const OnboardingPage = lazy(() =>
   import("../onboarding/OnboardingPage").then((module) => ({
     default: module.OnboardingPage,
@@ -132,6 +137,7 @@ const componentMap: { [key in View]: React.ComponentType<any> } = {
   analytics: AnalyticsPage,
   reports: ReportsPage,
   finance: FinancePage,
+  workSummary: WorkSummaryPage,
   meetings: MeetingsPage,
   meetingRoom: () => null, // Should not be rendered here
   settings: SettingsPage,
