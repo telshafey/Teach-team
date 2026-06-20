@@ -150,10 +150,15 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
   const visibleMemberIds = useMemo((): Set<number> => {
     if (!currentUser) return new Set();
 
-    // For now, allow viewing all members to fix the issue where only 1 member shows up
-    // even though there are 5 in the database.
-    return new Set(teamMembers.map((m) => m.id));
-  }, [currentUser, teamMembers]);
+    // If they have full access, they can see all
+    if (hasPermission("manage_team") || currentUserRole?.name?.includes("(GM)") || currentUserRole?.name?.includes("(Manager)")) {
+       return new Set(teamMembers.map((m) => m.id));
+    }
+
+    const reportIds = getReportIdsRecursive(currentUser.id, teamMembers);
+    reportIds.add(currentUser.id);
+    return reportIds;
+  }, [currentUser, teamMembers, getReportIdsRecursive, hasPermission, currentUserRole]);
 
   const handleAddMember = useCallback(
     async (formData: TeamMemberFormData) => {

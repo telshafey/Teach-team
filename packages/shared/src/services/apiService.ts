@@ -204,24 +204,48 @@ export const updateTeamMemberWithPassword = async (
   const { data: { session } } = await client.auth.getSession();
   const token = session?.access_token;
 
-  // Utilize the Express admin backend to bypass Frontend RLS locks
-  const response = await fetch("/api/team/admin-update-member", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {})
-    },
-    body: JSON.stringify({
-      memberId: member.id,
-      updates, // Pass ALL updates (including password if provided)
-      email: member.email,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-  const result = await response.json();
+  let response;
+  try {
+    // Utilize the Express admin backend to bypass Frontend RLS locks
+    response = await fetch("/api/team/admin-update-member", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        memberId: member.id,
+        updates, // Pass ALL updates (including password if provided)
+        email: member.email,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('انتهت مهلة الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch (e) {
+    if (!response.ok) {
+       throw new Error(`إستجابة الخادم غير متوقعة: ${response.status} ${response.statusText}`);
+    }
+    throw new Error(`خطأ في معالجة البيانات: ${responseText.substring(0, 50)}...`);
+  }
+
   if (!response.ok) {
     throw new Error(
-      result.error || "فشل التحديث. يرجى التحقق من اتصالك بالإنترنت.",
+      result?.error || "فشل التحديث. يرجى التحقق من اتصالك بالإنترنت.",
     );
   }
 
@@ -236,19 +260,43 @@ export const createTeamMemberAdmin = async (
   const { data: { session } } = await client.auth.getSession();
   const token = session?.access_token;
 
-  const response = await fetch("/api/team/admin-create-member", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {})
-    },
-    body: JSON.stringify({ memberData }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-  const result = await response.json();
+  let response;
+  try {
+    response = await fetch("/api/team/admin-create-member", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ memberData }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('انتهت مهلة الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch (e) {
+    if (!response.ok) {
+       throw new Error(`تعذر الإنشاء، إستجابة الخادم غير متوقعة: ${response.status} ${response.statusText}`);
+    }
+    throw new Error(`خطأ في معالجة البيانات: ${responseText.substring(0, 50)}...`);
+  }
+
   if (!response.ok) {
     throw new Error(
-      result.error || "فشل الإنشاء. يرجى التحقق من اتصالك بالإنترنت.",
+      result?.error || "فشل الإنشاء. يرجى التحقق من اتصالك بالإنترنت.",
     );
   }
 
@@ -272,9 +320,19 @@ export const updateRoleAdmin = async <T,>(
     body: JSON.stringify({ roleId, updates }),
   });
 
-  const result = await response.json();
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch (e) {
+    if (!response.ok) {
+       throw new Error(`إستجابة الخادم غير متوقعة: ${response.status} ${response.statusText}`);
+    }
+    throw new Error(`خطأ في معالجة البيانات: ${responseText.substring(0, 50)}...`);
+  }
+
   if (!response.ok) {
-    throw new Error(result.error || "فشل تحديث الصلاحيات.");
+    throw new Error(result?.error || "فشل تحديث الصلاحيات.");
   }
 
   return keysToCamel(result.data) as T;
@@ -296,9 +354,19 @@ export const upsertSiteSettingsAdmin = async <T,>(
     body: JSON.stringify({ payload }),
   });
 
-  const result = await response.json();
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch (e) {
+    if (!response.ok) {
+       throw new Error(`إستجابة الخادم غير متوقعة: ${response.status} ${response.statusText}`);
+    }
+    throw new Error(`خطأ في معالجة البيانات: ${responseText.substring(0, 50)}...`);
+  }
+
   if (!response.ok) {
-    throw new Error(result.error || "فشل تحديث الإعدادات.");
+    throw new Error(result?.error || "فشل تحديث الإعدادات.");
   }
 
   return keysToCamel(result.data) as T;

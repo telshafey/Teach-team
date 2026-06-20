@@ -13,31 +13,47 @@ async function startServer() {
   app.use(express.json());
 
   // Middleware to verify if the request comes from an authenticated user
-  const verifyToken = async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      res.status(401).json({ error: "Unauthorized: Missing Authorization header" });
-      return;
+  const verifyToken = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ): Promise<void> => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        res
+          .status(401)
+          .json({ error: "Unauthorized: Missing Authorization header" });
+        return;
+      }
+
+      const token = authHeader.replace("Bearer ", "");
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        res.status(500).json({ error: "Missing config" });
+        return;
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const {
+        data: { user },
+        error,
+      } = await supabaseAdmin.auth.getUser(token);
+
+      if (error || !user) {
+        res.status(401).json({ error: "Unauthorized: Invalid token" });
+        return;
+      }
+
+      next();
+    } catch (err: any) {
+      console.error("verifyToken error:", err);
+      res.status(500).json({
+        error: "Internal Server Error in authentication verification",
+      });
     }
-    
-    const token = authHeader.replace("Bearer ", "");
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !serviceRoleKey) {
-      res.status(500).json({ error: "Missing config" });
-      return;
-    }
-    
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    
-    if (error || !user) {
-      res.status(401).json({ error: "Unauthorized: Invalid token" });
-      return;
-    }
-    
-    next();
   };
 
   // API Routes
@@ -63,24 +79,25 @@ async function startServer() {
 
       const { password, ...memberUpdates } = updates;
 
-      if (password) {
-        // Handle password update first
-        const { data: memberData, error: memberError } = await supabaseAdmin
-          .from("team_members")
-          .select("auth_user_id, email")
-          .eq("id", memberId)
-          .single();
+      const { data: memberData, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("auth_user_id, email")
+        .eq("id", memberId)
+        .single();
 
-        if (memberError || !memberData) {
-          return res
-            .status(404)
-            .json({ error: "العضو غير موجود في قاعدة البيانات." });
-        }
+      if (memberError || !memberData) {
+        return res
+          .status(404)
+          .json({ error: "العضو غير موجود في قاعدة البيانات." });
+      }
 
-        let authUserId = memberData.auth_user_id;
+      let authUserId = memberData.auth_user_id;
+      const targetEmail = memberUpdates.email || memberData.email;
+      const emailChanged =
+        memberUpdates.email && memberUpdates.email !== memberData.email;
 
+      if (password || emailChanged) {
         if (!authUserId) {
-          const targetEmail = memberData.email || email;
           const { data: usersData, error: listError } =
             await supabaseAdmin.auth.admin.listUsers();
 
@@ -95,12 +112,27 @@ async function startServer() {
 
           if (existingUser) {
             authUserId = existingUser.id;
+            // update existing user's password if provided
+            if (password) {
+              await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                password,
+                email_confirm: true,
+              });
+            }
             await supabaseAdmin
               .from("team_members")
               .update({ auth_user_id: authUserId })
               .eq("id", memberId);
           } else {
-            // Create the user as they don't exist yet!
+            // Create the user
+            if (!password) {
+              return res
+                .status(400)
+                .json({
+                  error:
+                    "يجب تعيين كلمة مرور لإنشاء حساب تسجيل الدخول للمستخدم لأول مرة.",
+                });
+            }
             const { data: newUser, error: createError } =
               await supabaseAdmin.auth.admin.createUser({
                 email: targetEmail,
@@ -118,19 +150,28 @@ async function startServer() {
               .update({ auth_user_id: authUserId })
               .eq("id", memberId);
           }
-        }
+        } else {
+          // authUserId exists, update the user
+          const authUpdates: any = { email_confirm: true };
+          if (password) authUpdates.password = password;
+          if (emailChanged) authUpdates.email = memberUpdates.email;
 
-        // Only update password if we didn't just create the user with the password
-        if (authUserId) {
-          const { error: passwordUpdateError } =
-            await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-              password,
-              email_confirm: true,
-            });
+          const { error: authUpdateError } =
+            await supabaseAdmin.auth.admin.updateUserById(
+              authUserId,
+              authUpdates,
+            );
 
-          if (passwordUpdateError) {
-            if (passwordUpdateError.message.includes("User not found")) {
-              const targetEmail = memberData.email || email;
+          if (authUpdateError) {
+            if (authUpdateError.message.includes("User not found")) {
+              if (!password) {
+                return res
+                  .status(400)
+                  .json({
+                    error:
+                      "حساب المستخدم غير موجود. يرجى تعيين كلمة مرور للمتابعة.",
+                  });
+              }
               const { data: newUser, error: createError } =
                 await supabaseAdmin.auth.admin.createUser({
                   email: targetEmail,
@@ -138,16 +179,20 @@ async function startServer() {
                   email_confirm: true,
                 });
               if (createError) {
-                return res.status(500).json({
-                  error: "تعذر إنشاء حساب تسجيل الدخول: " + createError.message,
-                });
+                return res
+                  .status(500)
+                  .json({
+                    error:
+                      "تعذر إنشاء حساب تسجيل الدخول: " + createError.message,
+                  });
               }
+              authUserId = newUser.user.id;
               await supabaseAdmin
                 .from("team_members")
-                .update({ auth_user_id: newUser.user.id })
+                .update({ auth_user_id: authUserId })
                 .eq("id", memberId);
             } else {
-              return res.status(500).json({ error: passwordUpdateError.message });
+              return res.status(500).json({ error: authUpdateError.message });
             }
           }
         }
@@ -193,7 +238,7 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      
+
       const { data, error } = await supabaseAdmin
         .from("site_settings")
         .upsert(payload)
@@ -222,12 +267,15 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      
+
       const payload = Object.fromEntries(
         Object.entries(updates).map(([key, value]) => {
-          const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+          const snake = key.replace(
+            /[A-Z]/g,
+            (letter) => `_${letter.toLowerCase()}`,
+          );
           return [snake, value];
-        })
+        }),
       );
 
       const { data, error } = await supabaseAdmin
@@ -273,7 +321,10 @@ async function startServer() {
 
       if (createError) {
         let errorMsg = "تعذر إنشاء حساب تسجيل الدخول: " + createError.message;
-        if (createError.message.includes("already registered") || createError.message.includes("already exists")) {
+        if (
+          createError.message.includes("already registered") ||
+          createError.message.includes("already exists")
+        ) {
           errorMsg = "البريد الإلكتروني مسجل بالفعل لموظف آخر.";
         }
         return res.status(500).json({
@@ -283,30 +334,32 @@ async function startServer() {
 
       const authUserId = newUser.user.id;
 
-      // Insert into team_members
+      // Update team_members (trigger already inserted the base row)
       const payload = Object.fromEntries(
-        Object.entries({ ...restOfData, email, authUserId }).map(
-          ([key, value]) => {
-            const snake = key.replace(
-              /[A-Z]/g,
-              (letter) => `_${letter.toLowerCase()}`,
-            );
-            return [snake, value];
-          },
-        ),
+        Object.entries({ ...restOfData, email }).map(([key, value]) => {
+          const snake = key.replace(
+            /[A-Z]/g,
+            (letter) => `_${letter.toLowerCase()}`,
+          );
+          return [snake, value];
+        }),
       );
 
-      const { data: insertedMember, error: dbInsertError } = await supabaseAdmin
+      const { data: insertedMember, error: dbUpdateError } = await supabaseAdmin
         .from("team_members")
-        .insert(payload)
+        .update(payload)
+        .eq("auth_user_id", authUserId)
         .select()
         .single();
 
-      if (dbInsertError) {
-        // Cleanup auth user if team_member insert fails
+      if (dbUpdateError) {
+        // Cleanup auth user if team_member update fails
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
-        let errorMsg = "تعذر إضافة العضو للقاعدة: " + dbInsertError.message;
-        if (dbInsertError.code === "23505" && dbInsertError.message.includes("team_members_email_key")) {
+        let errorMsg = "تعذر تحديث العضو في القاعدة: " + dbUpdateError.message;
+        if (
+          dbUpdateError.code === "23505" &&
+          dbUpdateError.message.includes("team_members_email_key")
+        ) {
           errorMsg = "البريد الإلكتروني مسجل بالفعل لموظف آخر.";
         }
         return res.status(500).json({
@@ -331,9 +384,11 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from('projects').select('id, name, members');
+      const { data, error } = await supabaseAdmin
+        .from("projects")
+        .select("id, name, members");
       if (error) {
-         return res.status(500).json({ error });
+        return res.status(500).json({ error });
       }
 
       res.status(200).json({ success: true, count: data.length, data });
@@ -352,9 +407,9 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from('tasks').select('*');
+      const { data, error } = await supabaseAdmin.from("tasks").select("*");
       if (error) {
-         return res.status(500).json({ error });
+        return res.status(500).json({ error });
       }
 
       res.status(200).json(data);
@@ -375,13 +430,20 @@ async function startServer() {
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
       // Perform a lightweight query to keep DB active
-      const { data, error } = await supabaseAdmin.from('team_members').select('id').limit(1);
-      
+      const { data, error } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .limit(1);
+
       if (error) {
-        return res.status(500).json({ status: "error", message: error.message });
+        return res
+          .status(500)
+          .json({ status: "error", message: error.message });
       }
-      
-      res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+
+      res
+        .status(200)
+        .json({ status: "ok", timestamp: new Date().toISOString() });
     } catch (err: any) {
       res.status(500).json({ status: "error", message: err.message });
     }
