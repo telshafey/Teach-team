@@ -52,7 +52,6 @@ export type Permission =
   | "manage_meetings"
   | "view_reports"
   | "view_analytics"
-  | "use_ai_features"
   | "manage_support_tickets";
 
 export interface Role {

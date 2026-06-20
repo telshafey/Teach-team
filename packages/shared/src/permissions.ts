@@ -37,7 +37,6 @@ export const PERMISSION_GROUPS: Record<string, Permission[]> = {
     "manage_meetings",
     "view_reports",
     "view_analytics",
-    "use_ai_features",
   ],
 };
 
@@ -65,7 +64,6 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   view_reports: "عرض التقارير",
   view_analytics: "عرض التحليلات",
   view_finances: "عرض البيانات المالية",
-  use_ai_features: "استخدام مزايا الذكاء الاصطناعي (ملخصات، تحليل، اقتراحات)",
   approve_work_contract_changes: "اعتماد طلبات تعديل عقد العمل",
   issue_penalties: "إصدار جزاءات",
   approve_penalties: "اعتماد/رفض الجزاءات",
