@@ -30,7 +30,7 @@ export const TaskTableRow: React.FC<TaskTableRowProps> = React.memo(
     return (
       <tr
         onClick={onSelect}
-        className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer"
+        className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer text-slate-900 dark:text-slate-100"
       >
         <td className="px-6 py-4 font-medium">{task.title}</td>
         <td className="px-6 py-4">{projectName}</td>

@@ -22,6 +22,7 @@ const SITE_SETTINGS: SiteSettings = {
   },
   loginTitle: "إدارة أعمالك برؤية مستقبلية وأداء استثنائي.",
   loginSubtitle: "منصة متكاملة تجمع فريقك، مهامك، ومشاريعك في مكان واحد، لتمنحك الوضوح والتركيز لتحقيق أهدافك بكفاءة عالية.",
+  supportEmail: "office@tech-bokra.com",
 };
 
 export const initialData = {

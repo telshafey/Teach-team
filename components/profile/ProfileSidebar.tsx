@@ -94,7 +94,7 @@ export const ProfileSidebar: React.FC = () => {
             id="email"
             value={currentUser.email}
             disabled
-            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 cursor-not-allowed"
+            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-slate-100 dark:bg-slate-700 cursor-not-allowed text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
         </div>
 

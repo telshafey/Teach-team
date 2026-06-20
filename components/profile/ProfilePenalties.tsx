@@ -30,7 +30,7 @@ export const ProfilePenalties: React.FC<ProfilePenaltiesProps> = ({
   return (
     <Card title="سجل الجزاءات" icon={<NoSymbolIcon className="w-5 h-5" />}>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-right">
+        <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
           <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
             <tr>
               <th className="px-4 py-2">التاريخ</th>
@@ -42,7 +42,7 @@ export const ProfilePenalties: React.FC<ProfilePenaltiesProps> = ({
           </thead>
           <tbody>
             {myPenalties.map((p) => (
-              <tr key={p.id} className="border-b dark:border-slate-700">
+              <tr key={p.id} className="border-b dark:border-slate-700 text-slate-900 dark:text-slate-100">
                 <td className="px-4 py-2">
                   {format(parseISO(p.date), "d MMM yyyy", { locale: arSA })}
                 </td>

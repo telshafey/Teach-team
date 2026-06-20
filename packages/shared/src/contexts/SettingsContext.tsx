@@ -89,11 +89,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
       const payloadToSave: any = { ...settings, id: 1 };
       const payload = api.camelToSnakeCase(payloadToSave);
 
-      const upsertPromise = api.upsertSiteSettingsAdmin(payload);
+      if (!supabaseClient) throw new Error("Supabase client not available");
+      const upsertPromise = api.upsertSiteSettingsAdmin(supabaseClient, payload);
 
       const timeoutPromise = new Promise<{ data: any; error: any }>(
         (_, reject) =>
-          setTimeout(() => reject(new Error("Update Request Timeout")), 15000),
+          setTimeout(() => reject(new Error("Update Request Timeout")), 30000),
       );
 
       const data = await Promise.race([

@@ -266,7 +266,7 @@ export const AllTasksPage: React.FC = () => {
             placeholder="ابحث في المهام..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-auto flex-grow px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+            className="w-full md:w-auto flex-grow px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
           <div className="flex gap-3">
             <select
@@ -274,7 +274,7 @@ export const AllTasksPage: React.FC = () => {
               onChange={(e) =>
                 setFilters({ ...filters, assignee: e.target.value })
               }
-              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-slate-100"
             >
               <option value="me">المهام الخاصة بي</option>
               <option value="all">الكل</option>
@@ -290,7 +290,7 @@ export const AllTasksPage: React.FC = () => {
               onChange={(e) =>
                 setFilters({ ...filters, status: e.target.value })
               }
-              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-slate-100"
             >
               <option value="open">المفتوحة</option>
               <option value="all">الكل</option>

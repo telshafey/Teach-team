@@ -63,7 +63,7 @@ export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-right">
+        <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
           <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
             <tr>
               <th className="px-4 py-2">الموظف</th>
@@ -82,7 +82,7 @@ export const PenaltiesTab: React.FC<PenaltiesTabProps> = ({
                 (m) => m.id === penalty.teamMemberId,
               );
               return (
-                <tr key={penalty.id} className="border-b dark:border-slate-700">
+                <tr key={penalty.id} className="border-b dark:border-slate-700 text-slate-900 dark:text-slate-100">
                   <td className="px-4 py-2 font-medium">{member?.name}</td>
                   <td className="px-4 py-2">{penalty.amount}</td>
                   <td className="px-4 py-2">

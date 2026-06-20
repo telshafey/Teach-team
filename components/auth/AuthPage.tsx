@@ -149,10 +149,6 @@ export const AuthPage: React.FC = () => {
                     تذكرني
                   </label>
                 </div>
-                
-                <div className="text-sm text-sky-600 hover:text-sky-500 dark:text-sky-400 cursor-pointer transition-colors font-medium">
-                  نسيت كلمة المرور؟
-                </div>
               </div>
 
               {loginError && (
@@ -179,6 +175,18 @@ export const AuthPage: React.FC = () => {
                 >
                   {isLoggingIn ? <LoadingSpinner /> : "الدخول إلى حسابك"}
                 </button>
+              </div>
+              
+              <div className="mt-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  بحاجة لمساعدة في تسجيل الدخول؟
+                </p>
+                <div className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
+                  تواصل مع الإدارة: 
+                  <a href={`mailto:${siteSettings?.supportEmail || "office@tech-bokra.com"}`} className="text-sky-600 hover:text-sky-500 mr-2 transition-colors inline-block" dir="ltr">
+                    {siteSettings?.supportEmail || "office@tech-bokra.com"}
+                  </a>
+                </div>
               </div>
             </form>
           </div>

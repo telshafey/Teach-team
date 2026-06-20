@@ -572,19 +572,19 @@ export const ReportsPage: React.FC = () => {
                 )}
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-right">
-                  <thead className="text-xs uppercase bg-slate-50">
+                <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
+                  <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                     <tr>
                       {generatedReport.headers.map((h) => (
-                        <th key={h} className="px-6 py-3">
+                        <th key={h} className="px-6 py-3 font-semibold">
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                     {paginatedRows.map((row, rowIndex) => (
-                      <tr key={rowIndex} className="border-b">
+                      <tr key={rowIndex} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30">
                         {row.map((cell: any, cellIndex: number) => (
                           <td
                             key={cellIndex}

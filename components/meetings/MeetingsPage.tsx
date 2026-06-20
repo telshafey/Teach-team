@@ -357,7 +357,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
           </h3>
           {pastMeetings.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-right">
+              <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
                 <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50">
                   <tr>
                     <SortableHeader
@@ -395,7 +395,7 @@ export const MeetingsPage: React.FC<MeetingsPageProps> = ({
                   {currentPastMeetings.map((meeting) => (
                     <tr
                       key={meeting.id}
-                      className="border-b dark:border-slate-700"
+                      className="border-b dark:border-slate-700 text-slate-900 dark:text-slate-100"
                     >
                       <td className="px-4 py-3 font-medium">{meeting.title}</td>
                       <td className="px-4 py-3">

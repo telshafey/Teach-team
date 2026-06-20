@@ -216,7 +216,7 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
             <select
               value={formData.employmentType}
               onChange={handleEmploymentTypeChange}
-              className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600"
+              className="w-full p-2 border rounded-md dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             >
               <option value="full-time">دوام كامل</option>
               <option value="part-time">دوام جزئي</option>

@@ -98,7 +98,7 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({
   return (
     <Card>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-right">
+        <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
           <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
             <tr>
               <th className="px-4 py-2">المشروع</th>
@@ -120,7 +120,7 @@ export const FreelancerContractsTab: React.FC<FreelancerContractsTabProps> = ({
               if (contract?.type === "per-task") value = `بالقطعة`;
 
               return (
-                <tr key={project.id} className="border-b dark:border-slate-700">
+                <tr key={project.id} className="border-b dark:border-slate-700 text-slate-900 dark:text-slate-100">
                   <td className="px-4 py-2 font-medium">{project.name}</td>
                   {!isFreelancer && (
                     <td className="px-4 py-2">

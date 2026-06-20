@@ -61,7 +61,12 @@ export const getAll = async <T>(
     // Bypass RLS using our custom backend endpoint to ensure all tasks are fetched, especially for GM who needs to see all.
     // The filtering handles the visibility checks client-side.
     try {
-      const resp = await fetch("/api/admin/tasks");
+      const { data: { session } } = await client.auth.getSession();
+      const token = session?.access_token;
+      
+      const resp = await fetch("/api/admin/tasks", {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
       if (!resp.ok) throw new Error("Failed to fetch tasks from custom endpoint");
       const data = await resp.json();
       const camelData = keysToCamel(data || []) as T[];
@@ -82,7 +87,7 @@ export const getAll = async <T>(
   const fetchPromise = client.from(table).select(columns);
 
   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-    setTimeout(() => reject(new Error(`Get Request Timeout for ${table}`)), 15000),
+    setTimeout(() => reject(new Error(`Get Request Timeout for ${table}`)), 30000),
   );
 
   const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
@@ -147,7 +152,7 @@ export const insert = async <T>(
 
   const insertPromise = client.from(table).insert(payload).select().single();
   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-    setTimeout(() => reject(new Error("Insert Request Timeout")), 15000),
+    setTimeout(() => reject(new Error("Insert Request Timeout")), 30000),
   );
 
   const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
@@ -171,7 +176,7 @@ export const update = async <T>(
     .single();
 
   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-    setTimeout(() => reject(new Error("Update Request Timeout")), 10000),
+    setTimeout(() => reject(new Error("Update Request Timeout")), 30000),
   );
 
   const { data, error } = await Promise.race([updatePromise, timeoutPromise]);
@@ -196,10 +201,16 @@ export const updateTeamMemberWithPassword = async (
 ): Promise<TeamMember> => {
   const { password, ...memberData } = updates;
 
+  const { data: { session } } = await client.auth.getSession();
+  const token = session?.access_token;
+
   // Utilize the Express admin backend to bypass Frontend RLS locks
   const response = await fetch("/api/team/admin-update-member", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    },
     body: JSON.stringify({
       memberId: member.id,
       updates, // Pass ALL updates (including password if provided)
@@ -222,9 +233,15 @@ export const createTeamMemberAdmin = async (
   client: SupabaseClient,
   memberData: Record<string, any>,
 ): Promise<TeamMember> => {
+  const { data: { session } } = await client.auth.getSession();
+  const token = session?.access_token;
+
   const response = await fetch("/api/team/admin-create-member", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    },
     body: JSON.stringify({ memberData }),
   });
 
@@ -243,9 +260,15 @@ export const updateRoleAdmin = async <T,>(
   roleId: string,
   updates: Partial<T>
 ): Promise<T> => {
+  const { data: { session } } = await client.auth.getSession();
+  const token = session?.access_token;
+
   const response = await fetch("/api/team/admin-update-role", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    },
     body: JSON.stringify({ roleId, updates }),
   });
 
@@ -258,11 +281,18 @@ export const updateRoleAdmin = async <T,>(
 };
 
 export const upsertSiteSettingsAdmin = async <T,>(
+  client: SupabaseClient,
   payload: Partial<T>
 ): Promise<T> => {
+  const { data: { session } } = await client.auth.getSession();
+  const token = session?.access_token;
+
   const response = await fetch("/api/admin/site-settings/upsert", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    },
     body: JSON.stringify({ payload }),
   });
 

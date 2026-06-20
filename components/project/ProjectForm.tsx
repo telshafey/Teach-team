@@ -6,10 +6,7 @@ import {
   SuggestedTask,
 } from "@shared/types";
 import { useSettingsContext } from "@shared/contexts/SettingsContext";
-import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
-import { useToast } from "@shared/contexts/ToastContext";
-import { useTeamContext } from "@shared/contexts/TeamContext";
 import { Card } from "../ui/Card";
 
 interface ProjectFormProps {
@@ -28,8 +25,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   project,
 }) => {
   const { currency } = useSettingsContext();
-  const { addToast } = useToast();
-  const { hasPermission } = useTeamContext();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProjectFormData>({
     name: "",
@@ -40,7 +35,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     deadline: "",
   });
 
-  const [suggestedTasks, setSuggestedTasks] = useState<SuggestedTask[]>([]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {

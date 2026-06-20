@@ -224,7 +224,7 @@ export const LogFormModal: React.FC<LogFormModalProps> = ({
               id="task"
               value={formData.taskId}
               onChange={handleTaskSelectionChange}
-              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               disabled={isFromTimer}
               required={isFreelancer}
             >

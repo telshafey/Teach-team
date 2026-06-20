@@ -23,7 +23,7 @@ const RequestTable: React.FC<{
     }
   >
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-right">
+      <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
         <thead className="text-xs text-slate-700 uppercase bg-slate-100 dark:bg-slate-700 dark:text-slate-300">
           <tr>
             {columns.map((c) => (
@@ -35,7 +35,7 @@ const RequestTable: React.FC<{
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr key={row.id} className="border-b dark:border-slate-700">
+            <tr key={row.id} className="border-b dark:border-slate-700 text-slate-900 dark:text-slate-100">
               {columns.map((c) => (
                 <td key={c.header} className="px-4 py-2">
                   {c.accessor(row)}

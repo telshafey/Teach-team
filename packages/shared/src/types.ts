@@ -22,6 +22,7 @@ export interface SiteSettings {
   meetingSettings: MeetingSettings;
   loginTitle?: string;
   loginSubtitle?: string;
+  supportEmail?: string;
 }
 
 // --- TEAM & ROLES ---

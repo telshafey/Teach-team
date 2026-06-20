@@ -246,8 +246,7 @@ export const GeneralManagerDashboard: React.FC = () => {
       done: 0,
     };
     tasks.forEach((t) => {
-      // @ts-ignore
-      if (tasksStatusCount.hasOwnProperty(t.status)) {
+      if (t.status in tasksStatusCount) {
         tasksStatusCount[t.status as keyof typeof tasksStatusCount]++;
       }
     });

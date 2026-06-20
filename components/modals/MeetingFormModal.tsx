@@ -135,7 +135,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               required
             />
           </div>
@@ -154,7 +154,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({
                 name="startTime"
                 value={formData.startTime}
                 onChange={handleInputChange}
-                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 required
               />
             </div>
@@ -170,7 +170,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({
                 name="duration"
                 value={formData.duration}
                 onChange={handleInputChange}
-                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               >
                 {durationOptions.map((d) => (
                   <option key={d} value={d}>
@@ -193,7 +193,7 @@ export const MeetingFormModal: React.FC<MeetingFormModalProps> = ({
               name="projectId"
               value={formData.projectId}
               onChange={handleInputChange}
-              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm"
+              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               disabled={isLoadingProjects}
             >
               <option value="">اجتماع عام</option>

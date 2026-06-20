@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Project, Task, TaskStatus } from "@shared/types";
 import { useProjectContext } from "@shared/contexts/ProjectContext";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { Card } from "../ui/Card";
 import { KanbanBoard } from "./KanbanBoard";
+import { ProjectTasksList } from "./ProjectTasksList";
 import { TaskDetailInline } from "../tasks/TaskDetailInline";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { ProjectMembers } from "./ProjectMembers";
 import { ProjectForm } from "./ProjectForm";
 import { BulkAddTasksModal } from "../tasks/BulkAddTasksModal";
 import { GanttChart } from "./GanttChart";
-import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon } from "../ui/Icons";
+import { PencilIcon, TrashIcon, ArrowLeftIcon, PlusIcon, ListBulletIcon, Squares2X2Icon } from "../ui/Icons";
 import { StatusBadge } from "../ui/StatusBadge";
 import { useNavigation } from "@shared/contexts/NavigationContext";
 import { useProjectPermissions } from "@shared/hooks/useProjectPermissions";
@@ -39,7 +40,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     handleUpdateProject,
     handleDeleteProject,
   } = useProjectContext();
-  const { hasPermission } = useTeamContext();
+  const { teamMembers, hasPermission } = useTeamContext();
   const { supabaseClient } = useSupabase();
   const queryClient = useQueryClient();
   const { addToast } = useToast();
@@ -52,9 +53,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"kanban" | "gantt" | "members">(
-    "kanban",
-  );
+  const [activeTab, setActiveTab] = useState<"kanban" | "gantt" | "members">("kanban");
+  const [taskViewMode, setTaskViewMode] = useState<"kanban" | "list">("kanban");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
 
   // Data fetching with react-query
   const { data: project, isLoading: isProjectLoading } = useQuery({
@@ -79,6 +80,12 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   const { canEditProjectSettings, canManageTasks, canManageMembers } =
     useProjectPermissions(project?.id);
+
+  const filteredTasks = useMemo(() => {
+    if (assigneeFilter === "all") return tasksForProject;
+    if (assigneeFilter === "unassigned") return tasksForProject.filter(t => !t.assignedTo);
+    return tasksForProject.filter(t => t.assignedTo?.toString() === assigneeFilter);
+  }, [tasksForProject, assigneeFilter]);
 
   // Effect hooks
   useEffect(() => {
@@ -255,50 +262,108 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
       </div>
 
-      <div className="flex space-x-1 rtl:space-x-reverse bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 mb-6 w-max border border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => setActiveTab("kanban")}
-          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
-            activeTab === "kanban"
-              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-          }`}
-        >
-          مهام المشروع
-        </button>
-        <button
-          onClick={() => setActiveTab("gantt")}
-          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
-            activeTab === "gantt"
-              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-          }`}
-        >
-          مخطط زمني
-        </button>
-        <button
-          onClick={() => setActiveTab("members")}
-          className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
-            activeTab === "members"
-              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-          }`}
-        >
-          أعضاء المشروع
-        </button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
+        <div className="flex space-x-1 rtl:space-x-reverse bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-max border border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab("kanban")}
+            className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+              activeTab === "kanban"
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            مهام المشروع
+          </button>
+          <button
+            onClick={() => setActiveTab("gantt")}
+            className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+              activeTab === "gantt"
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            مخطط زمني
+          </button>
+          <button
+            onClick={() => setActiveTab("members")}
+            className={`py-2 px-6 text-sm font-medium rounded-lg transition-all ${
+              activeTab === "members"
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            أعضاء المشروع
+          </button>
+        </div>
+
+        {activeTab === "kanban" && (
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="all">كل المهام</option>
+              <option value="unassigned">غير مسندة</option>
+              {teamMembers
+                .filter(member => {
+                  const isInProjectMembers = project?.members?.some((pm: any) => 
+                    pm.teamMemberId === member.id || 
+                    pm.team_member_id === member.id || 
+                    pm === member.id
+                  );
+                  const isCreator = project?.creatorId === member.id;
+                  const hasTask = tasksForProject.some(t => t.assignedTo === member.id);
+                  return isInProjectMembers || isCreator || hasTask;
+                })
+                .map(member => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+            
+            <div className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setTaskViewMode('kanban')}
+                className={`p-1.5 rounded-md transition-colors ${taskViewMode === 'kanban' ? 'bg-white dark:bg-slate-700 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                title="عرض كانبان"
+              >
+                <Squares2X2Icon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setTaskViewMode('list')}
+                className={`p-1.5 rounded-md transition-colors ${taskViewMode === 'list' ? 'bg-white dark:bg-slate-700 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                title="عرض القائمة"
+              >
+                <ListBulletIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 relative">
         {activeTab === "kanban" && (
           <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <KanbanBoard
-              tasks={tasksForProject}
-              canManageTasks={canManageTasks}
-              onTaskClick={setSelectedTask}
-              onDeleteTask={setTaskToDelete}
-              onUpdateTaskStatus={handleUpdateTaskStatus}
-              onQuickAddTask={handleQuickAddTask}
-            />
+            {taskViewMode === 'kanban' ? (
+              <KanbanBoard
+                tasks={filteredTasks}
+                canManageTasks={canManageTasks}
+                onTaskClick={setSelectedTask}
+                onDeleteTask={setTaskToDelete}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+                onQuickAddTask={handleQuickAddTask}
+              />
+            ) : (
+              <ProjectTasksList
+                tasks={filteredTasks}
+                canManageTasks={canManageTasks}
+                onTaskClick={setSelectedTask}
+                onDeleteTask={setTaskToDelete}
+                onUpdateTaskStatus={handleUpdateTaskStatus}
+              />
+            )}
           </div>
         )}
 

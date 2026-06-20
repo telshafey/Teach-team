@@ -125,7 +125,7 @@ export const SupportPage: React.FC = () => {
             </div>
           ) : filteredTickets.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-right">
+              <table className="w-full text-sm text-right text-slate-900 dark:text-slate-100">
                 <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-700/50">
                   <tr>
                     <th className="px-6 py-3">الموضوع</th>
@@ -140,7 +140,7 @@ export const SupportPage: React.FC = () => {
                     <tr
                       key={ticket.id}
                       onClick={() => setSelectedTicket(ticket)}
-                      className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer"
+                      className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer text-slate-900 dark:text-slate-100"
                     >
                       <td className="px-6 py-4 font-medium">
                         {ticket.subject}

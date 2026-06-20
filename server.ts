@@ -12,8 +12,36 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Middleware to verify if the request comes from an authenticated user
+  const verifyToken = async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      res.status(401).json({ error: "Unauthorized: Missing Authorization header" });
+      return;
+    }
+    
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      res.status(500).json({ error: "Missing config" });
+      return;
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (error || !user) {
+      res.status(401).json({ error: "Unauthorized: Invalid token" });
+      return;
+    }
+    
+    next();
+  };
+
   // API Routes
-  app.post("/api/team/admin-update-member", async (req, res) => {
+  app.post("/api/team/admin-update-member", verifyToken, async (req, res) => {
     try {
       const { memberId, updates, email } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -154,7 +182,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/site-settings/upsert", async (req, res) => {
+  app.post("/api/admin/site-settings/upsert", verifyToken, async (req, res) => {
     try {
       const { payload } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -183,7 +211,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/team/admin-update-role", async (req, res) => {
+  app.post("/api/team/admin-update-role", verifyToken, async (req, res) => {
     try {
       const { roleId, updates } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -220,7 +248,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/team/admin-create-member", async (req, res) => {
+  app.post("/api/team/admin-create-member", verifyToken, async (req, res) => {
     try {
       const { memberData } = req.body;
       const { email, password, ...restOfData } = memberData;
@@ -293,7 +321,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/run-sql", async (req, res) => {
+  app.post("/api/admin/run-sql", verifyToken, async (req, res) => {
     try {
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -314,7 +342,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/tasks", async (req, res) => {
+  app.get("/api/admin/tasks", verifyToken, async (req, res) => {
     try {
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

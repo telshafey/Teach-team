@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { useTeamContext } from "@shared/contexts/TeamContext";
 import { useTimeLogContext } from "@shared/contexts/TimeLogContext";
-import { useProjectContext } from "@shared/contexts/ProjectContext";
 import { format, isToday, isThisWeek, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { getAll } from "@shared/services/apiService";
+import { useSupabase } from "@shared/contexts/SupabaseContext";
+import { Project } from "@shared/types";
 
 import { useNavigation } from "@shared/contexts/NavigationContext";
 
@@ -13,7 +16,13 @@ export const WorkSummaryPage: React.FC = () => {
   const { onNavigate } = useNavigation();
   const { teamMembers } = useTeamContext();
   const { dailyLogs } = useTimeLogContext();
-  const { projects } = useProjectContext();
+  const { supabaseClient } = useSupabase();
+
+  const { data: projects } = useQuery<Project[]>({
+    queryKey: ["projects"],
+    queryFn: () => getAll(supabaseClient!, "projects"),
+    enabled: !!supabaseClient,
+  });
 
   const [period, setPeriod] = useState<FilterPeriod>("today");
   const [startDate, setStartDate] = useState("");
@@ -131,8 +140,8 @@ export const WorkSummaryPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            {member?.avatar_url ? (
-                              <img src={member.avatar_url} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
+                            {member?.avatarUrl ? (
+                              <img src={member.avatarUrl} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
                             ) : (
                               <div className="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-900 flex items-center justify-center text-xs font-bold text-sky-700 dark:text-sky-300">
                                 {member?.name?.charAt(0) || "U"}
