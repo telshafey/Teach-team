@@ -119,6 +119,7 @@ export const SiteSettingsPage: React.FC = () => {
       [
         { id: "general", label: "عام" },
         { id: "system", label: "النظام" },
+        { id: "auth", label: "شاشة الدخول" },
         { id: "modules", label: "إدارة الأقسام" },
         {
           id: "meetings",
@@ -258,6 +259,45 @@ export const SiteSettingsPage: React.FC = () => {
                     value={settings.logEditingDaysLimit || ""}
                     onChange={handleNumberChange}
                     className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "auth" && (
+              <div className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="loginTitle"
+                    className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                  >
+                    العنوان الرئيسي لشاشة الدخول
+                  </label>
+                  <input
+                    type="text"
+                    id="loginTitle"
+                    name="loginTitle"
+                    value={settings.loginTitle || ""}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md"
+                    placeholder="مثال: إدارة أعمالك برؤية مستقبلية وأداء استثنائي."
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="loginSubtitle"
+                    className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                  >
+                    النص الفرعي لشاشة الدخول
+                  </label>
+                  <textarea
+                    id="loginSubtitle"
+                    name="loginSubtitle"
+                    value={settings.loginSubtitle || ""}
+                    onChange={(e: any) => handleInputChange(e)}
+                    rows={3}
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md"
+                    placeholder="مثال: منصة متكاملة تجمع فريقك، مهامك، ومشاريعك في مكان واحد، لتمنحك الوضوح والتركيز لتحقيق أهدافك بكفاءة عالية."
                   />
                 </div>
               </div>

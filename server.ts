@@ -154,6 +154,72 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/site-settings/upsert", async (req, res) => {
+    try {
+      const { payload } = req.body;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      const { data, error } = await supabaseAdmin
+        .from("site_settings")
+        .upsert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Admin site settings upsert error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  app.post("/api/team/admin-update-role", async (req, res) => {
+    try {
+      const { roleId, updates } = req.body;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      const payload = Object.fromEntries(
+        Object.entries(updates).map(([key, value]) => {
+          const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+          return [snake, value];
+        })
+      );
+
+      const { data, error } = await supabaseAdmin
+        .from("roles")
+        .update(payload)
+        .eq("id", roleId)
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Admin role update error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   app.post("/api/team/admin-create-member", async (req, res) => {
     try {
       const { memberData } = req.body;

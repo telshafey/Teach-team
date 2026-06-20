@@ -20,6 +20,8 @@ export interface SiteSettings {
   isAnalyticsModuleEnabled: boolean;
   isReportsModuleEnabled: boolean;
   meetingSettings: MeetingSettings;
+  loginTitle?: string;
+  loginSubtitle?: string;
 }
 
 // --- TEAM & ROLES ---

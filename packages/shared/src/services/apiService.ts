@@ -238,6 +238,42 @@ export const createTeamMemberAdmin = async (
   return keysToCamel(result.member) as TeamMember;
 };
 
+export const updateRoleAdmin = async <T,>(
+  client: SupabaseClient,
+  roleId: string,
+  updates: Partial<T>
+): Promise<T> => {
+  const response = await fetch("/api/team/admin-update-role", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roleId, updates }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || "فشل تحديث الصلاحيات.");
+  }
+
+  return keysToCamel(result.data) as T;
+};
+
+export const upsertSiteSettingsAdmin = async <T,>(
+  payload: Partial<T>
+): Promise<T> => {
+  const response = await fetch("/api/admin/site-settings/upsert", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || "فشل تحديث الإعدادات.");
+  }
+
+  return keysToCamel(result.data) as T;
+};
+
 export const deleteById = async (
   client: SupabaseClient,
   table: string,

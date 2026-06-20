@@ -236,7 +236,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({
     async (roleId: string, updates: Partial<Role>) => {
       if (!supabaseClient) return;
       try {
-        await api.update<Role>(supabaseClient, "roles", roleId, updates);
+        await api.updateRoleAdmin<Role>(supabaseClient, roleId, updates);
         addToast("Role updated successfully.", "success");
       } catch (error: any) {
         addToast(`Failed to update role: ${error.message}`, "error");
