@@ -133,7 +133,7 @@ export const AllTasksPage: React.FC = () => {
       } else if (filters.assignee === "unassigned") {
         matchesAssignee = !task.assignedTo;
       } else {
-        matchesAssignee = task.assignedTo === filters.assignee;
+        matchesAssignee = task.assignedTo === parseInt(filters.assignee, 10);
       }
 
       let matchesStatus = false;

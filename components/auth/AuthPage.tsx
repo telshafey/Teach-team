@@ -1,6 +1,7 @@
 import React, { useState, FormEvent, useEffect } from "react";
 import { useAuth } from "@shared/contexts/AuthContext";
 import { useSettingsContext } from "@shared/contexts/SettingsContext";
+import { initialData } from "@shared/data/initialData";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { Logo } from "../ui/Logo";
 
@@ -183,8 +184,8 @@ export const AuthPage: React.FC = () => {
                 </p>
                 <div className="mt-2 text-sm font-medium text-slate-900 dark:text-slate-200">
                   تواصل مع الإدارة: 
-                  <a href={`mailto:${siteSettings?.supportEmail || "office@tech-bokra.com"}`} className="text-sky-600 hover:text-sky-500 mr-2 transition-colors inline-block" dir="ltr">
-                    {siteSettings?.supportEmail || "office@tech-bokra.com"}
+                  <a href={`mailto:${siteSettings?.supportEmail || initialData.siteSettings.supportEmail}`} className="text-sky-600 hover:text-sky-500 mr-2 transition-colors inline-block" dir="ltr">
+                    {siteSettings?.supportEmail || initialData.siteSettings.supportEmail}
                   </a>
                 </div>
               </div>

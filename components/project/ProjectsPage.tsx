@@ -59,22 +59,23 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   }, [openModal]);
 
   const { currentUser } = useAuth();
-
-  // Determine if the user is a General Manager
+  
   const { roles } = useTeamContext();
   const currentUserRole = roles?.find((r) => r.id === currentUser?.roleId);
-  const isGM =
-    currentUser?.roleId === "gm" ||
-    currentUser?.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
-    currentUserRole?.name?.includes("(GM)");
+
+  const canManageProjects = hasPermission("manage_projects");
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
-      // Check visibility
+      // Check visibility: They should see it if they are a GM/Admin, can manage projects, or are a member
       const isMember = p.members?.some(
-        (m) => m.teamMemberId === currentUser?.id,
+        (m: any) => m.teamMemberId === currentUser?.id || m.team_member_id === currentUser?.id || m.teamMemberId === Number(currentUser?.id) || m.team_member_id === Number(currentUser?.id)
       );
-      if (!isGM && !isMember) {
+      
+      const isAdmin = currentUser?.roleId === "admin";
+      const isGM = currentUser?.roleId === "gm" || currentUserRole?.name?.includes("(GM)");
+
+      if (!canManageProjects && !isAdmin && !isGM && !isMember) {
         return false;
       }
 
@@ -83,7 +84,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       const matchesStatus = statusFilter === "all" || p.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [projects, searchTerm, statusFilter, currentUser, isGM]);
+  }, [projects, searchTerm, statusFilter, currentUser, canManageProjects, currentUserRole]);
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -102,8 +103,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     { label: "مكتمل", value: "مكتمل" },
     { label: "معلق", value: "معلق" },
   ];
-
-  const canManageProjects = hasPermission("manage_projects");
 
   const handleSaveNewProject = useCallback(
     async (

@@ -6,7 +6,7 @@ RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $function$
 DECLARE
     has_perm boolean;
 BEGIN
@@ -19,7 +19,7 @@ BEGIN
     ) INTO has_perm;
     RETURN has_perm;
 END;
-$$;
+$function$;
 
 -- ==========================================
 -- Projects RLS
@@ -42,11 +42,8 @@ CREATE POLICY "projects_select" ON public.projects
         public.has_permission('manage_projects') OR 
         public.is_admin() OR 
         creator_id = public.get_current_team_member_id() OR
-        id IN (
-            SELECT pm.project_id 
-            FROM public.project_members pm
-            WHERE pm.team_member_id = public.get_current_team_member_id()
-        )
+        members @> ('[{"team_member_id": ' || public.get_current_team_member_id() || '}]')::jsonb OR
+        members @> ('[{"teamMemberId": ' || public.get_current_team_member_id() || '}]')::jsonb
     );
 
 CREATE POLICY "projects_update" ON public.projects 
@@ -121,25 +118,41 @@ CREATE POLICY "tasks_select" ON public.tasks
         creator_id = public.get_current_team_member_id() OR
         assigned_to = public.get_current_team_member_id() OR
         project_id IN (
-            SELECT pm.project_id 
-            FROM public.project_members pm
-            WHERE pm.team_member_id = public.get_current_team_member_id()
+            SELECT p.id 
+            FROM public.projects p
+            WHERE p.members @> ('[{"team_member_id": ' || public.get_current_team_member_id() || '}]')::jsonb OR
+                  p.members @> ('[{"teamMemberId": ' || public.get_current_team_member_id() || '}]')::jsonb
         )
     );
 
--- 2. INSERT: Anyone with create_tasks can insert
+-- 2. INSERT: Anyone with create_tasks can insert, OR the user is a member of the project
 CREATE POLICY "tasks_insert" ON public.tasks 
     FOR INSERT 
-    WITH CHECK (public.has_permission('create_tasks') OR public.is_admin());
+    WITH CHECK (
+        public.has_permission('create_tasks') OR 
+        public.is_admin() OR
+        project_id IN (
+            SELECT p.id 
+            FROM public.projects p
+            WHERE p.members @> ('[{"team_member_id": ' || public.get_current_team_member_id() || '}]')::jsonb OR
+                  p.members @> ('[{"teamMemberId": ' || public.get_current_team_member_id() || '}]')::jsonb
+        )
+    );
 
--- 3. UPDATE: Managers can update anything. Others can only update if assigned or created.
+-- 3. UPDATE: Managers can update anything. Others can only update if assigned or created or part of project.
 CREATE POLICY "tasks_update" ON public.tasks 
     FOR UPDATE 
     USING (
         public.is_admin() OR 
         public.has_permission('manage_projects') OR
         creator_id = public.get_current_team_member_id() OR
-        (public.has_permission('edit_tasks') AND assigned_to = public.get_current_team_member_id())
+        (public.has_permission('edit_tasks') AND assigned_to = public.get_current_team_member_id()) OR
+        project_id IN (
+            SELECT p.id 
+            FROM public.projects p
+            WHERE p.members @> ('[{"team_member_id": ' || public.get_current_team_member_id() || '}]')::jsonb OR
+                  p.members @> ('[{"teamMemberId": ' || public.get_current_team_member_id() || '}]')::jsonb
+        )
     );
 
 -- 4. DELETE: Only admins, those with delete_tasks, or creators
