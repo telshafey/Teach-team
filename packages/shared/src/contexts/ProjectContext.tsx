@@ -103,7 +103,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
         ...taskData,
         projectId,
         creatorId: currentUser.id,
-        approvalStatus: "pending" as const,
+        approvalStatus: "approved" as const,
       };
       try {
         await api.insert<Task>(supabaseClient, "tasks", fullTaskData);
@@ -208,7 +208,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
               projectId: newProject.id,
               creatorId: currentUser.id,
               status: "todo",
-              approvalStatus: "pending",
+              approvalStatus: "approved",
             }),
           );
           await Promise.all(taskPromises);

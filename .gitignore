@@ -1,3 +1,11 @@
+# Env files
+.env
+.env.local
+.env.*
+
+# Output data
+out.json
+
 # Logs
 logs
 *.log
@@ -8,8 +16,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+dist/
 dist-ssr
+coverage/
 *.local
 
 # Editor directories and files
