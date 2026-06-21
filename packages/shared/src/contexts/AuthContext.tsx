@@ -114,42 +114,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             users = usersByEmail;
           }
         } else {
-          // Auto-create a team member record for new auth users
-          const gmRoleId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
-          const { data: newUser, error: insertError } = await supabaseClient
-            .from("team_members")
-            .insert([
-              {
-                email: authEmail,
-                auth_user_id: authUserId,
-                name: authEmail.split("@")[0],
-                employment_type: "full-time",
-                // ... existing avatar_url ...
-                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${authEmail.split("@")[0]}`,
-                role_id: gmRoleId,
-              },
-            ])
-            .select();
-
-          if (!insertError && newUser && newUser.length > 0) {
-            users = newUser;
-          } else {
-            console.error("Failed to auto-create team member:", insertError);
-          }
+          // Instead of auto-creating a team member, just show an error if they have no team member record
+          console.warn("User has no team member record.");
         }
       }
 
       if (users && users.length > 0) {
-        // Fallback: If the user was auto-created by the SQL trigger without a role, upgrade them to GM
-        if (!users[0].role_id) {
-          const gmRoleId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
-          await supabaseClient
-            .from("team_members")
-            .update({ role_id: gmRoleId })
-            .eq("id", users[0].id);
-          users[0].role_id = gmRoleId;
-        }
-
         const user = api.keysToCamel(users[0]) as TeamMember;
         setCurrentUser(user);
       } else {
@@ -158,7 +128,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           "Auth user has no associated team_member record or auto-create failed.",
         );
         addToast(
-          "لا يوجد حساب موظف مرتبط بهذا البريد. تم تسجيل الدخول ولكن يجب إضافة حساب موظف.",
+          "لا تملك صلاحيات الدخول. يرجى طلب دعوة من مدير النظام.",
           "error",
         );
         setCurrentUser(null);

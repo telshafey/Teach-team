@@ -73,6 +73,16 @@ export interface WeeklyPlan {
   hours: { [day: string]: number };
 }
 
+export interface Invitation {
+  id: string;
+  email: string;
+  roleId: string;
+  token: string;
+  expiresAt: string;
+  used: boolean;
+  createdBy: number;
+}
+
 export interface TeamMember {
   id: number;
   name: string;
