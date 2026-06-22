@@ -16,12 +16,20 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function main() {
   console.log("Connected to Supabase.");
 
-  const { data, error } = await supabase.from("daily_logs").select("*");
-  if (error) {
-    console.error("Error fetching daily_logs:", error);
-  } else {
-    console.log("Number of daily_logs in DB:", data?.length);
-    console.log("Sample logs:", data?.slice(0, 3));
+  const tables = [
+    "leave_requests",
+    "overtime_requests",
+    "expense_claims",
+    "work_contract_change_requests",
+    "penalties"
+  ];
+  for (const table of tables) {
+    const { error } = await supabase.from(table).select("count").limit(1);
+    if (error) {
+      console.log(`Table '${table}': FAILED (${error.message})`);
+    } else {
+      console.log(`Table '${table}': SUCCESS`);
+    }
   }
 }
 main();

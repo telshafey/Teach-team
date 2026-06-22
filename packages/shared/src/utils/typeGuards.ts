@@ -11,7 +11,11 @@ import {
 } from "../types";
 
 export function isTeamMember(item: DecisionItem): item is TeamMember {
-  return (item as TeamMember).weeklyPlan !== undefined;
+  return (
+    (item as TeamMember).weeklyPlan !== undefined &&
+    (item as TeamMember).weeklyPlan !== null &&
+    (item as TeamMember).name !== undefined
+  );
 }
 
 export function isTask(item: DecisionItem): item is Task {

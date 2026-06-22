@@ -40,7 +40,7 @@ export const ApprovalItemCard: React.FC<ApprovalItemCardProps> = React.memo(
       details = `المستقل: ${member?.name || "غير معروف"}`;
     } else if (isTeamMember(item)) {
       title = `خطة عمل أسبوعية لـ ${item.name}`;
-      details = `الحالة: ${item.weeklyPlan.status}`;
+      details = `الحالة: ${item.weeklyPlan?.status || "معلقة"}`;
     } else if (isOvertimeRequest(item)) {
       const member = teamMembers.find((m) => m.id === item.teamMemberId);
       title = `طلب ساعات إضافية`;

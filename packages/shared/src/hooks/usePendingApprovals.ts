@@ -75,7 +75,7 @@ export const usePendingApprovals = () => {
     // All pending items
     const allPendingTasks = tasks.filter((t) => t.approvalStatus === "pending");
     const allPendingPlans = teamMembers.filter(
-      (m) => m.weeklyPlan.status === "pending",
+      (m) => m.weeklyPlan?.status === "pending",
     );
     const allPendingContracts = projects.filter(
       (p) => p.freelancerContract?.status === "pending",

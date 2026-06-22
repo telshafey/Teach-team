@@ -35,7 +35,7 @@ export const useNavigation = (): NavigationContextType => {
       } else if (view === "workSummary") {
          navigate(`/work-summary`);
       } else if (view === "onboarding") {
-         navigate(`/invite`); 
+         navigate(`/onboarding`); 
       } else {
         navigate(`/${view}`);
       }

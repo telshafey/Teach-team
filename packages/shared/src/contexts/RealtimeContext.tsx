@@ -5,6 +5,7 @@ import React, {
   useRef,
   useCallback,
   ReactNode,
+  useMemo,
 } from "react";
 import { useSupabase } from "./SupabaseContext";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
@@ -22,9 +23,11 @@ const RealtimeContext = createContext<RealtimeContextType | undefined>(
 );
 
 export const useRealtime = (): RealtimeContextType => {
-  return {
-    subscribe: () => () => {},
-  };
+  const subscribe = useCallback((table: string, callback: RealtimeCallback) => {
+    return () => {};
+  }, []);
+
+  return useMemo(() => ({ subscribe }), [subscribe]);
 };
 
 export const useRealtimeContext = useRealtime;

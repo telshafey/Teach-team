@@ -25,6 +25,7 @@ const ProfilePage = lazy(() => import('@/components/profile/ProfilePage').then(m
 const ApprovalsPage = lazy(() => import('@/components/approvals/ApprovalsPage').then(m => ({ default: m.ApprovalsPage })));
 const SupportPage = lazy(() => import('@/components/support/SupportPage').then(m => ({ default: m.SupportPage })));
 const WorkSummaryPage = lazy(() => import('@/components/dashboard/WorkSummaryPage').then(m => ({ default: m.WorkSummaryPage })));
+const OnboardingPage = lazy(() => import('@/components/onboarding/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuthStore();
@@ -253,6 +254,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <Dashboard currentView="support" viewProps={{}}>
           <ViewWrapper view={<SupportPage />} />
+        </Dashboard>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: "/onboarding",
+    element: (
+      <ProtectedRoute>
+        <Dashboard currentView="onboarding" viewProps={{}}>
+          <ViewWrapper view={<OnboardingPage />} />
         </Dashboard>
       </ProtectedRoute>
     )
