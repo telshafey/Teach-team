@@ -88,19 +88,22 @@ export const getAll = async <T>(
       const resp = await fetch(endpoint, {
         headers: token ? { "Authorization": `Bearer ${token}` } : {}
       });
-      if (!resp.ok) throw new Error(`Failed to fetch ${table} from custom endpoint`);
-      const data = await resp.json();
-      const camelData = keysToCamel(data || []) as T[];
-      if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
-        const uniqueMap = new Map();
-        camelData.forEach((item: any) => {
-          uniqueMap.set(item.id, item);
-        });
-        return Array.from(uniqueMap.values()) as T[];
+      if (resp.ok) {
+        const data = await resp.json();
+        const camelData = keysToCamel(data || []) as T[];
+        if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {
+          const uniqueMap = new Map();
+          camelData.forEach((item: any) => {
+            uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values()) as T[];
+        }
+        return camelData;
+      } else {
+        console.warn(`Admin endpoint for ${table} responded with status ${resp.status}, falling back to standard client`);
       }
-      return camelData;
     } catch(e) {
-      console.error(e);
+      console.warn(`Custom endpoint fetch warning or fallback for ${table}:`, e);
       // Fallback to Supabase
     }
   }

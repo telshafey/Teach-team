@@ -51,6 +51,9 @@ export interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
+const EMPTY_ATTACHMENTS: TaskAttachment[] = [];
+const EMPTY_COMMENTS: TaskComment[] = [];
+
 export const useProject = (): ProjectContextType => {
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
@@ -59,19 +62,19 @@ export const useProject = (): ProjectContextType => {
   const { teamMembers } = useTeamContext();
 
   // Queries for attachments and comments
-  const { data: initialAttachments = [] } = useQuery({
+  const { data: initialAttachments = EMPTY_ATTACHMENTS } = useQuery({
     queryKey: ["task_attachments"],
     queryFn: async () => {
-      if (!supabaseClient) return [];
+      if (!supabaseClient) return EMPTY_ATTACHMENTS;
       return api.getAll<TaskAttachment>(supabaseClient, "task_attachments");
     },
     enabled: !!supabaseClient,
   });
 
-  const { data: initialComments = [] } = useQuery({
+  const { data: initialComments = EMPTY_COMMENTS } = useQuery({
     queryKey: ["task_comments"],
     queryFn: async () => {
-      if (!supabaseClient) return [];
+      if (!supabaseClient) return EMPTY_COMMENTS;
       return api.getAll<TaskComment>(supabaseClient, "task_comments");
     },
     enabled: !!supabaseClient,

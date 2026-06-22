@@ -32,7 +32,7 @@ async function runOnStartMigrations() {
   } finally {
     try {
       await pgClient.end();
-    } catch (err) {
+    } catch {
       console.warn("[Migration] RLS client connection cleanup warning.");
     }
   }
