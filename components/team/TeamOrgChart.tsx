@@ -183,7 +183,7 @@ export const TeamOrgChart: React.FC<TeamOrgChartProps> = ({
   const renderedTops = useMemo(() => {
     // 1. Identify "true" requested roots (people who have reportsTo == null, or reportsTo an ID not in chart)
     const memberIdsInChart = new Set(members.map((m) => m.id));
-    let roots = members.filter(
+    const roots = members.filter(
       (m) => !m.reportsTo || !memberIdsInChart.has(m.reportsTo),
     );
 

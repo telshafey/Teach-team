@@ -22,7 +22,7 @@ import * as api from "../services/apiService";
 import { useTeamContext } from "./TeamContext";
 import { useTaskAttachments } from "../hooks/useTaskAttachments";
 import { useTaskComments } from "../hooks/useTaskComments";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface ProjectContextType {
   handleAddTask: (
@@ -51,199 +51,169 @@ export interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
-export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const useProject = (): ProjectContextType => {
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
-  const { teamMembers } = useTeamContext();
   const { addToast } = useToast();
   const queryClient = useQueryClient();
+  const { teamMembers } = useTeamContext();
 
-  const [initialAttachments, setInitialAttachments] = useState<
-    TaskAttachment[]
-  >([]);
-  const [initialComments, setInitialComments] = useState<TaskComment[]>([]);
+  // Queries for attachments and comments
+  const { data: initialAttachments = [] } = useQuery({
+    queryKey: ["task_attachments"],
+    queryFn: async () => {
+      if (!supabaseClient) return [];
+      return api.getAll<TaskAttachment>(supabaseClient, "task_attachments");
+    },
+    enabled: !!supabaseClient,
+  });
 
-  // This initial fetch for attachments/comments can stay for now, as they are used across different tasks.
-  useEffect(() => {
-    if (!supabaseClient) return;
-    const fetchSubData = async () => {
-      const [fetchedAttachments, fetchedComments] = await Promise.all([
-        api.getAll<TaskAttachment>(supabaseClient, "task_attachments"),
-        api.getAll<TaskComment>(supabaseClient, "task_comments"),
-      ]);
-      setInitialAttachments(fetchedAttachments);
-      setInitialComments(fetchedComments);
-    };
-    fetchSubData();
-  }, [supabaseClient]);
+  const { data: initialComments = [] } = useQuery({
+    queryKey: ["task_comments"],
+    queryFn: async () => {
+      if (!supabaseClient) return [];
+      return api.getAll<TaskComment>(supabaseClient, "task_comments");
+    },
+    enabled: !!supabaseClient,
+  });
 
+  // Attachments and Comments Hooks
   const {
     taskAttachments,
     handleAddTaskAttachment,
     handleDeleteTaskAttachment,
   } = useTaskAttachments(initialAttachments, supabaseClient, addToast);
-  const { taskComments, handleAddTaskComment, handleDeleteTaskComment } =
-    useTaskComments(
-      initialComments,
-      supabaseClient,
-      currentUser,
-      teamMembers,
-      addToast,
-    );
 
-  const handleAddTask = useCallback(
-    async (
-      taskData: Omit<Task, "id" | "approvalStatus" | "creatorId">,
-      projectId?: string,
-    ) => {
-      if (!supabaseClient || !currentUser) return;
-      const fullTaskData = {
+  const {
+    taskComments,
+    handleAddTaskComment,
+    handleDeleteTaskComment,
+  } = useTaskComments(
+    initialComments,
+    supabaseClient,
+    currentUser,
+    teamMembers,
+    addToast
+  );
+
+  // Task Mutations
+  const handleAddTask = async (
+    taskData: Omit<Task, "id" | "approvalStatus" | "creatorId">,
+    projectId?: string
+  ) => {
+    if (!supabaseClient || !currentUser) return;
+    try {
+      const snakeData = api.camelToSnakeCase({
         ...taskData,
-        projectId,
+        projectId: projectId || taskData.projectId,
+        approvalStatus: "approved", // auto approve
         creatorId: currentUser.id,
-        approvalStatus: "approved" as const,
-      };
-      try {
-        await api.insert<Task>(supabaseClient, "tasks", fullTaskData);
-        addToast("Task added successfully.", "success");
+      });
+      await api.insert(supabaseClient, "tasks", snakeData);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      addToast("تم إضافة المهمة بنجاح", "success");
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء إضافة المهمة", "error");
+      throw error;
+    }
+  };
 
-        if (taskData.assignedTo && taskData.assignedTo !== currentUser.id) {
-          try {
-            const { createNotification } =
-              await import("../services/notificationService");
-            await createNotification(supabaseClient, {
-              recipientId: taskData.assignedTo,
-              type: "task_assigned",
-              taskTitle: taskData.title,
-              assignerName: currentUser.name,
-              projectId: projectId,
-              taskId: undefined,
-            });
-          } catch (e) {}
-        }
+  const handleUpdateTask = async (
+    taskData: Partial<Task> & { id: string }
+  ) => {
+    if (!supabaseClient) return;
+    try {
+      const snakeData = api.camelToSnakeCase(taskData);
+      await api.update(supabaseClient, "tasks", taskData.id, snakeData);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      addToast("تم تحديث المهمة بنجاح", "success");
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء تحديث المهمة", "error");
+      throw error;
+    }
+  };
 
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      } catch (error: any) {
-        addToast(`Failed to add task: ${error.message}`, "error");
-        throw error;
-      }
-    },
-    [supabaseClient, currentUser, addToast, queryClient],
-  );
+  const handleDeleteTask = async (task: Task) => {
+    if (!supabaseClient) return;
+    try {
+      await api.deleteById(supabaseClient, "tasks", task.id);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      addToast("تم حذف المهمة بنجاح", "success");
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء حذف المهمة", "error");
+      throw error;
+    }
+  };
 
-  const handleUpdateTask = useCallback(
-    async (taskData: Partial<Task> & { id: string }) => {
-      if (!supabaseClient) return;
-      try {
-        await api.update<Task>(supabaseClient, "tasks", taskData.id, taskData);
-        addToast("Task updated successfully.", "success");
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      } catch (error: any) {
-        addToast(`Failed to update task: ${error.message}`, "error");
-        throw error;
-      }
-    },
-    [supabaseClient, addToast, queryClient],
-  );
-
-  const handleDeleteTask = useCallback(
-    async (task: Task) => {
-      if (!supabaseClient) return;
-      try {
-        await api.deleteById(supabaseClient, "tasks", task.id);
-        addToast("Task deleted successfully.", "success");
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      } catch (error: any) {
-        addToast(`Failed to delete task: ${error.message}`, "error");
-        throw error;
-      }
-    },
-    [supabaseClient, addToast, queryClient],
-  );
-
-  const handleUpdateProject = useCallback(
-    async (projectData: Partial<Project> & { id: string }) => {
-      if (!supabaseClient) return;
-      try {
-        await api.update<Project>(
-          supabaseClient,
-          "projects",
-          projectData.id,
-          projectData,
-        );
-        addToast("Project updated successfully.", "success");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
-        queryClient.invalidateQueries({
-          queryKey: ["project", projectData.id],
-        });
-      } catch (error: any) {
-        addToast(`Failed to update project: ${error.message}`, "error");
-        throw error;
-      }
-    },
-    [supabaseClient, addToast, queryClient],
-  );
-
-  const handleAddProject = useCallback(
-    async (
-      projectData: ProjectFormData,
-      suggestedTasks: SuggestedTask[] = [],
-    ) => {
-      if (!supabaseClient || !currentUser) throw new Error("Not authenticated");
-      try {
-        const newProject = await api.insert<Project>(
-          supabaseClient,
-          "projects",
-          { ...projectData, creatorId: currentUser.id },
-        );
-        addToast("Project created successfully.", "success");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
-
-        if (suggestedTasks.length > 0) {
-          const taskPromises = suggestedTasks.map((st) =>
-            api.insert<Task>(supabaseClient, "tasks", {
-              title: st.title,
+  // Project Mutations
+  const handleAddProject = async (
+    projectData: ProjectFormData,
+    suggestedTasks?: SuggestedTask[]
+  ): Promise<Project> => {
+    if (!supabaseClient || !currentUser) throw new Error("Client or User not authenticated");
+    try {
+      const snakeData = api.camelToSnakeCase({
+        ...projectData,
+        creatorId: currentUser.id,
+      });
+      
+      const newProject = await api.insert<Project>(supabaseClient, "projects", snakeData);
+      
+      if (suggestedTasks && suggestedTasks.length > 0) {
+        for (const t of suggestedTasks) {
+          await api.insert(
+            supabaseClient,
+            "tasks",
+            api.camelToSnakeCase({
+              title: t.title,
+              description: t.description,
               projectId: newProject.id,
-              creatorId: currentUser.id,
               status: "todo",
+              creatorId: currentUser.id,
               approvalStatus: "approved",
-            }),
+            })
           );
-          await Promise.all(taskPromises);
-          addToast(
-            `${suggestedTasks.length} tasks were added to the project.`,
-            "info",
-          );
-          queryClient.invalidateQueries({ queryKey: ["tasks"] });
         }
-        return newProject;
-      } catch (error: any) {
-        addToast(`Failed to create project: ${error.message}`, "error");
-        throw error;
       }
-    },
-    [supabaseClient, currentUser, addToast, queryClient],
-  );
+      
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      addToast("تم إضافة المشروع بنجاح", "success");
+      return newProject;
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء إضافة المشروع", "error");
+      throw error;
+    }
+  };
 
-  const handleDeleteProject = useCallback(
-    async (projectId: string) => {
-      if (!supabaseClient) return;
-      try {
-        await api.deleteById(supabaseClient, "projects", projectId);
-        addToast("Project deleted successfully.", "success");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
-        queryClient.invalidateQueries({ queryKey: ["tasks"] }); // Tasks might be deleted via cascade
-      } catch (error: any) {
-        addToast(`Failed to delete project: ${error.message}`, "error");
-        throw error;
-      }
-    },
-    [supabaseClient, addToast, queryClient],
-  );
+  const handleUpdateProject = async (
+    projectData: Partial<Project> & { id: string }
+  ) => {
+    if (!supabaseClient) return;
+    try {
+      const snakeData = api.camelToSnakeCase(projectData);
+      await api.update(supabaseClient, "projects", projectData.id, snakeData);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      addToast("تم تحديث المشروع بنجاح", "success");
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء تحديث المشروع", "error");
+      throw error;
+    }
+  };
 
-  const value = {
+  const handleDeleteProject = async (projectId: string) => {
+    if (!supabaseClient) return;
+    try {
+      await api.deleteById(supabaseClient, "projects", projectId);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      addToast("تم حذف المشروع بنجاح", "success");
+    } catch (error: any) {
+      addToast(error.message || "حدث خطأ أثناء حذف المشروع", "error");
+      throw error;
+    }
+  };
+
+  return {
     handleAddTask,
     handleUpdateTask,
     handleDeleteTask,
@@ -257,16 +227,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({
     handleDeleteTaskAttachment,
     handleDeleteTaskComment,
   };
-
-  return (
-    <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>
-  );
 };
 
-export const useProjectContext = () => {
-  const context = useContext(ProjectContext);
-  if (context === undefined) {
-    throw new Error("useProjectContext must be used within a ProjectProvider");
-  }
-  return context;
-};
+export const useProjectContext = useProject;

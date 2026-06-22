@@ -1,53 +1,40 @@
-import React, {
-  createContext,
-  useState,
-  useEffect,
-  useContext,
-  ReactNode,
-} from "react";
+import React, { useEffect, ReactNode } from "react";
+import { useThemeStore } from "../stores/themeStore";
 
 type Theme = "light" | "dark";
 
-interface ThemeContextType {
+export interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-export const ThemeProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage and user's system preference
-    if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("theme") as Theme | null;
-      const userPrefersDark =
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-      return savedTheme || (userPrefersDark ? "dark" : "light");
-    }
-    return "light";
-  });
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
     root.classList.add(theme);
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const value = { theme, setTheme };
+  // Read from system on init
+  useEffect(() => {
+    const userPrefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (userPrefersDark && !localStorage.getItem("theme-storage")) {
+       useThemeStore.setState({ theme: "dark" });
+    }
+  }, []);
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <>{children}</>;
 };
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
+export const useTheme = (): ThemeContextType => {
+  const store = useThemeStore();
+  return {
+    theme: store.theme,
+    toggleTheme: store.toggleTheme,
+    setTheme: (theme: Theme) => useThemeStore.setState({ theme }),
+  };
 };
+

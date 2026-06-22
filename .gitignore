@@ -21,6 +21,10 @@ dist-ssr
 coverage/
 *.local
 
+# Lint caches
+.eslintcache
+.prettiercache
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

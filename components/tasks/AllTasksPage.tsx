@@ -91,7 +91,7 @@ export const AllTasksPage: React.FC = () => {
   const filteredAndSortedTasks = useMemo(() => {
     if (!currentUser) return [];
 
-    let filtered = tasks.filter((task) => {
+    const filtered = tasks.filter((task) => {
       // Visibility Check
       if (!isGM) {
         if (task.projectId) {

@@ -57,17 +57,24 @@ export const getAll = async <T>(
   table: string,
   columns: string = "*",
 ): Promise<T[]> => {
-  if (table === "tasks") {
-    // Bypass RLS using our custom backend endpoint to ensure all tasks are fetched, especially for GM who needs to see all.
+  if (table === "tasks" || table === "projects" || table === "team_members" || table === "daily_logs") {
+    // Bypass RLS using our custom backend endpoint to ensure all records are fetched.
     // The filtering handles the visibility checks client-side.
     try {
       const { data: { session } } = await client.auth.getSession();
       const token = session?.access_token;
       
-      const resp = await fetch("/api/admin/tasks", {
+      const endpoint = table === "tasks" 
+        ? "/api/admin/tasks" 
+        : table === "projects" 
+        ? "/api/admin/projects" 
+        : table === "team_members" 
+        ? "/api/admin/team_members" 
+        : "/api/admin/daily_logs";
+      const resp = await fetch(endpoint, {
         headers: token ? { "Authorization": `Bearer ${token}` } : {}
       });
-      if (!resp.ok) throw new Error("Failed to fetch tasks from custom endpoint");
+      if (!resp.ok) throw new Error(`Failed to fetch ${table} from custom endpoint`);
       const data = await resp.json();
       const camelData = keysToCamel(data || []) as T[];
       if (camelData.length > 0 && (camelData[0] as any).id !== undefined) {

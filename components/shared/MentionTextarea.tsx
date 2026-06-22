@@ -82,7 +82,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     const val = value;
     const beforeMention = val.slice(0, dropdownPos);
     // Find the end of the current mention query
-    let endOfMentionQuery = dropdownPos + 1 + mentionQuery.length;
+    const endOfMentionQuery = dropdownPos + 1 + mentionQuery.length;
 
     // Safety check just in case cursor moved
     const afterMention = val.slice(endOfMentionQuery);

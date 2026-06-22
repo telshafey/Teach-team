@@ -24,119 +24,79 @@ export interface TimeLogContextType {
 
 const TimeLogContext = createContext<TimeLogContextType | undefined>(undefined);
 
-export const TimeLogProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const useTimeLog = (): TimeLogContextType => { 
   const { supabaseClient } = useSupabase();
   const { currentUser } = useAuth();
   const { addToast } = useToast();
-  const { subscribe } = useRealtime();
   const queryClient = useQueryClient();
 
   const { data: dailyLogs = [], isLoading } = useQuery<DailyLog[]>({
-    queryKey: ["daily_logs"],
-    queryFn: () => api.getAll<DailyLog>(supabaseClient!, "daily_logs"),
-    enabled: !!supabaseClient && !!currentUser,
+    queryKey: ["dailyLogs"],
+    queryFn: async () => {
+      if (!supabaseClient) return [];
+      return api.getAll<DailyLog>(supabaseClient, "daily_logs");
+    },
+    enabled: !!supabaseClient,
   });
 
+  const handleAddDailyLog = useCallback(async (logData: Omit<DailyLog, "id">) => {
+    if (!supabaseClient) return;
+    try {
+      await api.insert<DailyLog>(supabaseClient, "daily_logs", logData);
+      queryClient.invalidateQueries({ queryKey: ["dailyLogs"] });
+      addToast("تم تسجيل ساعات العمل بنجاح", "success");
+    } catch (err: any) {
+      addToast(err?.message || "فشل تسجيل ساعات العمل", "error");
+      throw err;
+    }
+  }, [supabaseClient, queryClient, addToast]);
+
+  const handleUpdateDailyLog = useCallback(async (logData: Partial<DailyLog>) => {
+    if (!supabaseClient || !logData.id) return;
+    try {
+      const { id, ...updates } = logData;
+      await api.update<DailyLog>(supabaseClient, "daily_logs", id, updates);
+      queryClient.invalidateQueries({ queryKey: ["dailyLogs"] });
+      addToast("تم تحديث ساعات العمل بنجاح", "success");
+    } catch (err: any) {
+      addToast(err?.message || "فشل تحديث ساعات العمل", "error");
+      throw err;
+    }
+  }, [supabaseClient, queryClient, addToast]);
+
+  const handleDeleteDailyLog = useCallback(async (logId: string) => {
+    if (!supabaseClient) return;
+    try {
+      await api.deleteById(supabaseClient, "daily_logs", logId);
+      queryClient.invalidateQueries({ queryKey: ["dailyLogs"] });
+      addToast("تم حذف السجل بنجاح", "success");
+    } catch (err: any) {
+      addToast(err?.message || "فشل حذف السجل", "error");
+      throw err;
+    }
+  }, [supabaseClient, queryClient, addToast]);
+
+  const { subscribe } = useRealtime();
   useEffect(() => {
-    const handleLogChange = (
-      payload: RealtimePostgresChangesPayload<DailyLog>,
-    ) => {
-      queryClient.setQueryData(
-        ["daily_logs"],
-        (oldData: DailyLog[] | undefined) => {
-          if (oldData === undefined) return [];
-          const camelPayload = payload.new
-            ? (api.keysToCamel(payload.new) as DailyLog)
-            : null;
-
-          if (payload.eventType === "INSERT" && camelPayload) {
-            if (oldData.some((log) => log.id === camelPayload.id))
-              return oldData;
-            return [camelPayload, ...oldData];
-          }
-          if (payload.eventType === "UPDATE" && camelPayload) {
-            return oldData.map((log) =>
-              log.id === camelPayload.id ? camelPayload : log,
-            );
-          }
-          if (payload.eventType === "DELETE") {
-            const oldId = (payload.old as { id: string }).id;
-            return oldData.filter((log) => log.id !== oldId);
-          }
-          return oldData;
-        },
-      );
+    if (!supabaseClient) return;
+    const unsubscribe = subscribe(
+      "daily_logs",
+      (payload: RealtimePostgresChangesPayload<any>) => {
+        queryClient.invalidateQueries({ queryKey: ["dailyLogs"] });
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
     };
-    const unsubscribe = subscribe("daily_logs", handleLogChange);
-    return () => unsubscribe();
-  }, [subscribe, queryClient]);
+  }, [supabaseClient, subscribe, queryClient]);
 
-  const handleAddDailyLog = useCallback(
-    async (logData: Omit<DailyLog, "id">) => {
-      if (!supabaseClient) return;
-      try {
-        await api.insert<DailyLog>(supabaseClient, "daily_logs", logData);
-        addToast("تم إضافة سجل العمل بنجاح.", "success");
-      } catch (error: any) {
-        addToast(`فشل إضافة السجل: ${error.message}`, "error");
-        console.error("Failed to add daily log:", error);
-      }
-    },
-    [supabaseClient, addToast],
-  );
-
-  const handleUpdateDailyLog = useCallback(
-    async (logData: Partial<DailyLog>) => {
-      if (!supabaseClient || !logData.id) return;
-      try {
-        await api.update<DailyLog>(
-          supabaseClient,
-          "daily_logs",
-          logData.id,
-          logData,
-        );
-        addToast("تم تحديث سجل العمل بنجاح.", "success");
-      } catch (error: any) {
-        addToast(`فشل تحديث السجل: ${error.message}`, "error");
-        console.error("Failed to update daily log:", error);
-      }
-    },
-    [supabaseClient, addToast],
-  );
-
-  const handleDeleteDailyLog = useCallback(
-    async (logId: string) => {
-      if (!supabaseClient) return;
-      try {
-        await api.deleteById(supabaseClient, "daily_logs", logId);
-        addToast("تم حذف سجل العمل بنجاح.", "success");
-      } catch (error: any) {
-        addToast(`فشل حذف سجل العمل: ${error.message}`, "error");
-        console.error("Failed to delete daily log:", error);
-      }
-    },
-    [supabaseClient, addToast],
-  );
-
-  const value = {
+  return {
     dailyLogs,
     isLoading,
     handleAddDailyLog,
     handleUpdateDailyLog,
     handleDeleteDailyLog,
   };
-
-  return (
-    <TimeLogContext.Provider value={value}>{children}</TimeLogContext.Provider>
-  );
 };
 
-export const useTimeLogContext = () => {
-  const context = useContext(TimeLogContext);
-  if (context === undefined) {
-    throw new Error("useTimeLogContext must be used within a TimeLogProvider");
-  }
-  return context;
-};
+export const useTimeLogContext = useTimeLog;

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { Project, Task, TaskStatus } from "@shared/types";
 import { useProjectContext } from "@shared/contexts/ProjectContext";
 import { useTeamContext } from "@shared/contexts/TeamContext";
@@ -31,6 +32,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   projectId,
   initialTaskIdToOpen,
 }) => {
+  const params = useParams<{ projectId: string }>();
+  const resolvedProjectId = projectId || params.projectId || "";
+
   // --- HOOKS (ALL AT THE TOP) ---
   const { onNavigate } = useNavigation();
   const {
@@ -59,23 +63,23 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   // Data fetching with react-query
   const { data: project, isLoading: isProjectLoading } = useQuery({
-    queryKey: ["project", projectId],
-    queryFn: () => api.getById<Project>(supabaseClient!, "projects", projectId),
-    enabled: !!supabaseClient && !!projectId,
+    queryKey: ["project", resolvedProjectId],
+    queryFn: () => api.getById<Project>(supabaseClient!, "projects", resolvedProjectId),
+    enabled: !!supabaseClient && !!resolvedProjectId,
   });
 
   const { data: tasksForProject = [], isLoading: areTasksLoading } = useQuery({
-    queryKey: ["tasks", projectId],
+    queryKey: ["tasks", resolvedProjectId],
     queryFn: async () => {
       if (!supabaseClient) return [];
       const { data, error } = await supabaseClient
         .from("tasks")
         .select("*")
-        .eq("project_id", projectId);
+        .eq("project_id", resolvedProjectId);
       if (error) throw error;
       return api.keysToCamel(data) as Task[];
     },
-    enabled: !!supabaseClient && !!projectId,
+    enabled: !!supabaseClient && !!resolvedProjectId,
   });
 
   const { canEditProjectSettings, canManageTasks, canManageMembers } =

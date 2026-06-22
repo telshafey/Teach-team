@@ -4,15 +4,28 @@ import { useSettingsContext } from "@shared/contexts/SettingsContext";
 import { initialData } from "@shared/data/initialData";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { Logo } from "../ui/Logo";
+import { useNavigate } from "react-router-dom";
 
-export const AuthPage: React.FC = () => {
-  const { handleLogin } = useAuth();
+export const AuthPage: React.FC<{ mode?: string }> = ({ mode }) => {
+  const { handleLogin, currentUser } = useAuth();
   const { siteSettings } = useSettingsContext();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [isTakingLong, setIsTakingLong] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      if (window.location.pathname === "/login" || window.location.pathname === "/invite" || window.location.pathname === "/") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        // Assume they got redirected to login to view a certain page, so just go to where they wanted,
+        // or just let ProtectedRoute handle it by keeping them on their current path once auth state updates.
+      }
+    }
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;

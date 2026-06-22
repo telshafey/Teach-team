@@ -32,7 +32,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks }) => {
         <div className="flex absolute top-0 left-0 right-0 h-8 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10 w-full overflow-hidden">
           {(() => {
             const months = [];
-            let currentDate = new Date(startDate);
+            const currentDate = new Date(startDate);
             currentDate.setDate(1);
             while (currentDate <= ganttData.endDate) {
               const i = differenceInDays(currentDate, startDate);
