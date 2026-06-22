@@ -21,7 +21,9 @@ async function run() {
   
   const files = [
     "./database/migrations/019_add_login_settings.sql",
-    "./database/migrations/020_add_support_email.sql"
+    "./database/migrations/020_add_support_email.sql",
+    "./database/migrations/027_secure_invites_policy.sql",
+    "./database/migrations/028_clean_up_and_secure_invites.sql"
   ];
   
   for (const file of files) {

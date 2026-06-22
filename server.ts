@@ -47,6 +47,7 @@ async function startServer() {
         return;
       }
 
+      (req as any).user = user;
       next();
     } catch (err: any) {
       console.error("verifyToken error:", err);
@@ -56,10 +57,89 @@ async function startServer() {
     }
   };
 
-  // API Routes
-  app.post("/api/team/admin-update-member", verifyToken, async (req, res) => {
+  // Middleware to verify if the authenticated user has Admin or General Manager privileges
+  const verifyAdmin = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ): Promise<void> => {
     try {
-      const { memberId, updates, email } = req.body;
+      const user = (req as any).user;
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized: Missing user information" });
+        return;
+      }
+
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        res.status(500).json({ error: "Missing config" });
+        return;
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        res.status(403).json({ error: "Forbidden: User record not found" });
+        return;
+      }
+
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      if (!isAdmin) {
+        res.status(403).json({ error: "Forbidden: Admin or General Manager privileges required" });
+        return;
+      }
+
+      next();
+    } catch (err: any) {
+      console.error("verifyAdmin error:", err);
+      res.status(500).json({
+        error: "Internal Server Error in admin authorization verification",
+      });
+    }
+  };
+
+  // Helper to create a Supabase client bound to the requesting user's security context (enforces RLS)
+  const getUserClient = (req: express.Request) => {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !anonKey) {
+      throw new Error("Missing Supabase URL or Anon Key in environment");
+    }
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace("Bearer ", "") : "";
+
+    return createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    });
+  };
+
+  // API Routes
+  app.post("/api/team/admin-update-member", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const { memberId, updates } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -227,7 +307,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/site-settings/upsert", verifyToken, async (req, res) => {
+  app.post("/api/admin/site-settings/upsert", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const { payload } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -256,7 +336,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/team/admin-update-role", verifyToken, async (req, res) => {
+  app.post("/api/team/admin-update-role", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const { roleId, updates } = req.body;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -296,7 +376,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/team/admin-create-member", verifyToken, async (req, res) => {
+  app.post("/api/team/admin-create-member", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const { memberData } = req.body;
       const { email, password, ...restOfData } = memberData;
@@ -374,7 +454,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/run-sql", verifyToken, async (req, res) => {
+  app.post("/api/admin/run-sql", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -397,19 +477,12 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/tasks", verifyToken, async (req, res) => {
+  app.get("/api/admin/tasks", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("tasks").select("*");
+      const supabaseUser = getUserClient(req);
+      const { data, error } = await supabaseUser.from("tasks").select("*");
       if (error) {
-        return res.status(500).json({ error });
+        return res.status(500).json({ error: error.message });
       }
 
       res.status(200).json(data);
@@ -418,19 +491,12 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/projects", verifyToken, async (req, res) => {
+  app.get("/api/admin/projects", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("projects").select("*");
+      const supabaseUser = getUserClient(req);
+      const { data, error } = await supabaseUser.from("projects").select("*");
       if (error) {
-        return res.status(500).json({ error });
+        return res.status(500).json({ error: error.message });
       }
 
       res.status(200).json(data);
@@ -439,19 +505,12 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/team_members", verifyToken, async (req, res) => {
+  app.get("/api/admin/team_members", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("team_members").select("*");
+      const supabaseUser = getUserClient(req);
+      const { data, error } = await supabaseUser.from("team_members").select("*");
       if (error) {
-        return res.status(500).json({ error });
+        return res.status(500).json({ error: error.message });
       }
 
       res.status(200).json(data);
@@ -460,8 +519,30 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/daily_logs", verifyToken, async (req, res) => {
+  app.get("/api/admin/daily_logs", verifyToken, verifyAdmin, async (req, res) => {
     try {
+      const supabaseUser = getUserClient(req);
+      const { data, error } = await supabaseUser.from("daily_logs").select("*");
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- INVITATION SYSTEM ENDPOINTS ---
+
+  // Verify invitation token (Public)
+  app.get("/api/invite/verify", async (req, res) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "رابط الدعوة غير صالح أو مفقود" });
+      }
+
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -470,13 +551,216 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("daily_logs").select("*");
-      if (error) {
-        return res.status(500).json({ error });
+
+      const { data: invite, error } = await supabaseAdmin
+        .from("invites")
+        .select("*, roles(id, name)")
+        .eq("token", token)
+        .eq("used", false)
+        .single();
+
+      if (error || !invite) {
+        return res.status(404).json({ error: "عذراً، هذه الدعوة غير صالحة أو تم استخدامها مسبقاً." });
       }
 
-      res.status(200).json(data);
+      // Check expiry if set
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+        return res.status(410).json({ error: "عذراً، لقد انتهت صلاحية هذه الدعوة." });
+      }
+
+      res.status(200).json({
+        success: true,
+        email: invite.email,
+        roleId: invite.role_id,
+        roleName: (invite.roles as any)?.name || "عضو فريق",
+      });
     } catch (err: any) {
+      console.error("Invite verify error:", err);
+      res.status(500).json({ error: "حدث خطأ أثناء التحقق من الدعوة" });
+    }
+  });
+
+  // Accept invitation & Sign Up (Public)
+  app.post("/api/invite/accept", async (req, res) => {
+    try {
+      const { token, name, password } = req.body;
+      if (!token || !name || !password) {
+        return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+      }
+
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      // 1. Recalculate invite viability to prevent double sign-ups
+      const { data: invite, error: inviteError } = await supabaseAdmin
+        .from("invites")
+        .select("*")
+        .eq("token", token)
+        .eq("used", false)
+        .single();
+
+      if (inviteError || !invite) {
+        return res.status(404).json({ error: "عذراً، هذه الدعوة لم تعد صالحة." });
+      }
+
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+        return res.status(410).json({ error: "عذراً، لقد انتهت صلاحية هذه الدعوة." });
+      }
+
+      // 2. Create the user inside Supabase Auth
+      const { data: authUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email: invite.email,
+        password: password,
+        email_confirm: true,
+      });
+
+      if (createUserError) {
+        return res.status(500).json({ error: "تعذر إنشاء حساب للتسجيل: " + createUserError.message });
+      }
+
+      const authUserId = authUser.user.id;
+
+      // 3. Mark the invite as used
+      await supabaseAdmin
+        .from("invites")
+        .update({ used: true })
+        .eq("id", invite.id);
+
+      // 4. Update the corresponding team_members row
+      const { error: tmUpdateError } = await supabaseAdmin
+        .from("team_members")
+        .update({
+          name: name,
+          email: invite.email,
+          role_id: invite.role_id,
+        })
+        .eq("auth_user_id", authUserId);
+
+      if (tmUpdateError) {
+        console.error("Failed to update team member info on invite accept:", tmUpdateError);
+      }
+
+      res.status(200).json({
+        success: true,
+        email: invite.email,
+        message: "تم إنشاء حسابك وتفعيل عضويتك بنجاح!",
+      });
+    } catch (err: any) {
+      console.error("Invite accept error:", err);
+      res.status(500).json({ error: "حدث خطأ غير متوقع أثناء تفعيل الحساب." });
+    }
+  });
+
+  // Admin GET all invites
+  app.get("/api/admin/invites", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const supabaseUser = getUserClient(req);
+      const { data, error } = await supabaseUser
+        .from("invites")
+        .select("*, roles(id, name)")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, invites: data });
+    } catch (err: any) {
+      console.error("Get invites error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin POST create invite
+  app.post("/api/admin/invites/create", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const { email, roleId } = req.body;
+      if (!email || !roleId) {
+        return res.status(400).json({ error: "البريد الإلكتروني والدور مطلوبان" });
+      }
+
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      // Check if user already exists
+      const { data: existingMember } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingMember) {
+        return res.status(400).json({ error: "هذا البريد الإلكتروني مسجل بالفعل كعضو فريق" });
+      }
+
+      // Generate secure token
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(32).toString("hex");
+
+      // Set expiration to 7 days
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const { data: invite, error } = await supabaseAdmin
+        .from("invites")
+        .insert([
+          {
+            email,
+            role_id: roleId,
+            token,
+            expires_at: expiresAt.toISOString(),
+          },
+        ])
+        .select("*, roles(id, name)")
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, invite });
+    } catch (err: any) {
+      console.error("Create invite error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin DELETE (revoke) invite
+  app.delete("/api/admin/invites/:id", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { error } = await supabaseAdmin
+        .from("invites")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Delete invite error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -493,7 +777,7 @@ async function startServer() {
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
       // Perform a lightweight query to keep DB active
-      const { data, error } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from("team_members")
         .select("id")
         .limit(1);

@@ -25,12 +25,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     const supabaseClient = getSupabaseClient();
     if (!supabaseClient) return;
     try {
-      let { data: users, error } = await supabaseClient
+      const { data: fetchedUsers, error } = await supabaseClient
         .from("team_members")
         .select("*")
         .eq("auth_user_id", authUserId);
 
       if (error) throw error;
+
+      let users = fetchedUsers;
 
       if ((!users || users.length === 0) && authEmail) {
         const { data: usersByEmail, error: emailError } = await supabaseClient
@@ -136,7 +138,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         } else {
           set({ isLoading: false });
         }
-      } catch (error) {
+      } catch {
         set({ isLoading: false });
       }
     };
