@@ -3,44 +3,58 @@ import { TeamMember } from "../types";
 
 export const PAGE_SIZE = 20;
 
-// Helper to convert snake_case to camelCase
-const snakeToCamel = (str: string) =>
-  str.replace(/([-_][a-z])/g, (group) =>
+// Memoization caches for key casing transitions to prevent regex and allocation overhead
+const snakeToCamelCache = new Map<string, string>();
+const camelToSnakeCache = new Map<string, string>();
+
+// Helper to convert snake_case to camelCase with cached lookups
+const snakeToCamel = (str: string) => {
+  let cached = snakeToCamelCache.get(str);
+  if (cached !== undefined) return cached;
+  const result = str.replace(/([-_][a-z])/g, (group) =>
     group.toUpperCase().replace("-", "").replace("_", ""),
   );
+  snakeToCamelCache.set(str, result);
+  return result;
+};
 
-// Helper to convert camelCase to snake_case
-const camelToSnake = (str: string) =>
-  str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+// Helper to convert camelCase to snake_case with cached lookups
+const camelToSnake = (str: string) => {
+  let cached = camelToSnakeCache.get(str);
+  if (cached !== undefined) return cached;
+  const result = str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  camelToSnakeCache.set(str, result);
+  return result;
+};
 
-// Recursively convert object keys from snake_case to camelCase
+// Highly performance-optimized recursive key conversion from snake_case to camelCase
 export const keysToCamel = (obj: any): any => {
   if (Array.isArray(obj)) {
-    return obj.map((v) => keysToCamel(v));
-  } else if (obj !== null && typeof obj === "object") {
-    return Object.keys(obj).reduce(
-      (acc, key) => {
-        acc[snakeToCamel(key)] = keysToCamel(obj[key]);
-        return acc;
-      },
-      {} as { [key: string]: any },
-    );
+    return obj.map(keysToCamel);
+  } else if (obj !== null && typeof obj === "object" && !(obj instanceof Date)) {
+    const acc: { [key: string]: any } = {};
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      acc[snakeToCamel(key)] = keysToCamel(obj[key]);
+    }
+    return acc;
   }
   return obj;
 };
 
-// Recursively convert object keys from camelCase to snake_case
+// Highly performance-optimized recursive key conversion from camelCase to snake_case
 export const camelToSnakeCase = (obj: any): any => {
   if (Array.isArray(obj)) {
-    return obj.map((v) => camelToSnakeCase(v));
-  } else if (obj !== null && typeof obj === "object") {
-    return Object.keys(obj).reduce(
-      (acc, key) => {
-        acc[camelToSnake(key)] = camelToSnakeCase(obj[key]);
-        return acc;
-      },
-      {} as { [key: string]: any },
-    );
+    return obj.map(camelToSnakeCase);
+  } else if (obj !== null && typeof obj === "object" && !(obj instanceof Date)) {
+    const acc: { [key: string]: any } = {};
+    const keys = Object.keys(obj);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      acc[camelToSnake(key)] = camelToSnakeCase(obj[key]);
+    }
+    return acc;
   }
   return obj;
 };

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { TeamMember } from "../types";
 import { getSupabaseClient } from "./supabaseStore";
 import * as api from "../services/apiService";
+import { router } from "../router/routes";
 
 interface AuthState {
   currentUser: TeamMember | null;
@@ -98,7 +99,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         console.error("Logout error:", error);
       }
     }
-    window.location.href = "/";
+    router.navigate("/");
   },
 
   updateCurrentUser: async (updates) => {
@@ -128,7 +129,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
     const failsafe = setTimeout(() => {
       set({ isLoading: false });
-    }, 2000);
+    }, 15000);
 
     const checkSession = async () => {
       try {

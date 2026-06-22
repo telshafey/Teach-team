@@ -1,7 +1,5 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { ThemeProvider } from "@shared/contexts/ThemeContext";
 import { ToastContainer } from "./components/ui/ToastContainer";
 import { RouterProvider } from "react-router-dom";
@@ -11,7 +9,6 @@ import { useAuth } from "@shared/contexts/AuthContext";
 import { useAuthStore } from "@shared/stores/authStore";
 import { Logo } from "./components/ui/Logo";
 
-// Use standard QueryClient instead of PersistQueryClientProvider for the 4 level deep if needed
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,10 +18,6 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-});
-
-const persister = createSyncStoragePersister({
-  storage: typeof window !== "undefined" ? window.localStorage : undefined,
 });
 
 class ErrorBoundary extends React.Component<

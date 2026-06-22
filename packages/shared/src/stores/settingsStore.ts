@@ -10,7 +10,7 @@ interface SettingsState {
   updateSettings: (updates: Partial<SiteSettings>) => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsState>()((set, get) => ({
+export const useSettingsStore = create<SettingsState>()((set) => ({
   siteSettings: null,
   isLoading: true,
   fetchSettings: async () => {
@@ -44,17 +44,13 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     const supabaseClient = getSupabaseClient();
     if (!supabaseClient) return;
 
-    try {
-      const payloadToSave = { ...updates, id: 1 };
-      const payload = api.camelToSnakeCase(payloadToSave);
+    const payloadToSave = { ...updates, id: 1 };
+    const payload = api.camelToSnakeCase(payloadToSave);
 
-      const returnedObj = await api.upsertSiteSettingsAdmin<SiteSettings>(
-        supabaseClient,
-        payload
-      );
-      set({ siteSettings: returnedObj });
-    } catch (err: any) {
-      throw err;
-    }
+    const returnedObj = await api.upsertSiteSettingsAdmin<SiteSettings>(
+      supabaseClient,
+      payload
+    );
+    set({ siteSettings: returnedObj });
   },
 }));
