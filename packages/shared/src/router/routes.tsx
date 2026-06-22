@@ -115,7 +115,7 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Dashboard currentView="projectDetail" viewProps={{}}>
-          <ViewWrapper view={<ProjectDetailPage projectId="" />} />
+          <ViewWrapper view={<ProjectDetailPage />} />
         </Dashboard>
       </ProtectedRoute>
     )

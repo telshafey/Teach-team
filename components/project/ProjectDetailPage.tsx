@@ -24,7 +24,7 @@ import * as api from "@shared/services/apiService";
 import { useToast } from "@shared/contexts/ToastContext";
 
 interface ProjectDetailPageProps {
-  projectId: string;
+  projectId?: string;
   initialTaskIdToOpen?: string;
 }
 

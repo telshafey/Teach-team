@@ -2,7 +2,6 @@ import { Task } from "../types";
 import {
   startOfMonth,
   endOfMonth,
-  eachDayOfInterval,
   differenceInDays,
   parseISO,
 } from "date-fns";

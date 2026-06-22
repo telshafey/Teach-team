@@ -6,6 +6,8 @@ ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated full access" ON public.roles;
 DROP POLICY IF EXISTS "roles_select_policy" ON public.roles;
 DROP POLICY IF EXISTS "roles_all_policy" ON public.roles;
+DROP POLICY IF EXISTS "roles_select_policy_v2" ON public.roles;
+DROP POLICY IF EXISTS "roles_all_policy_v2" ON public.roles;
 
 CREATE POLICY "roles_select_policy_v2" ON public.roles
   FOR SELECT TO authenticated USING (true);
@@ -19,6 +21,10 @@ DROP POLICY IF EXISTS "team_members_select_policy" ON public.team_members;
 DROP POLICY IF EXISTS "team_members_insert_policy" ON public.team_members;
 DROP POLICY IF EXISTS "team_members_update_policy" ON public.team_members;
 DROP POLICY IF EXISTS "team_members_delete_policy" ON public.team_members;
+DROP POLICY IF EXISTS "team_members_select_policy_v2" ON public.team_members;
+DROP POLICY IF EXISTS "team_members_insert_policy_v2" ON public.team_members;
+DROP POLICY IF EXISTS "team_members_update_policy_v2" ON public.team_members;
+DROP POLICY IF EXISTS "team_members_delete_policy_v2" ON public.team_members;
 
 CREATE POLICY "team_members_select_policy_v2" ON public.team_members
   FOR SELECT TO authenticated USING (auth_user_id = auth.uid() OR public.is_admin() OR reports_to = public.get_current_team_member_id());
@@ -36,6 +42,10 @@ DROP POLICY IF EXISTS "projects_select_policy" ON public.projects;
 DROP POLICY IF EXISTS "projects_insert_policy" ON public.projects;
 DROP POLICY IF EXISTS "projects_update_policy" ON public.projects;
 DROP POLICY IF EXISTS "projects_delete_policy" ON public.projects;
+DROP POLICY IF EXISTS "projects_select_policy_v2" ON public.projects;
+DROP POLICY IF EXISTS "projects_insert_policy_v2" ON public.projects;
+DROP POLICY IF EXISTS "projects_update_policy_v2" ON public.projects;
+DROP POLICY IF EXISTS "projects_delete_policy_v2" ON public.projects;
 
 CREATE POLICY "projects_select_policy_v2" ON public.projects
   FOR SELECT TO authenticated USING (public.is_admin() OR creator_id = public.get_current_team_member_id() OR public.get_current_team_member_id() IN (SELECT (member->>'team_member_id')::int FROM jsonb_array_elements(members) as member));
@@ -53,6 +63,10 @@ DROP POLICY IF EXISTS "project_members_select_policy" ON public.project_members;
 DROP POLICY IF EXISTS "project_members_insert_policy" ON public.project_members;
 DROP POLICY IF EXISTS "project_members_update_policy" ON public.project_members;
 DROP POLICY IF EXISTS "project_members_delete_policy" ON public.project_members;
+DROP POLICY IF EXISTS "project_members_select_policy_v2" ON public.project_members;
+DROP POLICY IF EXISTS "project_members_insert_policy_v2" ON public.project_members;
+DROP POLICY IF EXISTS "project_members_update_policy_v2" ON public.project_members;
+DROP POLICY IF EXISTS "project_members_delete_policy_v2" ON public.project_members;
 
 CREATE POLICY "project_members_select_policy_v2" ON public.project_members
   FOR SELECT TO authenticated USING (public.is_admin() OR public.get_current_team_member_id() IN (SELECT (member->>'team_member_id')::int FROM public.projects p, jsonb_array_elements(p.members) as member WHERE p.id = project_members.project_id));
@@ -70,6 +84,10 @@ DROP POLICY IF EXISTS "tasks_select_policy" ON public.tasks;
 DROP POLICY IF EXISTS "tasks_insert_policy" ON public.tasks;
 DROP POLICY IF EXISTS "tasks_update_policy" ON public.tasks;
 DROP POLICY IF EXISTS "tasks_delete_policy" ON public.tasks;
+DROP POLICY IF EXISTS "tasks_select_policy_v2" ON public.tasks;
+DROP POLICY IF EXISTS "tasks_insert_policy_v2" ON public.tasks;
+DROP POLICY IF EXISTS "tasks_update_policy_v2" ON public.tasks;
+DROP POLICY IF EXISTS "tasks_delete_policy_v2" ON public.tasks;
 
 CREATE POLICY "tasks_select_policy_v2" ON public.tasks
   FOR SELECT TO authenticated USING (public.is_admin() OR creator_id = public.get_current_team_member_id() OR assigned_to = public.get_current_team_member_id() OR public.get_current_team_member_id() IN (SELECT team_member_id FROM project_members WHERE project_id = tasks.project_id));
@@ -86,6 +104,9 @@ DROP POLICY IF EXISTS "Allow authenticated full access" ON public.task_comments;
 DROP POLICY IF EXISTS "task_comments_select_policy" ON public.task_comments;
 DROP POLICY IF EXISTS "task_comments_insert_policy" ON public.task_comments;
 DROP POLICY IF EXISTS "task_comments_delete_policy" ON public.task_comments;
+DROP POLICY IF EXISTS "task_comments_select_policy_v2" ON public.task_comments;
+DROP POLICY IF EXISTS "task_comments_insert_policy_v2" ON public.task_comments;
+DROP POLICY IF EXISTS "task_comments_delete_policy_v2" ON public.task_comments;
 
 CREATE POLICY "task_comments_select_policy_v2" ON public.task_comments
   FOR SELECT TO authenticated USING (public.is_admin() OR public.get_current_team_member_id() IN (SELECT team_member_id FROM project_members WHERE project_id = (SELECT project_id FROM tasks WHERE id = task_comments.task_id)));
@@ -100,6 +121,9 @@ DROP POLICY IF EXISTS "Allow authenticated full access" ON public.task_attachmen
 DROP POLICY IF EXISTS "task_attachments_select_policy" ON public.task_attachments;
 DROP POLICY IF EXISTS "task_attachments_insert_policy" ON public.task_attachments;
 DROP POLICY IF EXISTS "task_attachments_delete_policy" ON public.task_attachments;
+DROP POLICY IF EXISTS "task_attachments_select_policy_v2" ON public.task_attachments;
+DROP POLICY IF EXISTS "task_attachments_insert_policy_v2" ON public.task_attachments;
+DROP POLICY IF EXISTS "task_attachments_delete_policy_v2" ON public.task_attachments;
 
 CREATE POLICY "task_attachments_select_policy_v2" ON public.task_attachments
   FOR SELECT TO authenticated USING (public.is_admin() OR public.get_current_team_member_id() IN (SELECT team_member_id FROM project_members WHERE project_id = (SELECT project_id FROM tasks WHERE id = task_attachments.task_id)));
@@ -115,6 +139,10 @@ DROP POLICY IF EXISTS "daily_logs_select_policy" ON public.daily_logs;
 DROP POLICY IF EXISTS "daily_logs_insert_policy" ON public.daily_logs;
 DROP POLICY IF EXISTS "daily_logs_update_policy" ON public.daily_logs;
 DROP POLICY IF EXISTS "daily_logs_delete_policy" ON public.daily_logs;
+DROP POLICY IF EXISTS "daily_logs_select_policy_v2" ON public.daily_logs;
+DROP POLICY IF EXISTS "daily_logs_insert_policy_v2" ON public.daily_logs;
+DROP POLICY IF EXISTS "daily_logs_update_policy_v2" ON public.daily_logs;
+DROP POLICY IF EXISTS "daily_logs_delete_policy_v2" ON public.daily_logs;
 
 CREATE POLICY "daily_logs_select_policy_v2" ON public.daily_logs
   FOR SELECT TO authenticated USING (team_member_id = public.get_current_team_member_id() OR public.is_admin());
@@ -132,6 +160,10 @@ DROP POLICY IF EXISTS "meetings_select_policy" ON public.meetings;
 DROP POLICY IF EXISTS "meetings_insert_policy" ON public.meetings;
 DROP POLICY IF EXISTS "meetings_update_policy" ON public.meetings;
 DROP POLICY IF EXISTS "meetings_delete_policy" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_select_policy_v2" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_insert_policy_v2" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_update_policy_v2" ON public.meetings;
+DROP POLICY IF EXISTS "meetings_delete_policy_v2" ON public.meetings;
 
 CREATE POLICY "meetings_select_policy_v2" ON public.meetings
   FOR SELECT TO authenticated USING (public.has_permission('manage_meetings') OR public.is_admin() OR creator_id = public.get_current_team_member_id() OR public.get_current_team_member_id() IN (SELECT jsonb_array_elements_text(members)::int));
@@ -147,6 +179,8 @@ ALTER TABLE public.meeting_members ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated full access" ON public.meeting_members;
 DROP POLICY IF EXISTS "meeting_members_select_policy" ON public.meeting_members;
 DROP POLICY IF EXISTS "meeting_members_all_policy" ON public.meeting_members;
+DROP POLICY IF EXISTS "meeting_members_select_policy_v2" ON public.meeting_members;
+DROP POLICY IF EXISTS "meeting_members_all_policy_v2" ON public.meeting_members;
 
 CREATE POLICY "meeting_members_select_policy_v2" ON public.meeting_members
   FOR SELECT TO authenticated USING (public.is_admin() OR public.get_current_team_member_id() IN (SELECT jsonb_array_elements_text(members)::int FROM public.meetings WHERE id = meeting_members.meeting_id));
@@ -160,6 +194,10 @@ DROP POLICY IF EXISTS "leave_requests_select_policy" ON public.leave_requests;
 DROP POLICY IF EXISTS "leave_requests_insert_policy" ON public.leave_requests;
 DROP POLICY IF EXISTS "leave_requests_update_policy" ON public.leave_requests;
 DROP POLICY IF EXISTS "leave_requests_delete_policy" ON public.leave_requests;
+DROP POLICY IF EXISTS "leave_requests_select_policy_v2" ON public.leave_requests;
+DROP POLICY IF EXISTS "leave_requests_insert_policy_v2" ON public.leave_requests;
+DROP POLICY IF EXISTS "leave_requests_update_policy_v2" ON public.leave_requests;
+DROP POLICY IF EXISTS "leave_requests_delete_policy_v2" ON public.leave_requests;
 
 CREATE POLICY "leave_requests_select_policy_v2" ON public.leave_requests
   FOR SELECT TO authenticated USING (team_member_id = public.get_current_team_member_id() OR public.is_admin());
@@ -177,6 +215,10 @@ DROP POLICY IF EXISTS "overtime_requests_select_policy" ON public.overtime_reque
 DROP POLICY IF EXISTS "overtime_requests_insert_policy" ON public.overtime_requests;
 DROP POLICY IF EXISTS "overtime_requests_update_policy" ON public.overtime_requests;
 DROP POLICY IF EXISTS "overtime_requests_delete_policy" ON public.overtime_requests;
+DROP POLICY IF EXISTS "overtime_requests_select_policy_v2" ON public.overtime_requests;
+DROP POLICY IF EXISTS "overtime_requests_insert_policy_v2" ON public.overtime_requests;
+DROP POLICY IF EXISTS "overtime_requests_update_policy_v2" ON public.overtime_requests;
+DROP POLICY IF EXISTS "overtime_requests_delete_policy_v2" ON public.overtime_requests;
 
 CREATE POLICY "overtime_requests_select_policy_v2" ON public.overtime_requests
   FOR SELECT TO authenticated USING (team_member_id = public.get_current_team_member_id() OR public.is_admin());
@@ -194,6 +236,10 @@ DROP POLICY IF EXISTS "expense_claims_select_policy" ON public.expense_claims;
 DROP POLICY IF EXISTS "expense_claims_insert_policy" ON public.expense_claims;
 DROP POLICY IF EXISTS "expense_claims_update_policy" ON public.expense_claims;
 DROP POLICY IF EXISTS "expense_claims_delete_policy" ON public.expense_claims;
+DROP POLICY IF EXISTS "expense_claims_select_policy_v2" ON public.expense_claims;
+DROP POLICY IF EXISTS "expense_claims_insert_policy_v2" ON public.expense_claims;
+DROP POLICY IF EXISTS "expense_claims_update_policy_v2" ON public.expense_claims;
+DROP POLICY IF EXISTS "expense_claims_delete_policy_v2" ON public.expense_claims;
 
 CREATE POLICY "expense_claims_select_policy_v2" ON public.expense_claims
   FOR SELECT TO authenticated USING (team_member_id = public.get_current_team_member_id() OR public.is_admin());
@@ -209,6 +255,8 @@ ALTER TABLE public.penalties ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated full access" ON public.penalties;
 DROP POLICY IF EXISTS "penalties_select_policy" ON public.penalties;
 DROP POLICY IF EXISTS "penalties_all_policy" ON public.penalties;
+DROP POLICY IF EXISTS "penalties_select_policy_v2" ON public.penalties;
+DROP POLICY IF EXISTS "penalties_all_policy_v2" ON public.penalties;
 
 CREATE POLICY "penalties_select_policy_v2" ON public.penalties
   FOR SELECT TO authenticated USING (team_member_id = public.get_current_team_member_id() OR public.is_admin());
@@ -222,6 +270,10 @@ DROP POLICY IF EXISTS "support_tickets_select_policy" ON public.support_tickets;
 DROP POLICY IF EXISTS "support_tickets_insert_policy" ON public.support_tickets;
 DROP POLICY IF EXISTS "support_tickets_update_policy" ON public.support_tickets;
 DROP POLICY IF EXISTS "support_tickets_delete_policy" ON public.support_tickets;
+DROP POLICY IF EXISTS "support_tickets_select_policy_v2" ON public.support_tickets;
+DROP POLICY IF EXISTS "support_tickets_insert_policy_v2" ON public.support_tickets;
+DROP POLICY IF EXISTS "support_tickets_update_policy_v2" ON public.support_tickets;
+DROP POLICY IF EXISTS "support_tickets_delete_policy_v2" ON public.support_tickets;
 
 CREATE POLICY "support_tickets_select_policy_v2" ON public.support_tickets
   FOR SELECT TO authenticated USING (creator_id = public.get_current_team_member_id() OR public.is_admin());
@@ -238,6 +290,9 @@ DROP POLICY IF EXISTS "Allow authenticated full access" ON public.ticket_comment
 DROP POLICY IF EXISTS "ticket_comments_select_policy" ON public.ticket_comments;
 DROP POLICY IF EXISTS "ticket_comments_insert_policy" ON public.ticket_comments;
 DROP POLICY IF EXISTS "ticket_comments_delete_policy" ON public.ticket_comments;
+DROP POLICY IF EXISTS "ticket_comments_select_policy_v2" ON public.ticket_comments;
+DROP POLICY IF EXISTS "ticket_comments_insert_policy_v2" ON public.ticket_comments;
+DROP POLICY IF EXISTS "ticket_comments_delete_policy_v2" ON public.ticket_comments;
 
 CREATE POLICY "ticket_comments_select_policy_v2" ON public.ticket_comments
   FOR SELECT TO authenticated USING (public.is_admin() OR public.get_current_team_member_id() IN (SELECT creator_id FROM public.support_tickets WHERE id = ticket_comments.ticket_id));
@@ -253,6 +308,10 @@ DROP POLICY IF EXISTS "notifications_select_policy" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_insert_policy" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_update_policy" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_delete_policy" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_select_policy_v2" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_insert_policy_v2" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_update_policy_v2" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_delete_policy_v2" ON public.notifications;
 
 CREATE POLICY "notifications_select_policy_v2" ON public.notifications
   FOR SELECT TO authenticated USING (recipient_id = public.get_current_team_member_id() OR public.is_admin());
@@ -268,6 +327,8 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated full access" ON public.site_settings;
 DROP POLICY IF EXISTS "site_settings_select_policy" ON public.site_settings;
 DROP POLICY IF EXISTS "site_settings_all_policy" ON public.site_settings;
+DROP POLICY IF EXISTS "site_settings_select_policy_v2" ON public.site_settings;
+DROP POLICY IF EXISTS "site_settings_all_policy_v2" ON public.site_settings;
 
 CREATE POLICY "site_settings_select_policy_v2" ON public.site_settings
   FOR SELECT USING (true);
@@ -279,6 +340,8 @@ ALTER TABLE public.freelancer_contracts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated full access" ON public.freelancer_contracts;
 DROP POLICY IF EXISTS "freelancer_contracts_select_policy" ON public.freelancer_contracts;
 DROP POLICY IF EXISTS "freelancer_contracts_all_policy" ON public.freelancer_contracts;
+DROP POLICY IF EXISTS "freelancer_contracts_select_policy_v2" ON public.freelancer_contracts;
+DROP POLICY IF EXISTS "freelancer_contracts_all_policy_v2" ON public.freelancer_contracts;
 
 CREATE POLICY "freelancer_contracts_select_policy_v2" ON public.freelancer_contracts
   FOR SELECT TO authenticated USING (public.is_admin());
@@ -294,9 +357,12 @@ DROP POLICY IF EXISTS "Admins can update invites" ON public.invites;
 DROP POLICY IF EXISTS "invites_select_policy" ON public.invites;
 DROP POLICY IF EXISTS "invites_insert_policy" ON public.invites;
 DROP POLICY IF EXISTS "invites_update_policy" ON public.invites;
+DROP POLICY IF EXISTS "invites_select_policy_v2" ON public.invites;
+DROP POLICY IF EXISTS "invites_insert_policy_v2" ON public.invites;
+DROP POLICY IF EXISTS "invites_update_policy_v2" ON public.invites;
 
 CREATE POLICY "invites_select_policy_v2" ON public.invites
-  FOR SELECT USING (token IS NOT NULL OR public.is_admin());
+  FOR SELECT USING (public.is_admin());
 CREATE POLICY "invites_insert_policy_v2" ON public.invites
   FOR INSERT TO authenticated WITH CHECK (public.is_admin());
 CREATE POLICY "invites_update_policy_v2" ON public.invites
