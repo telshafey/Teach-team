@@ -109,7 +109,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: "team",
       label: "الفريق",
       icon: <UsersIcon className="w-6 h-6" />,
-      permission: true,
+      permission:
+        hasPermission("manage_team") ||
+        hasPermission("edit_team_members") ||
+        hasPermission("view_reports") ||
+        hasPermission("view_analytics"),
     },
     {
       id: "timesheet",
@@ -137,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "المالية",
       icon: <CurrencyDollarIcon className="w-6 h-6" />,
       permission:
-        (hasPermission("view_finances") || hasPermission("submit_expenses")) &&
+        hasPermission("view_finances") &&
         siteSettings?.isFinanceModuleEnabled,
     },
     {

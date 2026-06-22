@@ -25,6 +25,23 @@ export const FinancePage: React.FC<FinancePageProps> = ({ initialView }) => {
     useRequestsContext();
   const { currentUser } = useAuth();
 
+  const hasAccess = hasPermission("view_finances") || hasPermission("view_all_salaries");
+  if (!hasAccess) {
+    return (
+      <div className="p-6 flex items-center justify-center h-[calc(100vh-120px)]" dir="rtl">
+        <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-md w-full animate-in fade-in duration-300">
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center mb-4 mx-auto text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0V10.5m-2.821 3.016a3 3 0 0 0 3 3h10.642a3 3 0 0 0 3-3V11.5a3 3 0 0 0-3-3H7.172a3 3 0 0 0-3 3v2.016Z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">عفوًا، غير مصرح بالدخول</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">ليست لديك الصلاحيات الكافية لعرض صفحة البيانات المالية.</p>
+        </div>
+      </div>
+    );
+  }
+
   const getDefaultTab = () => {
     if (initialView) return initialView;
     if (currentUser?.roleId === "freelancer") return "freelancer";

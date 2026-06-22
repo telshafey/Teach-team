@@ -69,19 +69,40 @@ export const useTeam = (): TeamContextType => {
 
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentUser) return false;
-    if (
+    
+    const roleName = currentUserRole?.name;
+    const isUserAdmin =
       currentUser.roleId === "admin" ||
       currentUser.roleId === "gm" ||
-      currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
-    ) {
+      currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
+      roleName === "General Manager" ||
+      roleName === "admin" ||
+      roleName === "Admin";
+
+    if (isUserAdmin) {
       return true;
     }
     return currentUserRole?.permissions?.includes(permission) || false;
   }, [currentUser, currentUserRole]);
 
   const visibleMemberIds = useMemo(() => {
-    return new Set<number>(teamMembers.map((m) => m.id));
-  }, [teamMembers]);
+    const hasBroadAccess =
+      hasPermission("manage_team") ||
+      hasPermission("edit_team_members") ||
+      hasPermission("view_reports") ||
+      hasPermission("view_analytics");
+
+    if (hasBroadAccess) {
+      return new Set<number>(teamMembers.map((m) => m.id));
+    }
+
+    // Standard employees should only be able to see themselves
+    if (currentUser?.id) {
+      return new Set<number>([currentUser.id]);
+    }
+
+    return new Set<number>();
+  }, [teamMembers, hasPermission, currentUser]);
 
   const handleAddMember = async (formData: TeamMemberFormData) => {
     if (!supabaseClient) return;

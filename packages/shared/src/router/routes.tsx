@@ -4,6 +4,7 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAuthStore } from '../stores/authStore';
+import { useTeamContext } from '../contexts/TeamContext';
 import { NotFoundPage } from './NotFoundPage';
 
 // Lazy loading views
@@ -35,17 +36,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const DashboardContent = () => {
   const { currentUser } = useAuthStore();
+  const { roles } = useTeamContext();
   
   if (!currentUser) return null;
 
+  const currentUserRole = roles?.find((r) => r.id === currentUser.roleId);
+  const roleName = currentUserRole?.name?.toLowerCase() || "";
+
   const isGM =
     currentUser.roleId === "gm" ||
-    currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+    currentUser.roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" ||
+    roleName.includes("general manager") ||
+    roleName.includes("gm") ||
+    roleName === "admin" ||
+    roleName === "Admin";
+
   const isManager =
     currentUser.roleId === "manager" ||
     currentUser.roleId === "project_manager" ||
     currentUser.roleId === "hr_manager" ||
-    currentUser.roleId === "finance_manager";
+    currentUser.roleId === "finance_manager" ||
+    roleName.includes("manager") ||
+    roleName.includes("مدير");
 
   if (isGM) return <GeneralManagerDashboard />;
   if (isManager) return <ManagerDashboard />;

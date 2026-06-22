@@ -3,10 +3,43 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import pg from "pg";
+import fs from "fs";
 
 dotenv.config();
 
+async function runOnStartMigrations() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.log("[Migration] No DATABASE_URL in environment, skipping on-startup SQL migration.");
+    return;
+  }
+  const pgClient = new pg.Client({ connectionString: dbUrl });
+  try {
+    await pgClient.connect();
+    console.log("[Migration] Connected for on-startup RLS policy repairs.");
+    const filepath = "./database/migrations/029_fix_rls_approvals.sql";
+    if (fs.existsSync(filepath)) {
+      console.log("[Migration] Executing:", filepath);
+      const sqlStr = fs.readFileSync(filepath, "utf8");
+      await pgClient.query(sqlStr);
+      console.log("[Migration] RLS permissions successfully corrected and synchronized!");
+    } else {
+      console.warn("[Migration] File not found:", filepath);
+    }
+  } catch (err: any) {
+    console.error("[Migration] On-startup SQL execution failed:", err.message);
+  } finally {
+    try {
+      await pgClient.end();
+    } catch (err) {
+      console.warn("[Migration] RLS client connection cleanup warning.");
+    }
+  }
+}
+
 async function startServer() {
+  await runOnStartMigrations();
   const app = express();
   const PORT = 3000;
 
