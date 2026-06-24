@@ -510,10 +510,16 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/tasks", verifyToken, verifyAdmin, async (req, res) => {
+  app.get("/api/admin/team_members", verifyToken, async (req, res) => {
     try {
-      const supabaseUser = getUserClient(req);
-      const { data, error } = await supabaseUser.from("tasks").select("*");
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabaseAdmin.from("team_members").select("*, roles(*)");
       if (error) {
         return res.status(500).json({ error: error.message });
       }
@@ -524,43 +530,197 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/projects", verifyToken, verifyAdmin, async (req, res) => {
+  app.get("/api/admin/projects", verifyToken, async (req, res) => {
     try {
-      const supabaseUser = getUserClient(req);
-      const { data, error } = await supabaseUser.from("projects").select("*");
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      const user = (req as any).user;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
       }
 
-      res.status(200).json(data);
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      // 1. Get current team member profile
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden: User record not found" });
+      }
+
+      const memberId = member.id;
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      // 2. Fetch all projects using service role (bypassing RLS)
+      const { data: allProjects, error: projectsError } = await supabaseAdmin
+        .from("projects")
+        .select("*");
+
+      if (projectsError) {
+        return res.status(500).json({ error: projectsError.message });
+      }
+
+      if (isAdmin) {
+        return res.status(200).json(allProjects || []);
+      }
+
+      // 3. Filter projects for normal user
+      const filteredProjects = (allProjects || []).filter((project: any) => {
+        if (project.creator_id === memberId) return true;
+        const membersList = Array.isArray(project.members) ? project.members : [];
+        return membersList.some((m: any) => {
+          const mId = m?.team_member_id || m?.teamMemberId || m?.id || m?.member_id;
+          return String(mId) === String(memberId);
+        });
+      });
+
+      res.status(200).json(filteredProjects);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.get("/api/admin/team_members", verifyToken, verifyAdmin, async (req, res) => {
+  app.get("/api/admin/tasks", verifyToken, async (req, res) => {
     try {
-      const supabaseUser = getUserClient(req);
-      const { data, error } = await supabaseUser.from("team_members").select("*");
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      const user = (req as any).user;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
       }
 
-      res.status(200).json(data);
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      // 1. Get current team member profile
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden: User record not found" });
+      }
+
+      const memberId = member.id;
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      // 2. Fetch all tasks using service role (bypassing RLS)
+      const { data: allTasks, error: tasksError } = await supabaseAdmin
+        .from("tasks")
+        .select("*");
+
+      if (tasksError) {
+        return res.status(500).json({ error: tasksError.message });
+      }
+
+      if (isAdmin) {
+        return res.status(200).json(allTasks || []);
+      }
+
+      // 3. For normal users, fetch all projects to check membership
+      const { data: allProjects } = await supabaseAdmin
+        .from("projects")
+        .select("id, creator_id, members");
+
+      const allowedProjectIds = new Set<string>();
+      (allProjects || []).forEach((project: any) => {
+        const isCreator = project.creator_id === memberId;
+        const membersList = Array.isArray(project.members) ? project.members : [];
+        const isMember = membersList.some((m: any) => {
+          const mId = m?.team_member_id || m?.teamMemberId || m?.id || m?.member_id;
+          return String(mId) === String(memberId);
+        });
+        if (isCreator || isMember) {
+          allowedProjectIds.add(project.id);
+        }
+      });
+
+      // 4. Filter tasks based on creator, assignee, or if task belongs to user's project
+      const filteredTasks = (allTasks || []).filter((task: any) => {
+        if (task.creator_id === memberId || task.assigned_to === memberId) return true;
+        if (task.project_id && allowedProjectIds.has(task.project_id)) return true;
+        return false;
+      });
+
+      res.status(200).json(filteredTasks);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.get("/api/admin/daily_logs", verifyToken, verifyAdmin, async (req, res) => {
+  app.get("/api/admin/daily_logs", verifyToken, async (req, res) => {
     try {
-      const supabaseUser = getUserClient(req);
-      const { data, error } = await supabaseUser.from("daily_logs").select("*");
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      const user = (req as any).user;
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
       }
 
-      res.status(200).json(data);
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      // 1. Get current team member profile
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden: User record not found" });
+      }
+
+      const memberId = member.id;
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      // 2. Fetch all daily logs
+      const { data: allLogs, error: logsError } = await supabaseAdmin
+        .from("daily_logs")
+        .select("*");
+
+      if (logsError) {
+        return res.status(500).json({ error: logsError.message });
+      }
+
+      if (isAdmin) {
+        return res.status(200).json(allLogs || []);
+      }
+
+      // 3. Filter for current user
+      const filteredLogs = (allLogs || []).filter((log: any) => {
+        return log.team_member_id === memberId;
+      });
+
+      res.status(200).json(filteredLogs);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -568,6 +728,7 @@ async function startServer() {
 
   app.get("/api/admin/task_comments", verifyToken, async (req, res) => {
     try {
+      const user = (req as any).user;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (!supabaseUrl || !serviceRoleKey) {
@@ -575,12 +736,79 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("task_comments").select("*");
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      
+      // 1. Get current team member profile
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden: User record not found" });
       }
 
-      res.status(200).json(data);
+      const memberId = member.id;
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      // 2. Fetch all comments
+      const { data: allComments, error: commentsError } = await supabaseAdmin
+        .from("task_comments")
+        .select("*");
+
+      if (commentsError) {
+        return res.status(500).json({ error: commentsError.message });
+      }
+
+      if (isAdmin) {
+        return res.status(200).json(allComments || []);
+      }
+
+      // 3. Get projects member is in
+      const { data: allProjects } = await supabaseAdmin
+        .from("projects")
+        .select("id, creator_id, members");
+
+      const allowedProjectIds = new Set<string>();
+      (allProjects || []).forEach((project: any) => {
+        const isCreator = project.creator_id === memberId;
+        const membersList = Array.isArray(project.members) ? project.members : [];
+        const isMember = membersList.some((m: any) => {
+          const mId = m?.team_member_id || m?.teamMemberId || m?.id || m?.member_id;
+          return String(mId) === String(memberId);
+        });
+        if (isCreator || isMember) {
+          allowedProjectIds.add(project.id);
+        }
+      });
+
+      // 4. Fetch tasks to filter by project_id
+      const { data: allTasks } = await supabaseAdmin
+        .from("tasks")
+        .select("id, project_id, creator_id, assigned_to");
+
+      const allowedTaskIds = new Set<string>();
+      (allTasks || []).forEach((task: any) => {
+        if (task.creator_id === memberId || task.assigned_to === memberId) {
+          allowedTaskIds.add(task.id);
+        } else if (task.project_id && allowedProjectIds.has(task.project_id)) {
+          allowedTaskIds.add(task.id);
+        }
+      });
+
+      const filteredComments = (allComments || []).filter((comment: any) => {
+        return allowedTaskIds.has(comment.task_id);
+      });
+
+      res.status(200).json(filteredComments);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -588,6 +816,7 @@ async function startServer() {
 
   app.get("/api/admin/task_attachments", verifyToken, async (req, res) => {
     try {
+      const user = (req as any).user;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (!supabaseUrl || !serviceRoleKey) {
@@ -595,12 +824,79 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const { data, error } = await supabaseAdmin.from("task_attachments").select("*");
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      
+      // 1. Get current team member profile
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden: User record not found" });
       }
 
-      res.status(200).json(data);
+      const memberId = member.id;
+      const roleId = member.role_id;
+      const roleName = (member.roles as any)?.name;
+
+      const isAdmin = 
+        roleId === "gm" || 
+        roleId === "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d" || 
+        roleName === "General Manager" || 
+        roleName === "admin" ||
+        roleName === "Admin";
+
+      // 2. Fetch all attachments
+      const { data: allAttachments, error: attachmentsError } = await supabaseAdmin
+        .from("task_attachments")
+        .select("*");
+
+      if (attachmentsError) {
+        return res.status(500).json({ error: attachmentsError.message });
+      }
+
+      if (isAdmin) {
+        return res.status(200).json(allAttachments || []);
+      }
+
+      // 3. Get projects member is in
+      const { data: allProjects } = await supabaseAdmin
+        .from("projects")
+        .select("id, creator_id, members");
+
+      const allowedProjectIds = new Set<string>();
+      (allProjects || []).forEach((project: any) => {
+        const isCreator = project.creator_id === memberId;
+        const membersList = Array.isArray(project.members) ? project.members : [];
+        const isMember = membersList.some((m: any) => {
+          const mId = m?.team_member_id || m?.teamMemberId || m?.id || m?.member_id;
+          return String(mId) === String(memberId);
+        });
+        if (isCreator || isMember) {
+          allowedProjectIds.add(project.id);
+        }
+      });
+
+      // 4. Fetch tasks to filter by project_id
+      const { data: allTasks } = await supabaseAdmin
+        .from("tasks")
+        .select("id, project_id, creator_id, assigned_to");
+
+      const allowedTaskIds = new Set<string>();
+      (allTasks || []).forEach((task: any) => {
+        if (task.creator_id === memberId || task.assigned_to === memberId) {
+          allowedTaskIds.add(task.id);
+        } else if (task.project_id && allowedProjectIds.has(task.project_id)) {
+          allowedTaskIds.add(task.id);
+        }
+      });
+
+      const filteredAttachments = (allAttachments || []).filter((attachment: any) => {
+        return allowedTaskIds.has(attachment.task_id);
+      });
+
+      res.status(200).json(filteredAttachments);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
