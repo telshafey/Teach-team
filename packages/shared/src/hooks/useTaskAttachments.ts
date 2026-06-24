@@ -48,11 +48,24 @@ export const useTaskAttachments = (
     async (attachmentData: Omit<TaskAttachment, "id">) => {
       if (!supabaseClient) throw new Error("Supabase client not available");
       try {
-        const createdAttachment = await api.insert<TaskAttachment>(
-          supabaseClient,
-          "task_attachments",
-          attachmentData,
-        );
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const token = session?.access_token;
+        const response = await fetch("/api/task_attachments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(attachmentData)
+        });
+
+        if (!response.ok) {
+          const errJson = await response.json();
+          throw new Error(errJson.error || "Failed to save attachment via API");
+        }
+
+        const resJson = await response.json();
+        const createdAttachment = api.keysToCamel(resJson.data) as TaskAttachment;
         return createdAttachment;
       } catch (e: any) {
         addToast(`فشل حفظ المرفق: ${e.message}`, "error");
@@ -67,7 +80,18 @@ export const useTaskAttachments = (
       if (!supabaseClient) return;
 
       try {
-        await api.deleteById(supabaseClient, "task_attachments", attachment.id);
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const token = session?.access_token;
+        const response = await fetch(`/api/task_attachments/${attachment.id}`, {
+          method: "DELETE",
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
+
+        if (!response.ok) {
+          const errJson = await response.json();
+          throw new Error(errJson.error || "Failed to delete attachment via API");
+        }
+
         addToast("تم حذف المرفق بنجاح.", "success");
         try {
           const filePath = new URL(attachment.fileUrl).pathname.split(

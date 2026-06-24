@@ -70,11 +70,25 @@ export const useTaskComments = (
       };
 
       try {
-        const newComment = await api.insert<TaskComment>(
-          supabaseClient,
-          "task_comments",
-          newCommentData,
-        );
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const token = session?.access_token;
+        const response = await fetch("/api/task_comments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(newCommentData)
+        });
+
+        if (!response.ok) {
+          const errJson = await response.json();
+          throw new Error(errJson.error || "Failed to add comment via API");
+        }
+
+        const resJson = await response.json();
+        const newComment = api.keysToCamel(resJson.data) as TaskComment;
+
         addToast("تم إضافة التعليق بنجاح.", "success");
         setTaskComments((prev) => [newComment, ...prev]);
 
@@ -101,7 +115,18 @@ export const useTaskComments = (
     async (commentId: string) => {
       if (!supabaseClient) return;
       try {
-        await api.deleteById(supabaseClient, "task_comments", commentId);
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const token = session?.access_token;
+        const response = await fetch(`/api/task_comments/${commentId}`, {
+          method: "DELETE",
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
+
+        if (!response.ok) {
+          const errJson = await response.json();
+          throw new Error(errJson.error || "Failed to delete comment via API");
+        }
+
         addToast("تم حذف التعليق بنجاح.", "success");
         setTaskComments((prev) => prev.filter((c) => c.id !== commentId));
       } catch (e: any) {

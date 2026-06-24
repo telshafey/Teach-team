@@ -142,3 +142,34 @@ CREATE POLICY "work_contract_update_policy_v2" ON public.work_contract_change_re
 
 CREATE POLICY "work_contract_delete_policy_v2" ON public.work_contract_change_requests
   FOR DELETE TO authenticated USING (public.is_admin());
+
+-- 7. Fix task_comments insert RLS policy (Allow project members and project creators to insert comments)
+DROP POLICY IF EXISTS "task_comments_insert_policy_v2" ON public.task_comments;
+DROP POLICY IF EXISTS "task_comments_insert_policy_v3" ON public.task_comments;
+CREATE POLICY "task_comments_insert_policy_v3" ON public.task_comments
+  FOR INSERT TO authenticated WITH CHECK (
+    public.is_admin() OR 
+    public.get_current_team_member_id() IN (
+      SELECT p.creator_id FROM public.projects p WHERE p.id = (SELECT project_id FROM tasks WHERE id = task_comments.task_id)
+      UNION
+      SELECT (member->>'team_member_id')::int 
+      FROM public.projects p, jsonb_array_elements(p.members) as member 
+      WHERE p.id = (SELECT project_id FROM tasks WHERE id = task_comments.task_id)
+    )
+  );
+
+-- 8. Fix task_attachments insert RLS policy (Allow project members and project creators to upload attachments)
+DROP POLICY IF EXISTS "task_attachments_insert_policy_v2" ON public.task_attachments;
+DROP POLICY IF EXISTS "task_attachments_insert_policy_v3" ON public.task_attachments;
+CREATE POLICY "task_attachments_insert_policy_v3" ON public.task_attachments
+  FOR INSERT TO authenticated WITH CHECK (
+    public.is_admin() OR 
+    public.get_current_team_member_id() IN (
+      SELECT p.creator_id FROM public.projects p WHERE p.id = (SELECT project_id FROM tasks WHERE id = task_attachments.task_id)
+      UNION
+      SELECT (member->>'team_member_id')::int 
+      FROM public.projects p, jsonb_array_elements(p.members) as member 
+      WHERE p.id = (SELECT project_id FROM tasks WHERE id = task_attachments.task_id)
+    )
+  );
+

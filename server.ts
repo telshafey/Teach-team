@@ -566,6 +566,46 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/task_comments", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabaseAdmin.from("task_comments").select("*");
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/task_attachments", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabaseAdmin.from("task_attachments").select("*");
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- INVITATION SYSTEM ENDPOINTS ---
 
   // Verify invitation token (Public)
@@ -794,6 +834,214 @@ async function startServer() {
       res.status(200).json({ success: true });
     } catch (err: any) {
       console.error("Delete invite error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Proxy endpoints for comments and attachments to bypass RLS restrictions
+  app.post("/api/task_comments", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { taskId, authorId, text, timestamp } = req.body;
+
+      if (!taskId || !authorId || !text) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Check if team member exists and match the user's ID
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+
+      if (memberError || !member || member.id !== authorId) {
+        return res.status(403).json({ error: "Forbidden: Author mismatch" });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("task_comments")
+        .insert({
+          task_id: taskId,
+          author_id: authorId,
+          text: text,
+          timestamp: timestamp || new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Insert comment proxy error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/task_comments/:id", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const commentId = req.params.id;
+
+      // Check if user is the author or admin
+      const { data: comment, error: commentError } = await supabaseAdmin
+        .from("task_comments")
+        .select("author_id")
+        .eq("id", commentId)
+        .single();
+
+      if (commentError || !comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const roleName = (member.roles as any)?.name;
+      const isAdmin = member.role_id === "gm" || roleName === "Admin" || roleName === "General Manager" || roleName === "admin";
+
+      if (member.id !== comment.author_id && !isAdmin) {
+        return res.status(403).json({ error: "Forbidden: Not the author or admin" });
+      }
+
+      const { error } = await supabaseAdmin
+        .from("task_comments")
+        .delete()
+        .eq("id", commentId);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Delete comment proxy error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/task_attachments", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { taskId, uploaderId, fileName, fileUrl, fileSize, mimeType, timestamp } = req.body;
+
+      if (!taskId || !uploaderId || !fileName || !fileUrl) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+
+      if (memberError || !member || member.id !== uploaderId) {
+        return res.status(403).json({ error: "Forbidden: Uploader mismatch" });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("task_attachments")
+        .insert({
+          task_id: taskId,
+          uploader_id: uploaderId,
+          file_name: fileName,
+          file_url: fileUrl,
+          file_size: fileSize,
+          mime_type: mimeType,
+          timestamp: timestamp || new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Insert attachment proxy error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/task_attachments/:id", verifyToken, async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const attachmentId = req.params.id;
+
+      const { data: attachment, error: attachmentError } = await supabaseAdmin
+        .from("task_attachments")
+        .select("uploader_id")
+        .eq("id", attachmentId)
+        .single();
+
+      if (attachmentError || !attachment) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+
+      const { data: member, error: memberError } = await supabaseAdmin
+        .from("team_members")
+        .select("id, role_id, roles(name)")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const roleName = (member.roles as any)?.name;
+      const isAdmin = member.role_id === "gm" || roleName === "Admin" || roleName === "General Manager" || roleName === "admin";
+
+      if (member.id !== attachment.uploader_id && !isAdmin) {
+        return res.status(403).json({ error: "Forbidden: Not the uploader or admin" });
+      }
+
+      const { error } = await supabaseAdmin
+        .from("task_attachments")
+        .delete()
+        .eq("id", attachmentId);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Delete attachment proxy error:", err);
       res.status(500).json({ error: err.message });
     }
   });

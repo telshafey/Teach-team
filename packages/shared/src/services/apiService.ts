@@ -71,7 +71,14 @@ export const getAll = async <T>(
   table: string,
   columns: string = "*",
 ): Promise<T[]> => {
-  if (table === "tasks" || table === "projects" || table === "team_members" || table === "daily_logs") {
+  if (
+    table === "tasks" ||
+    table === "projects" ||
+    table === "team_members" ||
+    table === "daily_logs" ||
+    table === "task_comments" ||
+    table === "task_attachments"
+  ) {
     // Bypass RLS using our custom backend endpoint to ensure all records are fetched.
     // The filtering handles the visibility checks client-side.
     try {
@@ -84,7 +91,11 @@ export const getAll = async <T>(
         ? "/api/admin/projects" 
         : table === "team_members" 
         ? "/api/admin/team_members" 
-        : "/api/admin/daily_logs";
+        : table === "daily_logs"
+        ? "/api/admin/daily_logs"
+        : table === "task_comments"
+        ? "/api/admin/task_comments"
+        : "/api/admin/task_attachments";
       const resp = await fetch(endpoint, {
         headers: token ? { "Authorization": `Bearer ${token}` } : {}
       });

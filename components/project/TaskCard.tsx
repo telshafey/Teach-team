@@ -136,65 +136,14 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
         onDragStart={(e) => canDrag && onDragStart(e, task.id)}
         onDragEnd={onDragEnd}
         onClick={() => onCardClick(task)}
-        className={`bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-2 ${canDrag ? "cursor-grab" : "cursor-pointer"} hover:shadow-lg hover:border-sky-300 dark:hover:border-sky-600 transition-all group relative ${getApprovalBorder()} ${isDragging ? "opacity-50 ring-2 ring-sky-500" : ""} ${isThisTaskActive ? "ring-2 ring-green-500 shadow-lg" : ""}`}
+        className={`bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-3 shadow-sm space-y-2.5 ${canDrag ? "cursor-grab" : "cursor-pointer"} hover:shadow-md hover:border-sky-400 dark:hover:border-sky-500 transition-all group relative ${getApprovalBorder()} ${isDragging ? "opacity-50 ring-2 ring-sky-500" : ""} ${isThisTaskActive ? "ring-2 ring-green-500 shadow-md" : ""}`}
       >
-        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
-          <DueDateIndicator dueDate={task.dueDate} />
-          <div className="flex items-center space-x-1 rtl:space-x-reverse">
-            <ClockIcon className="w-4 h-4" />
-            <span>{taskHours.toFixed(1)}h</span>
-          </div>
-        </div>
-
-        <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm pb-2">
-          {task.title}
-        </p>
-
-        {task.approvalStatus === "rejected" && task.approvalNotes && (
-          <div className="text-xs text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-900/30 p-2 rounded">
-            <span className="font-bold">ملاحظة المدير:</span>{" "}
-            {task.approvalNotes}
-          </div>
-        )}
-
-        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-600/50">
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            {assignedMember ? (
-              <img
-                src={assignedMember.avatarUrl}
-                alt={assignedMember.name}
-                className="w-6 h-6 rounded-full"
-                title={assignedMember.name}
-              />
-            ) : (
-              <div className="w-6 h-6" />
-            )}
-            <button
-              onClick={handleToggleTimer}
-              className={`p-1 rounded-full ${isThisTaskActive ? "bg-green-100 text-green-600" : "text-slate-400 hover:text-green-600"}`}
-            >
-              {isThisTaskActive ? (
-                <PauseIcon className="w-5 h-5" />
-              ) : (
-                <PlayIcon className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-          <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="flex items-center space-x-2 rtl:space-x-reverse">
-              {attachmentCount > 0 && (
-                <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                  <PaperClipIcon className="w-4 h-4" />
-                  <span>{attachmentCount}</span>
-                </div>
-              )}
-              {commentCount > 0 && (
-                <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                  <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
-                  <span>{commentCount}</span>
-                </div>
-              )}
-            </div>
+        {/* Title and Approval Status */}
+        <div className="flex justify-between items-start gap-2">
+          <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm line-clamp-2 leading-relaxed">
+            {task.title}
+          </p>
+          <div className="flex-shrink-0">
             <ApprovalIndicator
               status={task.approvalStatus}
               notes={task.approvalNotes}
@@ -202,20 +151,61 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(
           </div>
         </div>
 
-        {canDrag && (
-          <div className="absolute top-2 left-2 rtl:left-auto rtl:right-2 flex-shrink-0 flex items-center space-x-1 rtl:space-x-reverse opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(task);
-              }}
-              className="p-1.5 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-md text-slate-500 hover:text-red-600 dark:hover:text-red-400"
-              aria-label="حذف المهمة"
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
+        {/* Manager Rejection notes (if any) */}
+        {task.approvalStatus === "rejected" && task.approvalNotes && (
+          <div className="text-[11px] text-red-600 dark:text-red-300 bg-red-50/70 dark:bg-red-900/20 px-2 py-1 rounded truncate animate-fade-in" title={task.approvalNotes}>
+            <span className="font-semibold">تنبيه:</span> {task.approvalNotes}
           </div>
         )}
+
+        {/* Footer: Assignee, Indicators & Due Date */}
+        <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-600/50">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            {assignedMember ? (
+              <div className="flex items-center gap-1.5">
+                <img
+                  src={assignedMember.avatarUrl}
+                  alt={assignedMember.name}
+                  className="w-5 h-5 rounded-full ring-1 ring-slate-100 dark:ring-slate-600"
+                  title={assignedMember.name}
+                />
+                <span className="text-[11px] text-slate-500 dark:text-slate-300 hidden sm:inline truncate max-w-[80px]">
+                  {assignedMember.name.split(" ")[0]}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-400 italic">غير مسندة</span>
+            )}
+
+            {/* Micro Indicators */}
+            {(attachmentCount > 0 || commentCount > 0) && (
+              <div className="flex items-center space-x-1.5 rtl:space-x-reverse text-slate-400 dark:text-slate-500 border-r border-slate-100 dark:border-slate-600/80 pr-1.5">
+                {attachmentCount > 0 && (
+                  <div className="flex items-center space-x-0.5 rtl:space-x-reverse" title="المرفقات">
+                    <PaperClipIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">{attachmentCount}</span>
+                  </div>
+                )}
+                {commentCount > 0 && (
+                  <div className="flex items-center space-x-0.5 rtl:space-x-reverse" title="التعليقات">
+                    <ChatBubbleLeftEllipsisIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">{commentCount}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <DueDateIndicator dueDate={task.dueDate} />
+            {taskHours > 0 && (
+              <div className="flex items-center space-x-0.5 rtl:space-x-reverse font-mono text-[11px] bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-300">
+                <ClockIcon className="w-3 h-3" />
+                <span>{taskHours.toFixed(1)}h</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   },

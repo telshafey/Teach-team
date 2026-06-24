@@ -17,11 +17,16 @@ import {
   PencilIcon,
   TrashIcon,
   ArrowLeftIcon,
+  PlayIcon,
+  PauseIcon,
+  ClockIcon,
 } from "../ui/Icons";
 import { format, parseISO } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useSupabase } from "@shared/contexts/SupabaseContext";
 import { useToast } from "@shared/contexts/ToastContext";
+import { useTimeManagement } from "@shared/contexts/TimeManagementContext";
+import { useTimeLogContext } from "@shared/contexts/TimeLogContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { MentionTextarea } from "../shared/MentionTextarea";
@@ -52,13 +57,16 @@ interface TaskDetailViewProps {
   isUploading: boolean;
   localComments: TaskComment[];
   membersMap: Record<number, TeamMember>;
-  teamMembers: TeamMember[];
+  projectMembers: TeamMember[];
   currentUser: TeamMember;
   newComment: string;
   setNewComment: React.Dispatch<React.SetStateAction<string>>;
   handleAddCommentSubmit: (e: FormEvent) => void;
   onDeleteItem: (item: ItemToDelete) => void;
   canDeleteTasks: boolean;
+  taskHours: number;
+  isThisTaskActive: boolean;
+  handleToggleTimer: (e: React.MouseEvent) => void;
 }
 
 const TaskDetailView: React.FC<TaskDetailViewProps> = ({
@@ -69,30 +77,62 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
   isUploading,
   localComments,
   membersMap,
-  teamMembers,
+  projectMembers,
   currentUser,
   newComment,
   setNewComment,
   handleAddCommentSubmit,
   onDeleteItem,
   canDeleteTasks,
+  taskHours,
+  isThisTaskActive,
+  handleToggleTimer,
 }) => (
   <>
     <div className="flex-1 pr-2 space-y-6">
-      <div className="grid grid-cols-2 gap-4 text-sm mt-4">
-        <div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mt-4 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-700/50">
+        <div className="flex items-center space-x-2 rtl:space-x-reverse">
           <span className="font-semibold text-slate-600 dark:text-slate-300">
             مسندة إلى:
           </span>{" "}
-          {assignedMember?.name || "غير مسندة"}
+          <span className="text-slate-800 dark:text-slate-200">{assignedMember?.name || "غير مسندة"}</span>
         </div>
-        <div>
+        <div className="flex items-center space-x-2 rtl:space-x-reverse">
           <span className="font-semibold text-slate-600 dark:text-slate-300">
             تاريخ الاستحقاق:
           </span>{" "}
-          {task?.dueDate
-            ? format(parseISO(task.dueDate), "d MMMM yyyy", { locale: arSA })
-            : "غير محدد"}
+          <span className="text-slate-800 dark:text-slate-200">
+            {task?.dueDate
+              ? format(parseISO(task.dueDate), "d MMMM yyyy", { locale: arSA })
+              : "غير محدد"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between sm:justify-start space-x-2 rtl:space-x-reverse">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <span className="font-semibold text-slate-600 dark:text-slate-300">
+              الوقت المسجل:
+            </span>{" "}
+            <span className="font-mono text-slate-800 dark:text-slate-200">
+              {taskHours.toFixed(1)}h
+            </span>
+          </div>
+          {task && (
+            <button
+              onClick={handleToggleTimer}
+              className={`p-1.5 rounded-full transition-all ${
+                isThisTaskActive
+                  ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 ring-2 ring-green-400 animate-pulse"
+                  : "bg-slate-100 text-slate-500 hover:text-green-600 hover:bg-green-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-green-400"
+              }`}
+              title={isThisTaskActive ? "إيقاف المؤقت" : "بدء المؤقت"}
+            >
+              {isThisTaskActive ? (
+                <PauseIcon className="w-5 h-5" />
+              ) : (
+                <PlayIcon className="w-5 h-5" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -206,7 +246,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
                 handleAddCommentSubmit(e);
               }
             }}
-            members={teamMembers}
+            members={projectMembers}
             placeholder="أضف تعليقًا... (يمكنك الإشارة إلى عضو باستخدام @)"
             rows={1}
             className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 resize-none min-h-[40px]"
@@ -397,6 +437,36 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
   const { supabaseClient } = useSupabase();
   const { addToast } = useToast();
 
+  const { dailyLogs } = useTimeLogContext();
+  const { activeTimer, startTimer, stopTimer } = useTimeManagement();
+
+  const taskHours = useMemo(() => {
+    if (!task) return 0;
+    return dailyLogs
+      .filter((l) => l.taskId === task.id)
+      .reduce((sum, log) => sum + log.hours, 0);
+  }, [dailyLogs, task?.id]);
+
+  const isThisTaskActive = useMemo(() => {
+    if (!task) return false;
+    return activeTimer?.taskId === task.id;
+  }, [activeTimer, task?.id]);
+
+  const handleToggleTimer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!task) return;
+    if (isThisTaskActive) {
+      stopTimer();
+    } else {
+      const projId = task.projectId || projectId;
+      if (projId) {
+        startTimer(task.id, task.title, projId);
+      } else {
+        addToast("لا يمكن بدء المؤقت لمهمة بدون مشروع.", "error");
+      }
+    }
+  };
+
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects_list"],
     queryFn: () => api.getAll(supabaseClient!, "projects", "id, name"),
@@ -413,6 +483,39 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
     dueDate: task?.dueDate ? format(parseISO(task.dueDate), "yyyy-MM-dd") : "",
     status: task?.status || ("todo" as TaskStatus),
   });
+
+  const targetProjectId = formData.projectId || task?.projectId || projectId;
+
+  const { data: currentProject } = useQuery<Project | null>({
+    queryKey: ["project_with_members", targetProjectId],
+    queryFn: async () => {
+      if (!supabaseClient || !targetProjectId) return null;
+      const { data, error } = await supabaseClient
+        .from("projects")
+        .select("id, name, members, creator_id")
+        .eq("id", targetProjectId)
+        .single();
+      if (error) throw error;
+      return api.keysToCamel(data) as Project;
+    },
+    enabled: !!supabaseClient && !!targetProjectId,
+  });
+
+  const projectMembers = useMemo(() => {
+    if (!targetProjectId) {
+      return teamMembers;
+    }
+    if (!currentProject) {
+      return [];
+    }
+    const memberIds = new Set(
+      (currentProject.members || []).map((m) => m.teamMemberId)
+    );
+    if (currentProject.creatorId) {
+      memberIds.add(currentProject.creatorId);
+    }
+    return teamMembers.filter((m) => memberIds.has(m.id));
+  }, [currentProject, teamMembers, targetProjectId]);
 
   const [newComment, setNewComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -667,13 +770,16 @@ export const TaskDetailInline: React.FC<TaskDetailInlineProps> = ({
               isUploading={isUploading}
               localComments={localComments}
               membersMap={membersMap}
-              teamMembers={teamMembers}
+              projectMembers={projectMembers}
               currentUser={currentUser}
               newComment={newComment}
               setNewComment={setNewComment}
               handleAddCommentSubmit={handleAddCommentSubmit}
               onDeleteItem={setItemToDelete}
               canDeleteTasks={canDeleteTasks}
+              taskHours={taskHours}
+              isThisTaskActive={isThisTaskActive}
+              handleToggleTimer={handleToggleTimer}
             />
           ) : null}
         </div>
