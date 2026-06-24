@@ -1,10 +1,12 @@
 import express from "express";
 import path from "path";
+import rateLimit from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import pg from "pg";
 import fs from "fs";
+import { z } from "zod";
 
 dotenv.config();
 
@@ -44,6 +46,171 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Trust reverse proxy (Cloud Run / Nginx / Load Balancer) to get real client IP
+  app.set("trust proxy", 1);
+
+  // Keep-alive endpoint to prevent Supabase from pausing (No Rate Limiting)
+  app.get("/api/keep-alive", async (req, res) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ status: "config_missing" });
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      // Perform a lightweight query to keep DB active
+      const { error } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .limit(1);
+
+      if (error) {
+        return res
+          .status(500)
+          .json({ status: "error", message: error.message });
+      }
+
+      res
+        .status(200)
+        .json({ status: "ok", timestamp: new Date().toISOString() });
+    } catch (err: any) {
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  });
+
+  // --- RATE LIMITERS ---
+
+  // A. limiterPublic (للـ endpoints العامة):
+  const limiterPublic = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 دقيقة
+    max: 20, // 20 طلب من نفس IP
+    message: { error: "too many requests, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      // Exclude routes that have their own rate limiters, and the keep-alive route
+      const path = req.originalUrl || req.url || "";
+      return path.startsWith("/api/invite") ||
+             path.startsWith("/api/admin") ||
+             path.startsWith("/api/team") ||
+             path.startsWith("/api/keep-alive");
+    }
+  });
+
+  // B. limiterInvite (للـ invite endpoints — أكثر صرامة):
+  const limiterInvite = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 ساعة
+    max: 5, // 5 محاولات فقط في الساعة
+    message: { error: "too many invite attempts, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // C. limiterAdmin (للـ admin endpoints — مرن):
+  const limiterAdmin = rateLimit({
+    windowMs: 60 * 1000, // 1 دقيقة
+    max: 100, // 100 طلب/دقيقة
+    message: { error: "too many admin requests, please slow down" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Apply Rate Limiting globally to specific route groups
+  app.use("/api/invite", limiterInvite); // يشمل /verify و /accept
+  app.use("/api/admin", limiterAdmin); // يشمل كل /api/admin/*
+  app.use("/api/team", limiterAdmin); // يشمل كل /api/team/*
+  app.use("/api", limiterPublic); // fallback لباقي الـ endpoints
+
+  // --- INPUT VALIDATION SCHEMAS & HELPERS (Zod) ---
+
+  const InviteAcceptSchema = z.object({
+    token: z.string().uuid("رابط الدعوة غير صالح"),
+    name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").max(100),
+    password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل").max(128),
+  });
+
+  const InviteCreateSchema = z.object({
+    email: z.string().email("البريد الإلكتروني غير صالح"),
+    roleId: z.string().uuid("معرف الدور غير صالح"),
+  });
+
+  const MemberUpdateSchema = z.object({
+    memberId: z.number().int().positive(),
+    updates: z.object({
+      name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").max(100).optional(),
+      email: z.string().email("البريد الإلكتروني غير صالح").optional(),
+      roleId: z.string().uuid("معرف الدور غير صالح").or(z.string()).optional(),
+      password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل").max(128).optional(),
+      reportsTo: z.number().int().positive().nullable().optional(),
+      avatarUrl: z.string().optional(),
+      employmentType: z.string().optional(),
+      salary: z.number().nullable().optional(),
+      hourlyRate: z.number().nullable().optional(),
+      weeklyHoursRequirement: z.number().nullable().optional(),
+      daysOff: z.array(z.string()).optional(),
+    }).strict(),
+    email: z.string().email("البريد الإلكتروني غير صالح").optional(),
+  }).strict();
+
+  const MemberCreateSchema = z.object({
+    email: z.string().email("البريد الإلكتروني غير صالح"),
+    password: z.string().min(8, "كلمة المرور قصيرة جداً").max(128),
+    name: z.string().min(2, "الاسم قصير").max(100),
+    roleId: z.string().uuid("معرف الدور غير صالح").or(z.string()),
+    reportsTo: z.number().int().positive().nullable().optional(),
+    avatarUrl: z.string().optional(),
+    employmentType: z.string().optional(),
+    salary: z.number().nullable().optional(),
+    hourlyRate: z.number().nullable().optional(),
+    weeklyHoursRequirement: z.number().nullable().optional(),
+    daysOff: z.array(z.string()).optional(),
+  }).strict();
+
+  const validate = <T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } => {
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      return { success: false, error: result.error.errors[0].message };
+    }
+    return { success: true, data: result.data };
+  };
+
+  interface AuditLogEntry {
+    actorId?: number;
+    actorEmail?: string;
+    action: string;
+    entityType: string;
+    entityId?: string;
+    oldValues?: Record<string, any>;
+    newValues?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+  }
+
+  const logAudit = async (entry: AuditLogEntry) => {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) return;
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      await supabaseAdmin.from('audit_logs').insert([{
+        actor_id: entry.actorId,
+        actor_email: entry.actorEmail,
+        action: entry.action,
+        entity_type: entry.entityType,
+        entity_id: entry.entityId,
+        old_values: entry.oldValues,
+        new_values: entry.newValues,
+        ip_address: entry.ipAddress,
+        user_agent: entry.userAgent,
+      }]);
+    } catch (err) {
+      console.error("Audit logging failed:", err);
+    }
+  };
 
   // Middleware to verify if the request comes from an authenticated user
   const verifyToken = async (
@@ -172,7 +339,11 @@ async function startServer() {
   // API Routes
   app.post("/api/team/admin-update-member", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const { memberId, updates } = req.body;
+      const validation = validate(MemberUpdateSchema, req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error });
+      }
+      const { memberId, updates } = validation.data;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -190,11 +361,19 @@ async function startServer() {
         },
       });
 
+      const adminEmail = (req as any).user.email;
+      const { data: adminMember } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+      const adminMemberId = adminMember?.id;
+
       const { password, ...memberUpdates } = updates;
 
       const { data: memberData, error: memberError } = await supabaseAdmin
         .from("team_members")
-        .select("auth_user_id, email")
+        .select("*")
         .eq("id", memberId)
         .single();
 
@@ -333,6 +512,24 @@ async function startServer() {
         }
       }
 
+      const oldValuesLog = memberData ? { ...memberData } : {};
+      delete (oldValuesLog as any).password;
+
+      const newValuesLog = updates ? { ...updates } : {};
+      delete (newValuesLog as any).password;
+
+      await logAudit({
+        actorId: adminMemberId,
+        actorEmail: adminEmail,
+        action: 'member_updated',
+        entityType: 'member',
+        entityId: memberId.toString(),
+        oldValues: oldValuesLog,
+        newValues: newValuesLog,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
       res.status(200).json({ success: true });
     } catch (err: any) {
       console.error("Admin user update error:", err);
@@ -411,8 +608,11 @@ async function startServer() {
 
   app.post("/api/team/admin-create-member", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const { memberData } = req.body;
-      const { email, password, ...restOfData } = memberData;
+      const validation = validate(MemberCreateSchema, req.body.memberData);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error });
+      }
+      const { email, password, ...restOfData } = validation.data;
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -423,6 +623,14 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      const adminEmail = (req as any).user.email;
+      const { data: adminMember } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+      const adminMemberId = adminMember?.id;
 
       // Create user
       const { data: newUser, error: createError } =
@@ -479,6 +687,19 @@ async function startServer() {
           error: errorMsg,
         });
       }
+
+      const insertedMemberLog = insertedMember ? { ...insertedMember } : {};
+      delete (insertedMemberLog as any).password;
+      await logAudit({
+        actorId: adminMemberId,
+        actorEmail: adminEmail,
+        action: 'member_created',
+        entityType: 'member',
+        entityId: insertedMember?.id?.toString(),
+        newValues: insertedMemberLog,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
 
       res.status(200).json({ success: true, member: insertedMember });
     } catch (err: any) {
@@ -952,10 +1173,11 @@ async function startServer() {
   // Accept invitation & Sign Up (Public)
   app.post("/api/invite/accept", async (req, res) => {
     try {
-      const { token, name, password } = req.body;
-      if (!token || !name || !password) {
-        return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+      const validation = validate(InviteAcceptSchema, req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error });
       }
+      const { token, name, password } = validation.data;
 
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1049,10 +1271,11 @@ async function startServer() {
   // Admin POST create invite
   app.post("/api/admin/invites/create", verifyToken, verifyAdmin, async (req, res) => {
     try {
-      const { email, roleId } = req.body;
-      if (!email || !roleId) {
-        return res.status(400).json({ error: "البريد الإلكتروني والدور مطلوبان" });
+      const validation = validate(InviteCreateSchema, req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error });
       }
+      const { email, roleId } = validation.data;
 
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1062,6 +1285,14 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      const adminEmail = (req as any).user.email;
+      const { data: adminMember } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+      const adminMemberId = adminMember?.id;
 
       // Check if user already exists
       const { data: existingMember } = await supabaseAdmin
@@ -1099,6 +1330,17 @@ async function startServer() {
         return res.status(500).json({ error: error.message });
       }
 
+      await logAudit({
+        actorId: adminMemberId,
+        actorEmail: adminEmail,
+        action: 'invite_created',
+        entityType: 'invite',
+        entityId: invite.id,
+        newValues: invite,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
       res.status(200).json({ success: true, invite });
     } catch (err: any) {
       console.error("Create invite error:", err);
@@ -1118,6 +1360,25 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      const adminEmail = (req as any).user.email;
+      const { data: adminMember } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("auth_user_id", (req as any).user.id)
+        .single();
+      const adminMemberId = adminMember?.id;
+
+      await logAudit({
+        actorId: adminMemberId,
+        actorEmail: adminEmail,
+        action: 'invite_revoked',
+        entityType: 'invite',
+        entityId: id,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
       const { error } = await supabaseAdmin
         .from("invites")
         .delete()
@@ -1339,37 +1600,6 @@ async function startServer() {
     } catch (err: any) {
       console.error("Delete attachment proxy error:", err);
       res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Keep-alive endpoint to prevent Supabase from pausing
-  app.get("/api/keep-alive", async (req, res) => {
-    try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ status: "config_missing" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-      // Perform a lightweight query to keep DB active
-      const { error } = await supabaseAdmin
-        .from("team_members")
-        .select("id")
-        .limit(1);
-
-      if (error) {
-        return res
-          .status(500)
-          .json({ status: "error", message: error.message });
-      }
-
-      res
-        .status(200)
-        .json({ status: "ok", timestamp: new Date().toISOString() });
-    } catch (err: any) {
-      res.status(500).json({ status: "error", message: err.message });
     }
   });
 
