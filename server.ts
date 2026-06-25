@@ -721,10 +721,15 @@ async function startServer() {
   app.get("/api/admin/projects", verifyToken, async (req, res) => {
     try {
       const user = (req as any).user;
-      const supabaseAdmin = getUserClient(req);
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       
-      // 1. Get current team member profile
-      const { data: member, error: memberError } = await supabaseAdmin
+      // 1. Get current team member profile using service role
+      const { data: member, error: memberError } = await supabaseService
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", user.id)
@@ -746,7 +751,7 @@ async function startServer() {
         roleName === "Admin";
 
       // 2. Fetch all projects using service role (bypassing RLS)
-      const { data: allProjects, error: projectsError } = await supabaseAdmin
+      const { data: allProjects, error: projectsError } = await supabaseService
         .from("projects")
         .select("*");
 
@@ -777,10 +782,15 @@ async function startServer() {
   app.get("/api/admin/tasks", verifyToken, async (req, res) => {
     try {
       const user = (req as any).user;
-      const supabaseAdmin = getUserClient(req);
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       
-      // 1. Get current team member profile
-      const { data: member, error: memberError } = await supabaseAdmin
+      // 1. Get current team member profile using service role
+      const { data: member, error: memberError } = await supabaseService
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", user.id)
@@ -802,7 +812,7 @@ async function startServer() {
         roleName === "Admin";
 
       // 2. Fetch all tasks using service role (bypassing RLS)
-      const { data: allTasks, error: tasksError } = await supabaseAdmin
+      const { data: allTasks, error: tasksError } = await supabaseService
         .from("tasks")
         .select("*");
 
@@ -815,7 +825,7 @@ async function startServer() {
       }
 
       // 3. For normal users, fetch all projects to check membership
-      const { data: allProjects } = await supabaseAdmin
+      const { data: allProjects } = await supabaseService
         .from("projects")
         .select("id, creator_id, members");
 
@@ -848,10 +858,15 @@ async function startServer() {
   app.get("/api/admin/daily_logs", verifyToken, async (req, res) => {
     try {
       const user = (req as any).user;
-      const supabaseAdmin = getUserClient(req);
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       
-      // 1. Get current team member profile
-      const { data: member, error: memberError } = await supabaseAdmin
+      // 1. Get current team member profile using service role
+      const { data: member, error: memberError } = await supabaseService
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", user.id)
@@ -873,7 +888,7 @@ async function startServer() {
         roleName === "Admin";
 
       // 2. Fetch all daily logs
-      const { data: allLogs, error: logsError } = await supabaseAdmin
+      const { data: allLogs, error: logsError } = await supabaseService
         .from("daily_logs")
         .select("*");
 
@@ -899,10 +914,15 @@ async function startServer() {
   app.get("/api/admin/task_comments", verifyToken, async (req, res) => {
     try {
       const user = (req as any).user;
-      const supabaseAdmin = getUserClient(req);
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       
-      // 1. Get current team member profile
-      const { data: member, error: memberError } = await supabaseAdmin
+      // 1. Get current team member profile using service role
+      const { data: member, error: memberError } = await supabaseService
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", user.id)
@@ -923,8 +943,8 @@ async function startServer() {
         roleName === "admin" ||
         roleName === "Admin";
 
-      // 2. Fetch all comments
-      const { data: allComments, error: commentsError } = await supabaseAdmin
+      // 2. Fetch all comments using service role
+      const { data: allComments, error: commentsError } = await supabaseService
         .from("task_comments")
         .select("*");
 
@@ -936,8 +956,8 @@ async function startServer() {
         return res.status(200).json(allComments || []);
       }
 
-      // 3. Get projects member is in
-      const { data: allProjects } = await supabaseAdmin
+      // 3. Get projects member is in using service role
+      const { data: allProjects } = await supabaseService
         .from("projects")
         .select("id, creator_id, members");
 
@@ -954,8 +974,8 @@ async function startServer() {
         }
       });
 
-      // 4. Fetch tasks to filter by project_id
-      const { data: allTasks } = await supabaseAdmin
+      // 4. Fetch tasks to filter by project_id using service role
+      const { data: allTasks } = await supabaseService
         .from("tasks")
         .select("id, project_id, creator_id, assigned_to");
 
@@ -981,10 +1001,15 @@ async function startServer() {
   app.get("/api/admin/task_attachments", verifyToken, async (req, res) => {
     try {
       const user = (req as any).user;
-      const supabaseAdmin = getUserClient(req);
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return res.status(500).json({ error: "Missing config" });
+      }
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       
-      // 1. Get current team member profile
-      const { data: member, error: memberError } = await supabaseAdmin
+      // 1. Get current team member profile using service role
+      const { data: member, error: memberError } = await supabaseService
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", user.id)
@@ -1005,8 +1030,8 @@ async function startServer() {
         roleName === "admin" ||
         roleName === "Admin";
 
-      // 2. Fetch all attachments
-      const { data: allAttachments, error: attachmentsError } = await supabaseAdmin
+      // 2. Fetch all attachments using service role
+      const { data: allAttachments, error: attachmentsError } = await supabaseService
         .from("task_attachments")
         .select("*");
 
@@ -1018,8 +1043,8 @@ async function startServer() {
         return res.status(200).json(allAttachments || []);
       }
 
-      // 3. Get projects member is in
-      const { data: allProjects } = await supabaseAdmin
+      // 3. Get projects member is in using service role
+      const { data: allProjects } = await supabaseService
         .from("projects")
         .select("id, creator_id, members");
 
@@ -1036,8 +1061,8 @@ async function startServer() {
         }
       });
 
-      // 4. Fetch tasks to filter by project_id
-      const { data: allTasks } = await supabaseAdmin
+      // 4. Fetch tasks to filter by project_id using service role
+      const { data: allTasks } = await supabaseService
         .from("tasks")
         .select("id, project_id, creator_id, assigned_to");
 
@@ -1332,8 +1357,8 @@ async function startServer() {
     }
   });
 
-  // Proxy endpoints for comments and attachments to bypass RLS restrictions
-  app.post("/api/task_comments", verifyToken, async (req, res) => {
+  // Proxy endpoint for creating notifications to bypass RLS restrictions
+  app.post("/api/notifications", verifyToken, async (req, res) => {
     try {
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1342,14 +1367,48 @@ async function startServer() {
       }
 
       const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      
+      const payload = req.body;
+      const snakePayload = Object.fromEntries(
+        Object.entries(payload).map(([key, value]) => {
+          const snake = key.replace(
+            /[A-Z]/g,
+            (letter) => `_${letter.toLowerCase()}`,
+          );
+          return [snake, value];
+        }),
+      );
+
+      const { data, error } = await supabaseAdmin
+        .from("notifications")
+        .insert(snakePayload)
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("Insert notification proxy error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Proxy endpoints for comments and attachments to bypass RLS restrictions
+  app.post("/api/task_comments", verifyToken, async (req, res) => {
+    try {
       const { taskId, authorId, text, timestamp } = req.body;
 
       if (!taskId || !authorId || !text) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      const supabaseUser = getUserClient(req);
+
       // Check if team member exists and match the user's ID
-      const { data: member, error: memberError } = await supabaseAdmin
+      const { data: member, error: memberError } = await supabaseUser
         .from("team_members")
         .select("id")
         .eq("auth_user_id", (req as any).user.id)
@@ -1359,7 +1418,7 @@ async function startServer() {
         return res.status(403).json({ error: "Forbidden: Author mismatch" });
       }
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabaseUser
         .from("task_comments")
         .insert({
           task_id: taskId,
@@ -1383,17 +1442,11 @@ async function startServer() {
 
   app.delete("/api/task_comments/:id", verifyToken, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
       const commentId = req.params.id;
+      const supabaseUser = getUserClient(req);
 
       // Check if user is the author or admin
-      const { data: comment, error: commentError } = await supabaseAdmin
+      const { data: comment, error: commentError } = await supabaseUser
         .from("task_comments")
         .select("author_id")
         .eq("id", commentId)
@@ -1403,7 +1456,7 @@ async function startServer() {
         return res.status(404).json({ error: "Comment not found" });
       }
 
-      const { data: member, error: memberError } = await supabaseAdmin
+      const { data: member, error: memberError } = await supabaseUser
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", (req as any).user.id)
@@ -1420,7 +1473,7 @@ async function startServer() {
         return res.status(403).json({ error: "Forbidden: Not the author or admin" });
       }
 
-      const { error } = await supabaseAdmin
+      const { error } = await supabaseUser
         .from("task_comments")
         .delete()
         .eq("id", commentId);
@@ -1438,20 +1491,15 @@ async function startServer() {
 
   app.post("/api/task_attachments", verifyToken, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
       const { taskId, uploaderId, fileName, fileUrl, fileSize, mimeType, timestamp } = req.body;
 
       if (!taskId || !uploaderId || !fileName || !fileUrl) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const { data: member, error: memberError } = await supabaseAdmin
+      const supabaseUser = getUserClient(req);
+
+      const { data: member, error: memberError } = await supabaseUser
         .from("team_members")
         .select("id")
         .eq("auth_user_id", (req as any).user.id)
@@ -1461,7 +1509,7 @@ async function startServer() {
         return res.status(403).json({ error: "Forbidden: Uploader mismatch" });
       }
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabaseUser
         .from("task_attachments")
         .insert({
           task_id: taskId,
@@ -1488,16 +1536,10 @@ async function startServer() {
 
   app.delete("/api/task_attachments/:id", verifyToken, async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(500).json({ error: "Missing config" });
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
       const attachmentId = req.params.id;
+      const supabaseUser = getUserClient(req);
 
-      const { data: attachment, error: attachmentError } = await supabaseAdmin
+      const { data: attachment, error: attachmentError } = await supabaseUser
         .from("task_attachments")
         .select("uploader_id")
         .eq("id", attachmentId)
@@ -1507,7 +1549,7 @@ async function startServer() {
         return res.status(404).json({ error: "Attachment not found" });
       }
 
-      const { data: member, error: memberError } = await supabaseAdmin
+      const { data: member, error: memberError } = await supabaseUser
         .from("team_members")
         .select("id, role_id, roles(name)")
         .eq("auth_user_id", (req as any).user.id)
@@ -1524,7 +1566,7 @@ async function startServer() {
         return res.status(403).json({ error: "Forbidden: Not the uploader or admin" });
       }
 
-      const { error } = await supabaseAdmin
+      const { error } = await supabaseUser
         .from("task_attachments")
         .delete()
         .eq("id", attachmentId);

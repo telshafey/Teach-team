@@ -24,7 +24,8 @@ async function run() {
     "./database/migrations/020_add_support_email.sql",
     "./database/migrations/027_secure_invites_policy.sql",
     "./database/migrations/028_clean_up_and_secure_invites.sql",
-    "./database/migrations/029_fix_rls_approvals.sql"
+    "./database/migrations/029_fix_rls_approvals.sql",
+    "./database/migrations/030_fix_select_rls.sql"
   ];
   
   for (const file of files) {

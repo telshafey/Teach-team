@@ -1,6 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Notification } from "../types";
-import * as api from "./apiService";
 
 export const createNotification = async (
   supabaseClient: SupabaseClient,
@@ -13,15 +12,25 @@ export const createNotification = async (
       read: false,
     };
 
-    // Use the generic api.insert which now correctly handles ID generation by the database
-    // and returns the created object. This removes the inconsistent bypass.
-    await api.insert<Notification>(
-      supabaseClient,
-      "notifications",
-      notificationPayload,
-    );
-  } catch (error: any) {
-    console.error("Failed to create notification:", error.message);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const token = session?.access_token;
+
+    const response = await fetch("/api/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(notificationPayload)
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.error || "Failed to create notification via backend proxy");
+    }
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to create notification:", errMsg);
     throw error;
   }
 };
