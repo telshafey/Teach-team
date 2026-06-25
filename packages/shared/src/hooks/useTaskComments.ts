@@ -81,12 +81,32 @@ export const useTaskComments = (
           body: JSON.stringify(newCommentData)
         });
 
-        if (!response.ok) {
-          const errJson = await response.json();
-          throw new Error(errJson.error || "Failed to add comment via API");
+        let responseText = "";
+        try {
+          responseText = await response.text();
+        } catch (readErr: any) {
+          throw new Error(`Failed to read response body: ${readErr.message}`);
         }
 
-        const resJson = await response.json();
+        if (!response.ok) {
+          let errMessage = "Failed to add comment via API";
+          try {
+            const errJson = JSON.parse(responseText);
+            errMessage = errJson.error || errMessage;
+          } catch (e) {
+            errMessage = responseText || errMessage;
+          }
+          throw new Error(errMessage);
+        }
+
+        let resJson;
+        try {
+          resJson = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Non-JSON response from /api/task_comments:", responseText);
+          throw new Error(`Response is not valid JSON: ${responseText.substring(0, 150)}`);
+        }
+
         const newComment = api.keysToCamel(resJson.data) as TaskComment;
 
         addToast("تم إضافة التعليق بنجاح.", "success");
@@ -122,9 +142,22 @@ export const useTaskComments = (
           headers: token ? { "Authorization": `Bearer ${token}` } : {}
         });
 
+        let responseText = "";
+        try {
+          responseText = await response.text();
+        } catch (readErr: any) {
+          throw new Error(`Failed to read response body: ${readErr.message}`);
+        }
+
         if (!response.ok) {
-          const errJson = await response.json();
-          throw new Error(errJson.error || "Failed to delete comment via API");
+          let errMessage = "Failed to delete comment via API";
+          try {
+            const errJson = JSON.parse(responseText);
+            errMessage = errJson.error || errMessage;
+          } catch (e) {
+            errMessage = responseText || errMessage;
+          }
+          throw new Error(errMessage);
         }
 
         addToast("تم حذف التعليق بنجاح.", "success");

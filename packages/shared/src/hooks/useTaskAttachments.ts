@@ -59,12 +59,32 @@ export const useTaskAttachments = (
           body: JSON.stringify(attachmentData)
         });
 
-        if (!response.ok) {
-          const errJson = await response.json();
-          throw new Error(errJson.error || "Failed to save attachment via API");
+        let responseText = "";
+        try {
+          responseText = await response.text();
+        } catch (readErr: any) {
+          throw new Error(`Failed to read response body: ${readErr.message}`);
         }
 
-        const resJson = await response.json();
+        if (!response.ok) {
+          let errMessage = "Failed to save attachment via API";
+          try {
+            const errJson = JSON.parse(responseText);
+            errMessage = errJson.error || errMessage;
+          } catch (e) {
+            errMessage = responseText || errMessage;
+          }
+          throw new Error(errMessage);
+        }
+
+        let resJson;
+        try {
+          resJson = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Non-JSON response from /api/task_attachments:", responseText);
+          throw new Error(`Response is not valid JSON: ${responseText.substring(0, 150)}`);
+        }
+
         const createdAttachment = api.keysToCamel(resJson.data) as TaskAttachment;
         return createdAttachment;
       } catch (e: any) {
@@ -87,9 +107,22 @@ export const useTaskAttachments = (
           headers: token ? { "Authorization": `Bearer ${token}` } : {}
         });
 
+        let responseText = "";
+        try {
+          responseText = await response.text();
+        } catch (readErr: any) {
+          throw new Error(`Failed to read response body: ${readErr.message}`);
+        }
+
         if (!response.ok) {
-          const errJson = await response.json();
-          throw new Error(errJson.error || "Failed to delete attachment via API");
+          let errMessage = "Failed to delete attachment via API";
+          try {
+            const errJson = JSON.parse(responseText);
+            errMessage = errJson.error || errMessage;
+          } catch (e) {
+            errMessage = responseText || errMessage;
+          }
+          throw new Error(errMessage);
         }
 
         addToast("تم حذف المرفق بنجاح.", "success");
