@@ -25,4 +25,4 @@ CREATE POLICY "audit_logs_select_admin" ON public.audit_logs
   FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY "audit_logs_insert_system" ON public.audit_logs
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated WITH CHECK (public.is_admin());
